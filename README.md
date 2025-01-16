@@ -12,6 +12,7 @@ Finally, Chronicle will allow importing and exporting data and provide an option
 | -------------- | -------------- | ------------------- |
 | Rémi Gros-Jean | 300258238      | rgros044@uottawa.ca |
 | Madeline Orr | 300253324      | dorr029@uottawa.ca |
+| Jeremy Dufour | 300231265 | jdufo070@uottawa.ca |
 
 ## Customer
 
