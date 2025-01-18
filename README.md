@@ -4,7 +4,7 @@ An application for managing everyday data into collections and then easily creat
 
 For example, someone could manage their bills, legal documents, groceries, family photos, and work hours, all in one place. Then, using beginner friendly tools, create a dashboard for bills spent per month, groceries count per week, photos and documents disk usage in gigabytes, and average work per day.
 
-Chronicle should be able to fit a wide range of use cases, all in one platform.
+Chronicle should cover a wide range of use cases, for work and personal life.
 
 Finally, Chronicle will allow importing and exporting data and provide an option for local and cloud storage.
 
