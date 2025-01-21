@@ -19,4 +19,4 @@ Finally, Chronicle will allow importing and exporting data and provide an option
 
 ## Customer
 
-The customer for this project is the open market.
+The customer is TBD until January 20.
