@@ -33,7 +33,6 @@ janelle.mcinnis@forces.gc.ca
 - Frontend
   - SvelteKit
   - Tailwind
-  - Skeleton
 
 
 ## Setup
