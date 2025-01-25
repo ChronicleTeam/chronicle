@@ -25,6 +25,17 @@ Defence Research and Development Canada (DRDC)
 
 janelle.mcinnis@forces.gc.ca
 
+## Technologies
+
+- Backend
+  - Axum
+  - Sqlx
+- Frontend
+  - SvelteKit
+  - Tailwind
+  - Skeleton
+
+
 ## Setup
 
 ```
