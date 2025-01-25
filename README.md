@@ -19,8 +19,11 @@ Finally, Chronicle will allow importing and exporting data and provide an option
 
 ## Customer
 
-The customer for this project is the open market.
+Janelle McInnis
 
+Defence Research and Development Canada (DRDC)
+
+janelle.mcinnis@forces.gc.ca
 
 ## Setup
 
@@ -49,4 +52,3 @@ npm install
 - svelte.svelte-vscode
 - rust-lang.rust-analyzer
 - evgeniypeshkov.syntax-highlighter
-
