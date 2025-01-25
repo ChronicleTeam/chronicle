@@ -20,3 +20,33 @@ Finally, Chronicle will allow importing and exporting data and provide an option
 ## Customer
 
 The customer for this project is the open market.
+
+
+## Setup
+
+```
+cargo --version
+cargo 1.84.0 (66221abde 2024-11-19)
+```
+
+```
+cargo new backend --bin
+```
+
+```
+node --version
+v22.10.0
+```
+
+```
+npm create skeleton-app@latest frontend
+cd frontend
+npm install
+```
+
+## VS Code extensions
+
+- svelte.svelte-vscode
+- rust-lang.rust-analyzer
+- evgeniypeshkov.syntax-highlighter
+
