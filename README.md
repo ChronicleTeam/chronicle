@@ -53,7 +53,7 @@ v22.10.0
 ```
 
 ```
-npm create skeleton-app@latest frontend
+npx sv create frontend
 cd frontend
 npm install
 ```
@@ -63,3 +63,5 @@ npm install
 - svelte.svelte-vscode
 - rust-lang.rust-analyzer
 - evgeniypeshkov.syntax-highlighter
+- bradlc.vscode-tailwindcss
+
