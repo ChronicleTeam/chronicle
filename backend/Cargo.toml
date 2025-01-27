@@ -17,5 +17,6 @@ sqlx = { version = "0.8", features = [
   "postgres",
   "uuid",
   "time",
+  "migrate",
 ] }
 clap = { version = "4.5", features = ["derive", "env"] }

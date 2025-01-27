@@ -1,14 +1,14 @@
-use anyhow::Error;
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use chronicle::config::Config;
 use clap::Parser;
 use serde::Serialize;
 use sqlx::{
-    postgres::{PgConnectOptions, PgPoolOptions},
-    PgPool,
+    migrate::Migrator, postgres::{PgConnectOptions, PgPoolOptions}, PgPool
 };
 use std::{net::SocketAddr, time::Duration};
 use tokio::net::TcpListener;
+
+static MIGRATOR: Migrator = sqlx::migrate!(); // Points to the migrations folder
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -27,6 +27,8 @@ async fn main() -> anyhow::Result<()> {
                 .password(&config.database_password),
         )
         .await?;
+
+    MIGRATOR.run(&db).await?;
 
     let app = Router::new()
         .route("/", get(root_handler))
