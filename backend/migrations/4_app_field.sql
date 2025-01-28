@@ -94,3 +94,29 @@ CREATE TABLE app_field_checkbox (
     default_value BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (app_field_id)
 );
+
+CREATE TABLE app_field_creation_date (
+    app_field_id INT REFERENCES app_field(app_field_id),
+    date_time_format TEXT,
+    PRIMARY KEY (app_field_id)
+);
+
+
+CREATE TABLE app_field_modification_date (
+    app_field_id INT REFERENCES app_field(app_field_id),
+    date_time_format TEXT,
+    PRIMARY KEY (app_field_id)
+);
+
+CREATE TABLE app_field_image (
+    app_field_id INT REFERENCES app_field(app_field_id),
+    is_required BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (app_field_id)
+);
+
+CREATE TABLE app_field_file (
+    app_field_id INT REFERENCES app_field(app_field_id),
+    is_required BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (app_field_id)
+);
+
