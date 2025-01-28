@@ -3,15 +3,32 @@ use chronicle::config::Config;
 use clap::Parser;
 use serde::Serialize;
 use sqlx::{
-    migrate::Migrator, postgres::{PgConnectOptions, PgPoolOptions}, PgPool
+    migrate::Migrator,
+    postgres::{PgConnectOptions, PgPoolOptions},
+    PgPool,
 };
 use std::{net::SocketAddr, time::Duration};
 use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // Points to the migrations folder
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                format!(
+                    "{}=debug,tower_http=debug,axum::rejection=trace",
+                    env!("CARGO_CRATE_NAME")
+                )
+                .into()
+            }),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     dotenvy::dotenv().ok();
 
     let config = Config::parse();
@@ -34,6 +51,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(root_handler))
         .route("/api/hello", get(api_handler))
         .route("/test-db", get(test_db))
+        .layer(TraceLayer::new_for_http())
         .with_state(db);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
