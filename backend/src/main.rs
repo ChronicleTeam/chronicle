@@ -1,5 +1,5 @@
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
-use chronicle::config::Config;
+use chronicle::{config::Config, http};
 use clap::Parser;
 use serde::Serialize;
 use sqlx::{
@@ -47,20 +47,9 @@ async fn main() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    let app = Router::new()
-        .route("/", get(root_handler))
-        .route("/api/hello", get(api_handler))
-        .route("/test-db", get(test_db))
-        .layer(TraceLayer::new_for_http())
-        .with_state(db);
+    
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = TcpListener::bind(addr).await?;
-    println!("Backend running on http://{}", addr);
-
-    axum::serve(listener, app).await?;
-
-    Ok(())
+    http::serve(config, db)
 }
 
 async fn root_handler() -> &'static str {
