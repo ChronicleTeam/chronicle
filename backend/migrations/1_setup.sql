@@ -23,4 +23,4 @@ BEGIN
 end;
 $$ language plpgsql;
 
-CREATE COLLATION case_insensitive (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
+CREATE COLLATION case_insensitive (PROVIDER = icu, LOCALE = 'und-u-ks-level2', DETERMINISTIC = FALSE);
