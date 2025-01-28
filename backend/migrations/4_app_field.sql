@@ -12,12 +12,12 @@ CREATE TYPE app_field_enum AS ENUM(
     'ModificationDate',
     'Image',
     'File',
-    'AppTable',
+    'AppTable'
 );
 
 CREATE TABLE app_field (
     app_field_id SERIAL PRIMARY KEY,
-    app_table_id INT NOT NULL REFERENCES app_table(app_table_id),
+    app_table_id INT NOT NULL REFERENCES app_table(app_table_id)
 );
 
 CREATE TABLE app_field_text (

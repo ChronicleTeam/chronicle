@@ -27,4 +27,4 @@ CREATE TRIGGER trigger_real_table_name
 BEFORE INSERT OR UPDATE ON app_table
 FOR EACH ROW
 WHEN (NEW.real_table_name IS NULL OR NEW.field_table_name IS NULL)
-EXECUTE FUNCTION set_table_name();
+EXECUTE FUNCTION set_real_table_name();
