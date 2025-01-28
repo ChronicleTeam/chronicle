@@ -1,5 +1,5 @@
 CREATE TABLE app_user (
-    app_user_id SERIAL PRIMARY KEY,
+    user_id SERIAL PRIMARY KEY,
     username TEXT COLLATE case_insensitive UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
