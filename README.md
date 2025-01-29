@@ -37,24 +37,33 @@ janelle.mcinnis@forces.gc.ca
 
 ## Setup
 
-```
-cargo --version
-cargo 1.84.0 (66221abde 2024-11-19)
-```
+### Install rust:
+
+https://www.rust-lang.org/tools/install
+
+
+### Install nodejs
+
+https://nodejs.org/en/download
+
+### Run database
 
 ```
-cargo new backend --bin
+docker compose up
 ```
 
-```
-node --version
-v22.10.0
-```
+### Run backend
 
 ```
-npx sv create frontend
+cd backend
+cargo run
+```
+
+### Run frontend
+
+```
 cd frontend
-npm install
+npm run dev
 ```
 
 ## VS Code extensions
