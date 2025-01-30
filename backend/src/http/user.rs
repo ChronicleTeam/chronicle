@@ -22,10 +22,10 @@ async fn root_handler() -> &'static str {
 }
 
 async fn test_db(
-    State(AppState { db, .. }): State<AppState>,
+    State(AppState { pool, .. }): State<AppState>,
 ) -> Result<String, (StatusCode, String)> {
     sqlx::query_scalar("SELECT 'hello world from pg'")
-        .fetch_one(&db)
+        .fetch_one(&pool)
         .await
         .map_err(internal_error)
 }

@@ -14,13 +14,13 @@ use tracing::info;
 #[derive(Clone)]
 pub(crate) struct AppState {
     config: Arc<Config>,
-    db: PgPool,
+    pool: PgPool,
 }
 
-pub async fn serve(config: Config, db: PgPool) -> Result<(), std::io::Error> {
+pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
     let app_state = AppState {
         config: Arc::new(config),
-        db,
+        pool,
     };
 
     let app = Router::new()
