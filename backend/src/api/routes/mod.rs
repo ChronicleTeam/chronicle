@@ -1,3 +1,4 @@
+mod table;
 mod user;
 
 use crate::config::Config;
@@ -12,19 +13,22 @@ use tower_http::{
 use tracing::info;
 
 #[derive(Clone)]
-pub(crate) struct AppState {
+pub(crate) struct ApiState {
     config: Arc<Config>,
     pool: PgPool,
 }
 
 pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
-    let app_state = AppState {
+    let app_state = ApiState {
         config: Arc::new(config),
         pool,
     };
 
     let app = Router::new()
-        .merge(user::router())
+        .nest(
+            "/api",
+            Router::new().merge(user::router()).merge(table::router()),
+        )
         // Enables logging. Use `RUST_LOG=tower_http=debug`
         .layer((
             // SetSensitiveHeadersLayer::new([AUTHORIZATION]),

@@ -4,17 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1"
+# Web framework
 axum = "0.8"
-tokio = { version = "1", features = ["full"] }
-tower = "0.5"
-tower-http = { version = "0.6", features = [
-  "catch-panic",
-  "compression-full",
-  "sensitive-headers",
-  "timeout",
-  "trace",
-] }
+axum-macros = "0.5"
+
+# Async runtime
+tokio = { version = "1.43", features = ["full"] }
+
+# Database client
 sqlx = { version = "0.8", features = [
   "runtime-tokio",
   "tls-native-tls",
@@ -23,10 +20,32 @@ sqlx = { version = "0.8", features = [
   "chrono",
   "migrate",
 ] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
-dotenvy = "0.15"
+
+# Axum builds on Tower types
+tower = "0.5"
+tower-http = { version = "0.6", features = [
+  "catch-panic",
+  "compression-full",
+  "sensitive-headers",
+  "timeout",
+  "trace",
+] }
+
+# Configuration
 clap = { version = "4.5", features = ["derive", "env"] }
+dotenvy = "0.15"
+
+# Sqlx depedency for Timestamptz
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Serialization/Deserialization of types
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -6,9 +6,9 @@ use axum::{
 };
 use serde::Serialize;
 
-use super::AppState;
+use super::ApiState;
 
-pub(crate) fn router() -> Router<AppState> {
+pub(crate) fn router() -> Router<ApiState> {
     // By having each module responsible for setting up its own routing,
     // it makes the root module a lot cleaner.
     Router::new()
@@ -22,7 +22,7 @@ async fn root_handler() -> &'static str {
 }
 
 async fn test_db(
-    State(AppState { pool, .. }): State<AppState>,
+    State(ApiState { pool, .. }): State<ApiState>,
 ) -> Result<String, (StatusCode, String)> {
     sqlx::query_scalar("SELECT 'hello world from pg'")
         .fetch_one(&pool)
