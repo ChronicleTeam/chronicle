@@ -1,5 +1,6 @@
 mod tables;
 mod user;
+mod field;
 
 use crate::config::Config;
 use axum::Router;

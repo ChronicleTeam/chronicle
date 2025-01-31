@@ -19,6 +19,7 @@ sqlx = { version = "0.8", features = [
   "uuid",
   "chrono",
   "migrate",
+  "rust_decimal",
 ] }
 
 # Axum builds on Tower types
@@ -35,8 +36,9 @@ tower-http = { version = "0.6", features = [
 clap = { version = "4.5", features = ["derive", "env"] }
 dotenvy = "0.15"
 
-# Sqlx depedency for Timestamptz
+# Add serde feature to sqlx types
 chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1.36", features = ["serde"]}
 
 # Error handling
 anyhow = "1.0"

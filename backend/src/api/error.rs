@@ -102,7 +102,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-pub trait OnContraint<T> {
+pub trait OnConstraint<T> {
     fn on_constraint(
         self,
         name: &str,
@@ -110,7 +110,7 @@ pub trait OnContraint<T> {
     ) -> Result<T, ApiError>;
 }
 
-impl<T, E> OnContraint<T> for Result<T, E>
+impl<T, E> OnConstraint<T> for Result<T, E>
 where
     E: Into<ApiError>,
 {

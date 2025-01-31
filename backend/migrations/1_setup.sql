@@ -24,3 +24,5 @@ end;
 $$ language plpgsql;
 
 CREATE COLLATION case_insensitive (PROVIDER = icu, LOCALE = 'und-u-ks-level2', DETERMINISTIC = FALSE);
+
+CREATE DOMAIN numeric_money AS NUMERIC(15, 4);
