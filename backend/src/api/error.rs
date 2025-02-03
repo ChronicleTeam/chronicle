@@ -9,7 +9,7 @@ use axum::{
 use sqlx::error::DatabaseError;
 use std::{borrow::Cow, collections::HashMap};
 
-pub type ApiResult<T, E = ApiError> = std::result::Result<T, E>;
+pub type ApiResult<T> = std::result::Result<T, ApiError>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {

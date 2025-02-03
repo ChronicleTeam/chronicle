@@ -1,6 +1,6 @@
+mod field;
 mod tables;
 mod user;
-mod field;
 
 use crate::config::Config;
 use axum::Router;
@@ -28,7 +28,10 @@ pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
     let app = Router::new()
         .nest(
             "/api",
-            Router::new().merge(user::router()).merge(tables::router()),
+            Router::new()
+                .merge(user::router())
+                .merge(tables::router())
+                .merge(field::router()),
         )
         // Enables logging. Use `RUST_LOG=tower_http=debug`
         .layer((
