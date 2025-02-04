@@ -1,4 +1,4 @@
-use chronicle::{config::Config, api};
+use chronicle::{config::Config, routes};
 use clap::Parser;
 use sqlx::{
     migrate::Migrator,
@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    api::routes::serve(config, db).await?;
+    routes::serve(config, db).await?;
 
     Ok(())
 }

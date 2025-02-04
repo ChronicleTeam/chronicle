@@ -25,6 +25,8 @@ pub enum ApiError {
     #[error("request path not found")]
     NotFound,
 
+
+    /// Return `422 Unprocessable Entity`
     #[error("error in the request body")]
     UnprocessableEntity(HashMap<Cow<'static, str>, Cow<'static, str>>),
 

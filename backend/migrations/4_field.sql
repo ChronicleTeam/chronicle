@@ -1,7 +1,8 @@
 CREATE TABLE table_field (
     field_id SERIAL PRIMARY KEY,
     table_id INT NOT NULL REFERENCES table_metadata(table_id),
-    field_options JSONB NOT NULL,
+    name TEXT NOT NULL,
+    options JSONB NOT NULL,
     data_field_name TEXT,
     created_at TIMESTAMPTZTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZTZ

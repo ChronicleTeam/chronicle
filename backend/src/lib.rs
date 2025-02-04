@@ -1,7 +1,8 @@
 pub mod config;
-pub mod builder;
-pub mod api;
-
+pub mod routes;
+pub mod error;
+pub mod model;
+pub mod query;
 
 
 type Id = i32;
