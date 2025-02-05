@@ -1,3 +1,4 @@
+mod entries;
 mod fields;
 mod tables;
 mod users;

@@ -1,27 +1,17 @@
-use crate::{error::ApiResult, model::FieldOptions, query, Id};
-use anyhow::anyhow;
-use sqlx::{prelude::*, PgExecutor, Pool, Postgres, QueryBuilder, TransactionManager};
-
-#[derive(FromRow)]
-struct InsertField {
-    field_id: Id,
-    data_field_name: String,
-}
+use crate::{model::FieldOptions, query, Id};
+use sqlx::{Acquire, Postgres};
 
 pub async fn insert_field(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     name: String,
     options: FieldOptions,
-) -> ApiResult<Id> {
+) -> sqlx::Result<Id> {
     let mut transaction = connection.begin().await?;
 
-    let InsertField {
-        field_id,
-        data_field_name,
-    } = sqlx::query_as(
+    let (field_id, data_field_name): (Id, String) = sqlx::query_as(
         r#"
-            INSERT INTO table_field (table_id, name, options)
+            INSERT INTO meta_field (table_id, name, options)
             VALUES ($1, $2, $3)
             RETURNING field_id, data_field_name
         "#,
@@ -48,8 +38,8 @@ pub async fn insert_field(
             transaction.commit().await?;
             return Ok(field_id);
         }
-        FieldOptions::Image { .. } => Err(anyhow!("Not implemented"))?,
-        FieldOptions::File { .. } => Err(anyhow!("Not implemented"))?,
+        FieldOptions::Image { .. } => todo!("Not implemented"),
+        FieldOptions::File { .. } => todo!("Not implemented"),
     };
 
     let data_table_name = query::get_data_table_name(transaction.as_mut(), table_id).await?;

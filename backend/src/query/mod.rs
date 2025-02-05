@@ -1,5 +1,5 @@
+mod entries;
 mod fields;
 mod tables;
 
-use sqlx::{Acquire, Postgres};
-pub use {fields::*, tables::*};
+pub use {entries::*, fields::*, tables::*};

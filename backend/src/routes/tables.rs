@@ -1,17 +1,23 @@
 use super::ApiState;
 use crate::{
-    error::ApiResult,
-    model::{CreateTable, Table, TableId},
+    error::{ApiError, ApiResult, OnConstraint},
+    model::{CreateTable, Table, TableId, UpdateTable},
     query, Id,
 };
-use axum::{extract::State, routing::post, Json, Router};
+use axum::{
+    extract::{Path, State},
+    routing::{post, put},
+    Json, Router,
+};
 use axum_macros::debug_handler;
-use sqlx::{prelude::*, PgPool};
+use sqlx::{PgPool, Row};
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
         "/tables",
-        Router::new().route("/", post(create_table).get(get_all_tables)),
+        Router::new()
+            .route("/", post(create_table).get(get_user_tables))
+            .route("/{table_id}", put(update_table).delete(delete_table)),
     )
 }
 
@@ -23,22 +29,45 @@ async fn create_table(
     // TESTING
     let user_id = debug_get_user_id(&pool).await?;
 
-    let table_id =
-        query::insert_table(&pool, user_id, create_table.name, create_table.description).await?;
+    let table_id = query::create_table(&pool, user_id, create_table.name, create_table.description)
+        .await
+        .on_constraint("meta_table_user_id_name_key", |_| {
+            ApiError::unprocessable_entity([("table", "table name already used")])
+        })?;
 
     Ok(Json(TableId { table_id }))
 }
 
 // #[debug_handler]
-async fn get_all_tables(
+async fn get_user_tables(
     State(ApiState { pool, .. }): State<ApiState>,
 ) -> ApiResult<Json<Vec<Table>>> {
-    todo!("Not implemented")
+    // TESTING
+    let user_id = debug_get_user_id(&pool).await?;
+    let tables = query::get_user_tables(&pool, user_id).await?;
+    Ok(Json(tables))
+}
+
+async fn update_table(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+    Json(update_table): Json<UpdateTable>,
+) -> ApiResult<()> {
+    query::update_table(&pool, table_id, update_table.name, update_table.description).await?;
+    Ok(())
+}
+
+async fn delete_table(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<()> {
+    query::delete_table(&pool, table_id).await?;
+    Ok(())
 }
 
 async fn debug_get_user_id(pool: &PgPool) -> Result<Id, sqlx::Error> {
-    Ok(sqlx::query("SELECT user_id FROM app_user LIMIT 1;")
+    let (user_id,): (Id,) = sqlx::query_as("SELECT user_id FROM app_user LIMIT 1;")
         .fetch_one(pool)
-        .await?
-        .get("user_id"))
+        .await?;
+    Ok(user_id)
 }

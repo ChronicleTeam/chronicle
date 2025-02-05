@@ -1,4 +1,4 @@
-CREATE TABLE table_metadata (
+CREATE TABLE meta_table (
     table_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES app_user(user_id),
     name COLLATE case_insensitive TEXT NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE table_metadata (
     UNIQUE (user_id, name)
 );
 
-SELECT trigger_updated_at('table_metadata');
+SELECT trigger_updated_at('meta_table');
 
 CREATE SCHEMA user_table;
 

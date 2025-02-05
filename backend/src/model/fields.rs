@@ -9,9 +9,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize)]
-pub struct FieldId {
+pub struct Field {
     pub field_id: Id,
+    pub table_id: Id,
+    pub name: String,
+    pub options: FieldOptions,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
+
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -30,8 +36,8 @@ pub enum FieldOptions {
         range_start: Option<f64>,
         range_end: Option<f64>,
         scientific_notation: bool,
-        number_precision: Option<i32>,
-        number_scale: Option<i32>,
+        number_precision: Option<u32>,
+        number_scale: Option<u32>,
     },
     Money {
         is_required: bool,
@@ -62,8 +68,8 @@ pub enum FieldOptions {
     Checkbox,
     Enumeration {
         is_required: bool,
-        values: HashMap<i32, String>,
-        default_value: i32,
+        values: HashMap<u32, String>,
+        default_value: u32,
     },
     CreationDate {
         date_time_format: String,
@@ -79,11 +85,17 @@ pub enum FieldOptions {
     },
 }
 
+#[derive(Serialize)]
+pub struct FieldId {
+    pub field_id: Id,
+}
+
 #[derive(Deserialize)]
 pub struct CreateField {
     pub name: String,
     pub options: FieldOptions,
 }
+
 
 impl FieldOptions {
     pub fn validate(&self) -> ApiResult<()> {
@@ -99,21 +111,7 @@ impl FieldOptions {
                 number_precision,
                 number_scale,
                 ..
-            } => validate_range(*range_start, *range_end)
-                .and_then(|_| {
-                    if number_precision.map_or(true, |n| n >= 1) {
-                        Err(anyhow!("number_precision must be >= 1").into())
-                    } else {
-                        Ok(())
-                    }
-                })
-                .and_then(|_| {
-                    if number_scale.map_or(true, |n| n >= 0) {
-                        Err(anyhow!("number_scale must be >= 0").into())
-                    } else {
-                        Ok(())
-                    }
-                }),
+            } => validate_range(*range_start, *range_end),
             FieldOptions::Money {
                 range_start,
                 range_end,
@@ -122,7 +120,7 @@ impl FieldOptions {
             FieldOptions::DateTime {
                 range_start,
                 range_end,
-                date_time_format,
+                // date_time_format,
                 ..
             } => validate_range(*range_start, *range_end),
             FieldOptions::Interval { .. } => Ok(()),
@@ -137,8 +135,8 @@ impl FieldOptions {
                     Ok(())
                 }
             }
-            FieldOptions::CreationDate { date_time_format } => Ok(()),
-            FieldOptions::ModificationDate { date_time_format } => Ok(()),
+            // FieldOptions::CreationDate { date_time_format } => Ok(()),
+            // FieldOptions::ModificationDate { date_time_format } => Ok(()),
             _ => Ok(()),
         }
     }

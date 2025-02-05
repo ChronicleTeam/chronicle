@@ -1,4 +1,5 @@
-mod tables;
+mod entries;
 mod fields;
+mod tables;
 
-pub use {tables::*, fields::*};
+pub use {entries::*, fields::*, tables::*};
