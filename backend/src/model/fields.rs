@@ -6,18 +6,18 @@ use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use sqlx::{types::Json, FromRow};
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, FromRow)]
 pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
     pub name: String,
-    pub options: FieldOptions,
+    pub options: Json<FieldOptions>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -95,7 +95,6 @@ pub struct CreateField {
     pub name: String,
     pub options: FieldOptions,
 }
-
 
 impl FieldOptions {
     pub fn validate(&self) -> ApiResult<()> {
