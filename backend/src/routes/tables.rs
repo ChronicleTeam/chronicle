@@ -58,7 +58,7 @@ async fn update_table(
     // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
 
-    let table_user_id = db::get_table_user_id_lock(tx.as_mut(), table_id)
+    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
         .await?
         .ok_or(ApiError::NotFound)?;
 
@@ -86,7 +86,7 @@ async fn delete_table(
     // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
 
-    let table_user_id = db::get_table_user_id_lock(tx.as_mut(), table_id)
+    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
         .await?
         .ok_or(ApiError::NotFound)?;
 

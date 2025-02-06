@@ -1,22 +1,7 @@
 use crate::{model::Table, Id};
 use sqlx::{Acquire, PgExecutor, Postgres};
 
-pub async fn get_data_table_name(
-    executor: impl PgExecutor<'_>,
-    table_id: Id,
-) -> sqlx::Result<String> {
-    let (data_table_name,): (String,) = sqlx::query_as(
-        r#"
-            SELECT data_table_name
-            FROM meta_table
-            WHERE table_id = $1
-        "#,
-    )
-    .bind(table_id)
-    .fetch_one(executor)
-    .await?;
-    Ok(data_table_name)
-}
+
 
 pub async fn create_table(
     connection: impl Acquire<'_, Database = Postgres>,
@@ -44,6 +29,7 @@ pub async fn create_table(
     sqlx::query(&format!(
         r#"
             CREATE TABLE {data_table_name} (
+                entry_id SERIAL PRIMARY KEY,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ,
             )
@@ -129,6 +115,7 @@ pub async fn get_user_tables(
                 updated_at
             FROM meta_table
             WHERE user_id = $1
+            FOR UPDATE
         "#,
     )
     .bind(user_id)
@@ -136,7 +123,7 @@ pub async fn get_user_tables(
     .await?)
 }
 
-pub async fn get_table_user_id_lock(
+pub async fn get_table_user_id(
     executor: impl PgExecutor<'_>,
     table_id: Id,
 ) -> sqlx::Result<Option<Id>> {
@@ -152,4 +139,23 @@ pub async fn get_table_user_id_lock(
     .fetch_optional(executor)
     .await?
     .map(|x| x.0))
+}
+
+
+pub async fn get_data_table_name(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<String> {
+    let (data_table_name,): (String,) = sqlx::query_as(
+        r#"
+            SELECT data_table_name
+            FROM meta_table
+            WHERE table_id = $1
+            FOR UPDATE
+        "#,
+    )
+    .bind(table_id)
+    .fetch_one(executor)
+    .await?;
+    Ok(data_table_name)
 }

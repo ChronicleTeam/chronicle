@@ -91,7 +91,7 @@ async fn get_fields(
 ) -> ApiResult<Json<Vec<Field>>> {
     let mut tx = pool.begin().await?;
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    let table_user_id = db::get_table_user_id_lock(tx.as_mut(), table_id)
+    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
         .await?
         .ok_or(ApiError::NotFound)?;
     if table_user_id != user_id {
@@ -117,13 +117,13 @@ async fn delete_field(
 ) -> ApiResult<()> {
     let mut tx = pool.begin().await?;
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    let table_user_id = db::get_table_user_id_lock(tx.as_mut(), table_id)
+    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
         .await?
         .ok_or(ApiError::NotFound)?;
     if table_user_id != user_id {
         return Err(ApiError::Forbidden);
     }
-    _ = db::get_field_table_id_lock(tx.as_mut(), field_id)
+    _ = db::get_field_table_id(tx.as_mut(), field_id)
         .await?
         .filter(|field_table_id| *field_table_id == table_id)
         .ok_or(ApiError::NotFound)?;

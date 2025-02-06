@@ -11,24 +11,6 @@ pub struct FieldIdentifier {
     data_field_name: String,
 }
 
-pub async fn get_field_identifier(
-    executor: impl PgExecutor<'_>,
-    field_id: Id,
-) -> sqlx::Result<FieldIdentifier> {
-    Ok(sqlx::query_as(
-        r#"
-            SELECT data_table_name, data_field_name
-            FROM meta_table AS t
-            JOIN meta_field AS f
-            ON f.table_id = t.table_id
-            WHERE field_id = $1
-        "#,
-    )
-    .bind(field_id)
-    .fetch_one(executor)
-    .await?)
-}
-
 pub async fn create_field(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -131,6 +113,7 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
                 updated_at
             FROM meta_field
             WHERE table_id = $1
+            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -138,7 +121,7 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
     .await?)
 }
 
-pub async fn get_field_lock(
+pub async fn get_field(
     executor: impl PgExecutor<'_>,
     field_id: Id,
 ) -> sqlx::Result<Option<Field>> {
@@ -153,6 +136,7 @@ pub async fn get_field_lock(
                 updated_at
             FROM meta_field
             WHERE field_id = $1
+            FOR UPDATE
         "#,
     )
     .bind(field_id)
@@ -160,7 +144,7 @@ pub async fn get_field_lock(
     .await?)
 }
 
-pub async fn get_field_table_id_lock(
+pub async fn get_field_table_id(
     executor: impl PgExecutor<'_>,
     field_id: Id,
 ) -> sqlx::Result<Option<Id>> {
@@ -169,10 +153,31 @@ pub async fn get_field_table_id_lock(
             SELECT table_id
             FROM meta_field
             WHERE field_id = $1
+            FOR UPDATE
         "#,
     )
     .bind(field_id)
     .fetch_optional(executor)
     .await?
     .map(|x| x.0))
+}
+
+
+pub async fn get_field_identifier(
+    executor: impl PgExecutor<'_>,
+    field_id: Id,
+) -> sqlx::Result<FieldIdentifier> {
+    Ok(sqlx::query_as(
+        r#"
+            SELECT data_table_name, data_field_name
+            FROM meta_table AS t
+            JOIN meta_field AS f
+            ON f.table_id = t.table_id
+            WHERE field_id = $1
+            FOR UPDATE
+        "#,
+    )
+    .bind(field_id)
+    .fetch_one(executor)
+    .await?)
 }
