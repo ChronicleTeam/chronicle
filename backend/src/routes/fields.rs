@@ -1,7 +1,7 @@
 use super::ApiState;
 use crate::{
     db,
-    error::{ApiError, ApiResult, OnConstraint},
+    error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
     model::{CreateField, Field, FieldId, FieldOptions},
     Id,
 };
@@ -12,6 +12,9 @@ use axum::{
     Json, Router,
 };
 use axum_macros::debug_handler;
+
+const INVALID_RANGE: ErrorMessage = ErrorMessage::new_static("range", "Range start bound is greater than end bound");
+const FIELD_NAME_CONFLICT: ErrorMessage = ErrorMessage::new_static("name", "Field name already used for this table");
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -79,7 +82,7 @@ async fn create_field(
     let field_id = db::create_field(&pool, table_id, create_field.name, create_field.options)
         .await
         .on_constraint("meta_field_table_id_name_key", |_| {
-            ApiError::unprocessable_entity([("fields", "field name already used for this table")])
+            ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
         })?;
 
     Ok(Json(FieldId { field_id }))
@@ -144,9 +147,6 @@ where
     {
         Ok(())
     } else {
-        Err(ApiError::unprocessable_entity([(
-            "fields",
-            "range start bound is greater than end bound",
-        )]))
+        Err(ApiError::unprocessable_entity([INVALID_RANGE]))
     }
 }

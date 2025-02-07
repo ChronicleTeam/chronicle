@@ -11,6 +11,31 @@ use std::{borrow::Cow, collections::HashMap};
 
 pub type ApiResult<T> = std::result::Result<T, ApiError>;
 
+pub struct ErrorMessage {
+    pub key: Cow<'static, str>,
+    pub message: Cow<'static, str>,
+}
+
+impl ErrorMessage {
+    pub const fn new_static(key: &'static str, message: &'static str) -> Self {
+        ErrorMessage {
+            key: Cow::Borrowed(key),
+            message: Cow::Borrowed(message),
+        }
+    }
+
+    pub fn new<K, V>(key: K, message: V) -> Self
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        ErrorMessage {
+            key: key.into(),
+            message: message.into(),
+        }
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {
     // Return `401 Unauthorized`
@@ -39,13 +64,9 @@ pub enum ApiError {
 }
 
 impl ApiError {
-    pub fn unprocessable_entity<K, V>(errors: impl IntoIterator<Item = (K, V)>) -> Self
-    where
-        K: Into<Cow<'static, str>>,
-        V: Into<Cow<'static, str>>,
-    {
+    pub fn unprocessable_entity(errors: impl IntoIterator<Item = ErrorMessage>) -> Self {
         Self::UnprocessableEntity(HashMap::from_iter(
-            errors.into_iter().map(|(k, v)| (k.into(), v.into())),
+            errors.into_iter().map(|msg| (msg.key, msg.message)),
         ))
     }
 
@@ -64,11 +85,6 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response<Body> {
         match self {
             Self::UnprocessableEntity(errors) => {
-                // #[derive(serde::Serialize)]
-                // struct Errors {
-                //     errors: HashMap<Cow<'static, str>, Cow<'static, str>>,
-                // }
-
                 return (StatusCode::UNPROCESSABLE_ENTITY, Json(errors)).into_response();
             }
             Self::Unauthorized => {
@@ -84,14 +100,10 @@ impl IntoResponse for ApiError {
             }
 
             Self::Sqlx(ref e) => {
-                // TODO: we probably want to use `tracing` instead
-                // so that this gets linked to the HTTP request by `TraceLayer`.
                 tracing::error!("SQLx error: {:?}", e);
             }
 
             Self::Anyhow(ref e) => {
-                // TODO: we probably want to use `tracing` instead
-                // so that this gets linked to the HTTP request by `TraceLayer`.
                 tracing::error!("Generic error: {:?}", e);
             }
 

@@ -1,8 +1,9 @@
 use super::ApiState;
 use crate::{
-    error::{ApiError, ApiResult, OnConstraint},
+    db,
+    error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
     model::{CreateTable, Table, TableId, UpdateTable},
-    db, Id,
+    Id,
 };
 use axum::{
     extract::{Path, State},
@@ -10,6 +11,9 @@ use axum::{
     Json, Router,
 };
 use axum_macros::debug_handler;
+
+const TABLE_NAME_CONFLICT: ErrorMessage =
+    ErrorMessage::new_static("name", "Table name already used");
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -31,7 +35,7 @@ async fn create_table(
     let table_id = db::create_table(&pool, user_id, create_table.name, create_table.description)
         .await
         .on_constraint("meta_table_user_id_name_key", |_| {
-            ApiError::unprocessable_entity([("tables", "table name already used")])
+            ApiError::unprocessable_entity([TABLE_NAME_CONFLICT])
         })?;
 
     Ok(Json(TableId { table_id }))
@@ -99,4 +103,3 @@ async fn delete_table(
     tx.commit().await?;
     Ok(())
 }
-

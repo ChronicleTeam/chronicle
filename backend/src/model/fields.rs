@@ -1,8 +1,4 @@
-use crate::{
-    error::{ApiError, ApiResult},
-    Id,
-};
-use anyhow::anyhow;
+use crate::Id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -45,7 +41,7 @@ pub enum FieldOptions {
         range_end: Option<Decimal>,
     },
     Progress {
-        total_steps: i32,
+        total_steps: u32,
     },
     DateTime {
         is_required: bool,
@@ -94,66 +90,4 @@ pub struct FieldId {
 pub struct CreateField {
     pub name: String,
     pub options: FieldOptions,
-}
-
-impl FieldOptions {
-    pub fn validate(&self) -> ApiResult<()> {
-        match self {
-            FieldOptions::Integer {
-                range_start,
-                range_end,
-                ..
-            } => validate_range(*range_start, *range_end),
-            FieldOptions::Decimal {
-                range_start,
-                range_end,
-                number_precision,
-                number_scale,
-                ..
-            } => validate_range(*range_start, *range_end),
-            FieldOptions::Money {
-                range_start,
-                range_end,
-                ..
-            } => validate_range(*range_start, *range_end),
-            FieldOptions::DateTime {
-                range_start,
-                range_end,
-                // date_time_format,
-                ..
-            } => validate_range(*range_start, *range_end),
-            FieldOptions::Interval { .. } => Ok(()),
-            FieldOptions::Enumeration {
-                values,
-                default_value,
-                ..
-            } => {
-                if !values.contains_key(default_value) {
-                    Err(anyhow!("enumeration field default value does not map to a value").into())
-                } else {
-                    Ok(())
-                }
-            }
-            // FieldOptions::CreationDate { date_time_format } => Ok(()),
-            // FieldOptions::ModificationDate { date_time_format } => Ok(()),
-            _ => Ok(()),
-        }
-    }
-}
-
-fn validate_range<T>(range_start: Option<T>, range_end: Option<T>) -> ApiResult<()>
-where
-    T: PartialOrd,
-{
-    if range_start
-        .zip(range_end)
-        .map_or(true, |(start, end)| start <= end)
-    {
-        Ok(())
-    } else {
-        Err(ApiError::unprocessable_entity([(
-            "range",
-            "range start bound is greater than end bound",
-        )]))
-    }
 }
