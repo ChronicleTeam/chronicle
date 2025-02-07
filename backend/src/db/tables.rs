@@ -30,6 +30,7 @@ pub async fn create_table(
         r#"
             CREATE TABLE {data_table_name} (
                 entry_id SERIAL PRIMARY KEY,
+                is_valid BOOLEAN NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ,
             )
