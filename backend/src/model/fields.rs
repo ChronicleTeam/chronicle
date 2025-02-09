@@ -67,12 +67,12 @@ pub enum FieldOptions {
         values: HashMap<u32, String>,
         default_value: u32,
     },
-    CreationDate {
-        date_time_format: String,
-    },
-    ModificationDate {
-        date_time_format: String,
-    },
+    // CreationDate {
+    //     date_time_format: String,
+    // },
+    // ModificationDate {
+    //     date_time_format: String,
+    // },
     Image {
         is_required: bool,
     },

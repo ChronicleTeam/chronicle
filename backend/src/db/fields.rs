@@ -3,7 +3,8 @@ use crate::{
     model::{Field, FieldOptions},
     Id,
 };
-use sqlx::{Acquire, FromRow, PgExecutor, Postgres};
+use sqlx::{types::Json, Acquire, FromRow, PgExecutor, Postgres};
+use std::collections::HashMap;
 
 #[derive(FromRow)]
 pub struct FieldIdentifier {
@@ -44,10 +45,6 @@ pub async fn create_field(
         FieldOptions::Email { .. } => "COLLATE case_insensitive TEXT",
         FieldOptions::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
         FieldOptions::Enumeration { .. } => "INT",
-        FieldOptions::CreationDate { .. } | FieldOptions::ModificationDate { .. } => {
-            tx.commit().await?;
-            return Ok(field_id);
-        }
         FieldOptions::Image { .. } => todo!("Not implemented"),
         FieldOptions::File { .. } => todo!("Not implemented"),
     };
@@ -121,10 +118,7 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
     .await?)
 }
 
-pub async fn get_field(
-    executor: impl PgExecutor<'_>,
-    field_id: Id,
-) -> sqlx::Result<Option<Field>> {
+pub async fn get_field(executor: impl PgExecutor<'_>, field_id: Id) -> sqlx::Result<Option<Field>> {
     Ok(sqlx::query_as(
         r#"
             SELECT
@@ -162,7 +156,6 @@ pub async fn get_field_table_id(
     .map(|x| x.0))
 }
 
-
 pub async fn get_field_identifier(
     executor: impl PgExecutor<'_>,
     field_id: Id,
@@ -180,4 +173,43 @@ pub async fn get_field_identifier(
     .bind(field_id)
     .fetch_one(executor)
     .await?)
+}
+
+pub async fn get_fields_options(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<HashMap<Id, FieldOptions>> {
+    Ok(sqlx::query_as::<_, (Id, Json<FieldOptions>)>(
+        r#"
+            SELECT field_id, options
+            FROM meta_field
+            WHERE table_id = $1
+            FOR UPDATE
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await?
+    .into_iter()
+    .map(|(field_id, options)| (field_id, options.0))
+    .collect())
+}
+
+pub async fn get_data_field_names(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<HashMap<Id, String>> {
+    Ok(sqlx::query_as::<_, (Id, String)>(
+        r#"
+            SELECT field_id, data_field_name
+            FROM meta_field
+            WHERE table_id = $1
+            FOR UPDATE
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await?
+    .into_iter()
+    .collect())
 }

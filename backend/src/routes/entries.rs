@@ -1,8 +1,6 @@
 use super::ApiState;
 use crate::{
-    error::{ApiError, ApiResult, ErrorMessage},
-    model::{Cell, CreateEntry, EntryId, FieldOptions},
-    Id,
+    db, error::{ApiError, ApiResult, ErrorMessage}, model::{Cell, CreateEntry, EntryId, EntryTable, FieldOptions}, routes::validate_user_table, Id
 };
 use axum::{
     extract::{Path, State},
@@ -10,13 +8,13 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
-use serde::de::value;
 
 const IS_REQUIRED_MESSAGE: &str = "A value is required";
 const OUT_OF_RANGE_MESSAGE: &str = "Value is out of range";
 const PROGRESS_EXCEEDS_MESSAGE: &str = "Progress value exceeds total steps";
 const ENUMERATION_VALUE_MISSING_MESSAGE: &str = "Enumeration value is does not exist";
 const INVALID_TYPE_MESSAGE: &str = "Value is not the correct type";
+const INVALID_FIELD_ID_MESSAGE: &str = "Field ID key is invalid";
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -30,25 +28,52 @@ pub(crate) fn router() -> Router<ApiState> {
 async fn create_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
-    Json(CreateEntry(create_entry)): Json<CreateEntry>,
+    Json(CreateEntry(entry)): Json<CreateEntry>,
 ) -> ApiResult<Json<EntryId>> {
-    let tx = pool.begin().await?;
+    let mut tx = pool.begin().await?;
 
-    let error_messages = create_entry.iter().filter_map(|(field_id, cell)| {
-        Some(ErrorMessage::new(
-            field_id.to_string(),
-            validate_cell(cell, todo!())?,
-        ))
-    }).collect_vec();
+    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+
+    let fields_options = db::get_fields_options(tx.as_mut(), table_id).await?;
+    if fields_options.len() == 0 {
+        return Err(ApiError::NotFound);
+    }
+
+    let error_messages = entry
+        .iter()
+        .filter_map(|(field_id, cell)| {
+            let message = if let Some(field_options) = fields_options.get(field_id) {
+                validate_cell(cell, field_options)?
+            } else {
+                INVALID_FIELD_ID_MESSAGE
+            };
+            Some(ErrorMessage::new(field_id.to_string(), message))
+        })
+        .collect_vec();
+
     if error_messages.len() > 0 {
         return Err(ApiError::unprocessable_entity(error_messages));
     }
-    
 
-    todo!()
+    let entry_id = db::create_entry(tx.as_mut(), table_id, entry).await?;
+
+    Ok(Json(EntryId { entry_id }))
 }
 
-async fn get_entries() {
+async fn get_entries(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<Json<EntryTable>> {
+    let mut tx = pool.begin().await?;
+
+    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+
+
+    
+
+
     todo!()
 }
 

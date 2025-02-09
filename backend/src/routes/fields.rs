@@ -1,4 +1,4 @@
-use super::ApiState;
+use super::{validate_user_table, ApiState};
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
@@ -11,7 +11,6 @@ use axum::{
     routing::{patch, post},
     Json, Router,
 };
-use axum_macros::debug_handler;
 
 const INVALID_RANGE: ErrorMessage = ErrorMessage::new_static("range", "Range start bound is greater than end bound");
 const FIELD_NAME_CONFLICT: ErrorMessage = ErrorMessage::new_static("name", "Field name already used for this table");
@@ -30,6 +29,11 @@ async fn create_field(
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<FieldId>> {
+    let mut tx = pool.begin().await?;
+
+    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+
     match &create_field.options {
         FieldOptions::Integer {
             range_start,
@@ -93,13 +97,10 @@ async fn get_fields(
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
     let mut tx = pool.begin().await?;
+
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    if table_user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+
     let fields = db::get_fields(tx.as_mut(), table_id).await?;
 
     tx.commit().await?;
@@ -119,13 +120,10 @@ async fn delete_field(
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let mut tx = pool.begin().await?;
+
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    if table_user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    
     _ = db::get_field_table_id(tx.as_mut(), field_id)
         .await?
         .filter(|field_table_id| *field_table_id == table_id)

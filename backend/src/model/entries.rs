@@ -1,12 +1,10 @@
-use std::collections::HashMap;
+use crate::Id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use crate::{
-    Id,
-};
+use std::collections::HashMap;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub enum Cell {
     Text(Option<String>),
     Integer(Option<i64>),
@@ -31,3 +29,10 @@ pub struct EntryId {
 // key: field_id
 #[derive(Deserialize)]
 pub struct CreateEntry(pub HashMap<Id, Cell>);
+
+
+#[derive(Serialize)]
+pub struct EntryTable {
+    fields: Vec<Id>,
+    entries: Vec<Vec<Cell>>
+}

@@ -3,9 +3,9 @@ mod fields;
 mod tables;
 mod users;
 
-use crate::config::Config;
+use crate::{config::Config, db, error::{ApiError, ApiResult}, Id};
 use axum::Router;
-use sqlx::PgPool;
+use sqlx::{PgExecutor, PgPool};
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tower_http::{
@@ -32,7 +32,8 @@ pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
             Router::new()
                 .merge(users::router())
                 .merge(tables::router())
-                .merge(fields::router()),
+                .merge(fields::router())
+                .merge(entries::router()),
         )
         // Enables logging. Use `RUST_LOG=tower_http=debug`
         .layer((
@@ -49,4 +50,16 @@ pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
     info!("Backend running on http://{}", addr);
 
     axum::serve(listener, app).await
+}
+
+pub async fn validate_user_table(executor: impl PgExecutor<'_>, user_id: Id, table_id: Id) -> ApiResult<()> {
+    let table_user_id = db::get_table_user_id(executor, table_id)
+        .await?
+        .ok_or(ApiError::NotFound)?;
+
+    if table_user_id != user_id {
+        return Err(ApiError::Forbidden);
+    }
+
+    Ok(())
 }

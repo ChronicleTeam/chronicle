@@ -1,4 +1,4 @@
-use super::ApiState;
+use super::{validate_user_table, ApiState};
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
@@ -62,13 +62,7 @@ async fn update_table(
     // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
 
-    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-
-    if table_user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
 
     let table = db::update_table(
         tx.as_mut(),
@@ -89,14 +83,8 @@ async fn delete_table(
     let mut tx = pool.begin().await?;
     // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-
-    let table_user_id = db::get_table_user_id(tx.as_mut(), table_id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-
-    if table_user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
+    
+    validate_user_table(tx.as_mut(), user_id, table_id).await?;
 
     db::delete_table(tx.as_mut(), table_id).await?;
 

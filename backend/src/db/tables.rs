@@ -147,7 +147,7 @@ pub async fn get_data_table_name(
     executor: impl PgExecutor<'_>,
     table_id: Id,
 ) -> sqlx::Result<String> {
-    let (data_table_name,): (String,) = sqlx::query_as(
+    Ok(sqlx::query_as::<_, (_,)>(
         r#"
             SELECT data_table_name
             FROM meta_table
@@ -157,6 +157,5 @@ pub async fn get_data_table_name(
     )
     .bind(table_id)
     .fetch_one(executor)
-    .await?;
-    Ok(data_table_name)
+    .await?.0)
 }
