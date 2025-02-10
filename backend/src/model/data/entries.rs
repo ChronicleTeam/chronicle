@@ -30,9 +30,3 @@ pub struct EntryId {
 #[derive(Deserialize)]
 pub struct CreateEntry(pub HashMap<Id, Cell>);
 
-
-#[derive(Serialize)]
-pub struct EntryTable {
-    fields: Vec<Id>,
-    entries: Vec<Vec<Cell>>
-}

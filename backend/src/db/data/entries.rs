@@ -1,8 +1,4 @@
-use crate::{
-    db,
-    model::{Cell, EntryTable},
-    Id,
-};
+use crate::{model::data::Cell, Id};
 use itertools::Itertools;
 use sqlx::{postgres::PgArguments, query::QueryAs, Acquire, Postgres};
 use std::collections::HashMap;
@@ -14,8 +10,31 @@ pub async fn create_entry(
 ) -> sqlx::Result<Id> {
     let mut tx = connection.begin().await?;
 
-    let data_table_name = db::get_data_table_name(tx.as_mut(), table_id).await?;
-    let data_field_names = db::get_data_field_names(tx.as_mut(), table_id).await?;
+    let (data_table_name,): (String,) = sqlx::query_as(
+        r#"
+            SELECT data_table_name
+            FROM meta_table
+            WHERE table_id = $1
+            FOR UPDATE
+        "#,
+    )
+    .bind(table_id)
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    let data_field_names: HashMap<_, _> = sqlx::query_as::<_, (Id, String)>(
+        r#"
+            SELECT field_id, data_field_name
+            FROM meta_field
+            WHERE table_id = $1
+            FOR UPDATE
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(tx.as_mut())
+    .await?
+    .into_iter()
+    .collect();
 
     let (data_field_names, cells): (Vec<_>, Vec<_>) = entry
         .into_iter()
@@ -43,19 +62,6 @@ pub async fn create_entry(
 
     tx.commit().await?;
     Ok(entry_id)
-}
-
-pub async fn get_entries(
-    connection: impl Acquire<'_, Database = Postgres>,
-    table_id: Id,
-) -> sqlx::Result<EntryTable> {
-
-    let mut tx = connection.begin().await?;
-
-    let data_table_name = db::get_data_table_name(tx.as_mut(), table_id).await?;
-
-
-    todo!()
 }
 
 fn bind_cell<'q, O>(

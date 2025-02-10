@@ -2,7 +2,7 @@ use super::{validate_user_table, ApiState};
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::{CreateTable, Table, TableId, UpdateTable},
+    model::data::{CreateTable, Table, TableId, UpdateTable},
     Id,
 };
 use axum::{
@@ -83,7 +83,7 @@ async fn delete_table(
     let mut tx = pool.begin().await?;
     // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    
+
     validate_user_table(tx.as_mut(), user_id, table_id).await?;
 
     db::delete_table(tx.as_mut(), table_id).await?;

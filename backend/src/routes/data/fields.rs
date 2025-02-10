@@ -2,7 +2,7 @@ use super::{validate_user_table, ApiState};
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::{CreateField, Field, FieldId, FieldOptions},
+    model::data::{CreateField, Field, FieldId, FieldOptions},
     Id,
 };
 use anyhow::anyhow;

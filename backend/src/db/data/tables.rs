@@ -1,4 +1,4 @@
-use crate::{model::Table, Id};
+use crate::{model::data::Table, Id};
 use sqlx::{Acquire, PgExecutor, Postgres};
 
 
@@ -143,19 +143,19 @@ pub async fn get_table_user_id(
 }
 
 
-pub async fn get_data_table_name(
-    executor: impl PgExecutor<'_>,
-    table_id: Id,
-) -> sqlx::Result<String> {
-    Ok(sqlx::query_as::<_, (_,)>(
-        r#"
-            SELECT data_table_name
-            FROM meta_table
-            WHERE table_id = $1
-            FOR UPDATE
-        "#,
-    )
-    .bind(table_id)
-    .fetch_one(executor)
-    .await?.0)
-}
+// pub async fn get_data_table_name(
+//     executor: impl PgExecutor<'_>,
+//     table_id: Id,
+// ) -> sqlx::Result<String> {
+//     Ok(sqlx::query_as::<_, (_,)>(
+//         r#"
+//             SELECT data_table_name
+//             FROM meta_table
+//             WHERE table_id = $1
+//             FOR UPDATE
+//         "#,
+//     )
+//     .bind(table_id)
+//     .fetch_one(executor)
+//     .await?.0)
+// }
