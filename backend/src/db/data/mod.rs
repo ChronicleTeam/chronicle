@@ -27,5 +27,7 @@ pub async fn get_data_table(
     .fetch_one(tx.as_mut())
     .await?;
 
+    let fields = get_fields_options(tx.as_mut(), table_id).await?;
+
     todo!()
 }

@@ -16,13 +16,11 @@ use axum::{
 };
 use sqlx::PgExecutor;
 
-use super::users;
-
 pub(crate) fn router() -> Router<ApiState> {
     Router::new()
         .merge(tables::router())
         .merge(fields::router())
-        .merge(users::router())
+        .merge(entries::router())
         .route("tables/{table_id}/data", get(get_data_table))
 }
 

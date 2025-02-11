@@ -23,7 +23,7 @@ pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
         "/tables/{table_id}/entries",
         Router::new()
-            .route("/", post(create_entry).get(get_entries))
+            .route("/", post(create_entry))
             .route("/{entry_id}", patch(update_entry).delete(delete_entry)),
     )
 }
@@ -64,17 +64,17 @@ async fn create_entry(
     Ok(Json(EntryId { entry_id }))
 }
 
-async fn get_entries(
-    State(ApiState { pool, .. }): State<ApiState>,
-    Path(table_id): Path<Id>,
-) -> ApiResult<Json<DataTable>> {
-    let mut tx = pool.begin().await?;
+// async fn get_entries(
+//     State(ApiState { pool, .. }): State<ApiState>,
+//     Path(table_id): Path<Id>,
+// ) -> ApiResult<Json<DataTable>> {
+//     let mut tx = pool.begin().await?;
 
-    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+//     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
+//     validate_user_table(tx.as_mut(), user_id, table_id).await?;
 
-    todo!()
-}
+//     todo!()
+// }
 
 async fn update_entry() {
     todo!()
