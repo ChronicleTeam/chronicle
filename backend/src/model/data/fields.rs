@@ -64,8 +64,8 @@ pub enum FieldOptions {
     Checkbox,
     Enumeration {
         is_required: bool,
-        values: HashMap<u32, String>,
-        default_value: u32,
+        values: HashMap<Id, String>,
+        default_value: Id,
     },
     // CreationDate {
     //     date_time_format: String,

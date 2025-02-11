@@ -7,6 +7,6 @@ pub use {entries::*, fields::*, tables::*};
 
 #[derive(Serialize)]
 pub struct DataTable {
-    fields: Vec<(Id, FieldOptions)>,
-    entries: Vec<(Id, Vec<Cell>)>,
+    pub fields: Vec<Field>,
+    pub entries: Vec<Entry>,
 }

@@ -1,8 +1,8 @@
-use super::{validate_user_table, ApiState};
+use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{Cell, CreateEntry, DataTable, EntryId, FieldOptions},
+    model::data::{Cell, CreateEntry, EntryId, FieldOptions},
     Id,
 };
 use axum::{
@@ -36,12 +36,13 @@ async fn create_entry(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
 
     let fields_options = db::get_fields_options(tx.as_mut(), table_id).await?;
-    if fields_options.len() == 0 {
-        return Err(ApiError::NotFound);
-    }
 
     let error_messages = entry
         .iter()
@@ -63,18 +64,6 @@ async fn create_entry(
 
     Ok(Json(EntryId { entry_id }))
 }
-
-// async fn get_entries(
-//     State(ApiState { pool, .. }): State<ApiState>,
-//     Path(table_id): Path<Id>,
-// ) -> ApiResult<Json<DataTable>> {
-//     let mut tx = pool.begin().await?;
-
-//     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-//     validate_user_table(tx.as_mut(), user_id, table_id).await?;
-
-//     todo!()
-// }
 
 async fn update_entry() {
     todo!()
@@ -119,7 +108,10 @@ fn validate_cell(cell: &Cell, field_options: &FieldOptions) -> Option<&'static s
         ) => check_required(value.as_ref(), *is_required)
             .or_else(|| check_range(value.as_ref(), range_start.as_ref(), range_end.as_ref())),
         (Cell::Progress(value), FieldOptions::Progress { total_steps }) => {
-            if value.map_or(false, |v| v > *total_steps) {
+            if value
+                .and_then(|v| v.try_into().ok())
+                .map_or(false, |v: u32| v > *total_steps)
+            {
                 Some(PROGRESS_EXCEEDS_MESSAGE)
             } else {
                 None

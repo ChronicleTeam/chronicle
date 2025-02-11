@@ -14,7 +14,6 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use sqlx::PgExecutor;
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new()
@@ -24,22 +23,6 @@ pub(crate) fn router() -> Router<ApiState> {
         .route("tables/{table_id}/data", get(get_data_table))
 }
 
-pub async fn validate_user_table(
-    executor: impl PgExecutor<'_>,
-    user_id: Id,
-    table_id: Id,
-) -> ApiResult<()> {
-    let table_user_id = db::data::get_table_user_id(executor, table_id)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-
-    if table_user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
-
-    Ok(())
-}
-
 async fn get_data_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -47,7 +30,13 @@ async fn get_data_table(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::Forbidden),
+    }
 
-    todo!()
+    let data_table = db::get_data_table(tx.as_mut(), table_id).await?;
+
+    Ok(Json(data_table))
 }

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    entry: HashMap<Id, Cell>,
+    mut entry: HashMap<Id, Cell>,
 ) -> sqlx::Result<Id> {
     let mut tx = connection.begin().await?;
 
@@ -22,7 +22,7 @@ pub async fn create_entry(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let data_field_names: HashMap<_, _> = sqlx::query_as::<_, (Id, String)>(
+    let data_field_names: HashMap<Id, String> = sqlx::query_as(
         r#"
             SELECT field_id, data_field_name
             FROM meta_field
@@ -36,9 +36,9 @@ pub async fn create_entry(
     .into_iter()
     .collect();
 
-    let (data_field_names, cells): (Vec<_>, Vec<_>) = entry
+    let (cells, data_field_names): (Vec<_>, Vec<_>) = data_field_names
         .into_iter()
-        .filter_map(|(field_id, cell)| data_field_names.get(&field_id).zip(Some(cell)))
+        .filter_map(|(field_id, identifier)| entry.remove(&field_id).zip(Some(identifier)))
         .unzip();
 
     let data_field_names = data_field_names.into_iter().join(", ");
@@ -63,6 +63,8 @@ pub async fn create_entry(
     tx.commit().await?;
     Ok(entry_id)
 }
+
+
 
 fn bind_cell<'q, O>(
     query: QueryAs<'q, Postgres, O, PgArguments>,

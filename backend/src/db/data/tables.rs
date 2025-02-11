@@ -1,7 +1,7 @@
 use crate::{model::data::Table, Id};
 use sqlx::{Acquire, PgExecutor, Postgres};
 
-
+use super::Relation;
 
 pub async fn create_table(
     connection: impl Acquire<'_, Database = Postgres>,
@@ -124,11 +124,12 @@ pub async fn get_user_tables(
     .await?)
 }
 
-pub async fn get_table_user_id(
+pub async fn check_table_ownership(
     executor: impl PgExecutor<'_>,
+    user_id: Id,
     table_id: Id,
-) -> sqlx::Result<Option<Id>> {
-    Ok(sqlx::query_as::<_, (_,)>(
+) -> sqlx::Result<Relation> {
+    Ok(sqlx::query_as::<_, (Id,)>(
         r#"
             SELECT user_id
             FROM meta_table
@@ -139,23 +140,11 @@ pub async fn get_table_user_id(
     .bind(table_id)
     .fetch_optional(executor)
     .await?
-    .map(|x| x.0))
+    .map_or(Relation::Absent, |x| {
+        if x.0 == user_id {
+            Relation::Owned
+        } else {
+            Relation::NotOwned
+        }
+    }))
 }
-
-
-// pub async fn get_data_table_name(
-//     executor: impl PgExecutor<'_>,
-//     table_id: Id,
-// ) -> sqlx::Result<String> {
-//     Ok(sqlx::query_as::<_, (_,)>(
-//         r#"
-//             SELECT data_table_name
-//             FROM meta_table
-//             WHERE table_id = $1
-//             FOR UPDATE
-//         "#,
-//     )
-//     .bind(table_id)
-//     .fetch_one(executor)
-//     .await?.0)
-// }

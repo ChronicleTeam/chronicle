@@ -1,4 +1,4 @@
-use super::{validate_user_table, ApiState};
+use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
@@ -12,8 +12,10 @@ use axum::{
     Json, Router,
 };
 
-const INVALID_RANGE: ErrorMessage = ErrorMessage::new_static("range", "Range start bound is greater than end bound");
-const FIELD_NAME_CONFLICT: ErrorMessage = ErrorMessage::new_static("name", "Field name already used for this table");
+const INVALID_RANGE: ErrorMessage =
+    ErrorMessage::new_static("range", "Range start bound is greater than end bound");
+const FIELD_NAME_CONFLICT: ErrorMessage =
+    ErrorMessage::new_static("name", "Field name already used for this table");
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -32,7 +34,11 @@ async fn create_field(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
 
     match &create_field.options {
         FieldOptions::Integer {
@@ -99,14 +105,17 @@ async fn get_fields(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
 
     let fields = db::get_fields(tx.as_mut(), table_id).await?;
 
     tx.commit().await?;
     Ok(Json(fields))
 }
-
 
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -122,12 +131,17 @@ async fn delete_field(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
-    
-    _ = db::get_field_table_id(tx.as_mut(), field_id)
-        .await?
-        .filter(|field_table_id| *field_table_id == table_id)
-        .ok_or(ApiError::NotFound)?;
+
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
+
+    match db::check_field_relation(tx.as_mut(), table_id, field_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned | db::Relation::Absent => return Err(ApiError::NotFound),
+    }
 
     db::delete_field(tx.as_mut(), field_id).await?;
 

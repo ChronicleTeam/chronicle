@@ -1,4 +1,4 @@
-use super::{validate_user_table, ApiState};
+use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
@@ -59,10 +59,13 @@ async fn update_table(
 ) -> ApiResult<Json<Table>> {
     let mut tx = pool.begin().await?;
 
-    // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
 
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
 
     let table = db::update_table(
         tx.as_mut(),
@@ -84,7 +87,11 @@ async fn delete_table(
     // TESTING
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
 
-    validate_user_table(tx.as_mut(), user_id, table_id).await?;
+    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
 
     db::delete_table(tx.as_mut(), table_id).await?;
 
