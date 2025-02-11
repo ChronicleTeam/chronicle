@@ -64,25 +64,19 @@ pub async fn create_entry(
     Ok(entry_id)
 }
 
-
-
 fn bind_cell<'q, O>(
     query: QueryAs<'q, Postgres, O, PgArguments>,
     cell: Cell,
 ) -> QueryAs<'q, Postgres, O, PgArguments> {
     match cell {
-        Cell::Text(v) => query.bind(v),
-        Cell::Integer(v) => query.bind(v),
-        Cell::Decimal(v) => query.bind(v),
-        Cell::Money(v) => query.bind(v),
-        Cell::Progress(v) => query.bind(v.map(|v| v as i32)),
+        Cell::Integer { i: v } => query.bind(v),
+        Cell::Float { f: v } => query.bind(v),
+        Cell::Decimal { d: v } => query.bind(v),
+        Cell::Boolean(v) => query.bind(v),
         Cell::DateTime(v) => query.bind(v),
-        Cell::Interval(v) => todo!(),
-        Cell::WebLink(v) => query.bind(v),
-        Cell::Email(v) => query.bind(v),
-        Cell::Checkbox(v) => query.bind(v),
-        Cell::Enumeration(v) => query.bind(v.map(|v| v as i32)),
-        Cell::Image(v) => todo!(),
-        Cell::File(v) => todo!(),
+        Cell::String(v) => query.bind(v),
+        Cell::Interval(_) => todo!(),
+        Cell::Image(_) => todo!(),
+        Cell::File(_) => todo!(),
     }
 }

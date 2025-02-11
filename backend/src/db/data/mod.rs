@@ -3,11 +3,11 @@ mod fields;
 mod tables;
 
 use crate::{
-    model::data::{Cell, DataTable, Entry, Field, FieldOptions},
+    model::data::{Cell, DataTable, Entry, Field, FieldOptions, Table},
     Id,
 };
 use itertools::Itertools;
-use sqlx::{postgres::PgRow, Acquire, PgExecutor, Postgres, Row};
+use sqlx::{postgres::PgRow, Acquire, FromRow, PgExecutor, Postgres, Row};
 pub use {entries::*, fields::*, tables::*};
 
 // All SELECT statements lock selected rows during the transaction.
@@ -19,16 +19,22 @@ pub enum Relation {
     Absent,
 }
 
-
 pub async fn get_data_table(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
 ) -> sqlx::Result<DataTable> {
     let mut tx = connection.begin().await?;
 
-    let (data_table_name,): (String,) = sqlx::query_as(
+    let row = sqlx::query(
         r#"
-            SELECT data_table_name
+            SELECT 
+                data_table_name
+                table_id,
+                user_id,
+                name,
+                description,
+                created_at,
+                updated_at
             FROM meta_table
             WHERE table_id = $1
             FOR UPDATE
@@ -37,6 +43,26 @@ pub async fn get_data_table(
     .bind(table_id)
     .fetch_one(tx.as_mut())
     .await?;
+
+    let data_table_name: String = row.get("data_table_name");
+    let table = Table::from_row(&row)?;
+
+    // let table: Table = sqlx::query_as(
+    //     r#"
+    //         SELECT
+    //             table_id,
+    //             user_id,
+    //             name,
+    //             description,
+    //             created_at,
+    //             updated_at
+    //         FROM meta_table
+    //         WHERE table_id = $1
+    //         FOR UPDATE
+    //     "#,
+    // )
+    // .fetch_one(tx.as_mut())
+    // .await?;
 
     let fields: Vec<Field> = sqlx::query_as(
         r#"
@@ -96,22 +122,30 @@ pub async fn get_data_table(
     })
     .collect::<sqlx::Result<Vec<_>>>()?;
 
-    Ok(DataTable { fields, entries })
+    Ok(DataTable {
+        table,
+        fields,
+        entries,
+    })
 }
 
 fn cell_from_row(row: &PgRow, index: &str, field_options: &FieldOptions) -> sqlx::Result<Cell> {
     Ok(match field_options {
-        FieldOptions::Text { .. } => Cell::Text(row.try_get(index)?),
-        FieldOptions::Integer { .. } => Cell::Integer(row.try_get(index)?),
-        FieldOptions::Decimal { .. } => Cell::Decimal(row.try_get(index)?),
-        FieldOptions::Money { .. } => Cell::Money(row.try_get(index)?),
-        FieldOptions::Progress { .. } => Cell::Progress(row.try_get(index)?),
+        FieldOptions::Text { .. } | FieldOptions::WebLink { .. } | FieldOptions::Email { .. } => {
+            Cell::String(row.try_get(index)?)
+        }
+        FieldOptions::Integer { .. } | FieldOptions::Progress { .. } | FieldOptions::Enumeration { .. } => Cell::Integer {
+            i: row.try_get(index)?,
+        },
+        FieldOptions::Decimal { .. } => Cell::Float {
+            f: row.try_get(index)?,
+        },
+        FieldOptions::Money { .. } => Cell::Decimal {
+            d: row.try_get(index)?,
+        },
         FieldOptions::DateTime { .. } => Cell::DateTime(row.try_get(index)?),
         FieldOptions::Interval { .. } => Cell::Interval(row.try_get(index)?),
-        FieldOptions::WebLink { .. } => Cell::WebLink(row.try_get(index)?),
-        FieldOptions::Email { .. } => Cell::Email(row.try_get(index)?),
-        FieldOptions::Checkbox => Cell::Checkbox(row.try_get(index)?),
-        FieldOptions::Enumeration { .. } => Cell::Decimal(row.try_get(index)?),
+        FieldOptions::Checkbox => Cell::Boolean(row.try_get(index)?),
         FieldOptions::Image { .. } => Cell::Image(row.try_get(index)?),
         FieldOptions::File { .. } => Cell::File(row.try_get(index)?),
     })

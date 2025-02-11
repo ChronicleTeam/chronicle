@@ -11,18 +11,15 @@ pub struct Entry {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Cell {
-    Text(Option<String>),
-    Integer(Option<i64>),
-    Decimal(Option<f64>),
-    Money(Option<Decimal>),
-    Progress(Option<i32>),
-    DateTime(Option<DateTime<Utc>>),
-    Interval(Option<()>),
-    WebLink(Option<String>),
-    Email(Option<String>),
-    Checkbox(bool),
-    Enumeration(Option<Id>),
+    Integer{i: i64},
+    Float{f: f64},
+    Decimal{d: Decimal},
+    Boolean(bool),
+    DateTime(DateTime<Utc>),
+    String(String),
+    Interval(()),
     Image(()),
     File(()),
 }
