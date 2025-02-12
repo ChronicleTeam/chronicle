@@ -1,4 +1,4 @@
-use chronicle::{config::Config, routes};
+use chronicle::{config::Config, routes, setup_tracing};
 use clap::Parser;
 use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
 use std::time::Duration;
@@ -8,18 +8,7 @@ static MIGRATOR: Migrator = sqlx::migrate!(); // Points to the migrations folder
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                format!(
-                    "{}=debug,tower_http=debug,axum::rejection=trace",
-                    env!("CARGO_CRATE_NAME")
-                )
-                .into()
-            }),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    setup_tracing();
 
     dotenvy::dotenv().ok();
 

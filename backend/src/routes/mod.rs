@@ -1,6 +1,9 @@
 mod data;
 mod users;
 
+#[cfg(test)]
+mod tests;
+
 use crate::config::Config;
 use anyhow::Result;
 use axum::Router;
@@ -14,18 +17,13 @@ use tower_http::{
 use tracing::info;
 
 #[derive(Clone)]
-pub(crate) struct ApiState {
+struct ApiState {
     config: Arc<Config>,
     pool: PgPool,
 }
 
-pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
-    let app_state = ApiState {
-        config: Arc::new(config),
-        pool,
-    };
-
-    let app = Router::new()
+fn create_app(api_state: ApiState) -> Router {
+    Router::new()
         .nest("/api", Router::new().merge(data::router()))
         // Enables logging. Use `RUST_LOG=tower_http=debug`
         .layer((
@@ -35,7 +33,16 @@ pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
             TimeoutLayer::new(Duration::from_secs(30)),
             CatchPanicLayer::new(),
         ))
-        .with_state(app_state);
+        .with_state(api_state)
+}
+
+pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
+    let api_state = ApiState {
+        config: Arc::new(config),
+        pool,
+    };
+
+    let app = create_app(api_state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = TcpListener::bind(addr).await?;

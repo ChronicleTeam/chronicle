@@ -83,7 +83,7 @@ pub async fn get_data_table(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let data_field_names: Vec<String> = sqlx::query_as::<_, (String,)>(
+    let data_field_names: Vec<String> = sqlx::query_scalar(
         r#"
             SELECT data_field_name
             FROM meta_field
@@ -94,10 +94,7 @@ pub async fn get_data_table(
     )
     .bind(table_id)
     .fetch_all(tx.as_mut())
-    .await?
-    .into_iter()
-    .map(|v| v.0)
-    .collect();
+    .await?;
 
     let data_field_parameters = data_field_names.iter().join(", ");
 

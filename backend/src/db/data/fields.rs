@@ -34,7 +34,7 @@ pub async fn create_field(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let (data_table_name,): (String,) = sqlx::query_as(
+    let data_table_name: String = sqlx::query_scalar(
         r#"
             SELECT data_table_name
             FROM meta_table
@@ -166,7 +166,7 @@ pub async fn check_field_relation(
     table_id: Id,
     field_id: Id,
 ) -> sqlx::Result<Relation> {
-    Ok(sqlx::query_as::<_, (Id,)>(
+    Ok(sqlx::query_scalar::<_, Id>(
         r#"
             SELECT table_id
             FROM meta_field
@@ -177,7 +177,7 @@ pub async fn check_field_relation(
     .bind(field_id)
     .fetch_optional(executor)
     .await?
-    .map_or(Relation::Absent, |x| if x.0 == table_id {
+    .map_or(Relation::Absent, |x| if x == table_id {
         Relation::Owned
     } else {
         Relation::NotOwned

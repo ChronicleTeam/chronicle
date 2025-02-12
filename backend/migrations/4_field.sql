@@ -1,3 +1,4 @@
+-- Active: 1738002585894@@127.0.0.1@5432@user
 CREATE TABLE meta_field (
     field_id SERIAL PRIMARY KEY,
     table_id INT NOT NULL REFERENCES meta_table(table_id) ON DELETE CASCADE,
@@ -14,11 +15,15 @@ SELECT trigger_updated_at('meta_field');
 CREATE OR REPLACE FUNCTION set_data_field_name()
 RETURNS TRIGGER AS
 $$
+DECLARE
+    field_count INTEGER;
 BEGIN
-    NEW.data_field_name := '_' ||
-        SELECT COUNT(*) + 1
-        FROM meta_field
-        WHERE table_id = NEW.table_id;
+    SELECT COUNT(*) + 1 INTO field_count
+    FROM meta_field
+    WHERE table_id = NEW.table_id;
+
+    NEW.data_field_name := '_' || field_count;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

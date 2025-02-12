@@ -2,6 +2,7 @@ mod entries;
 mod fields;
 mod tables;
 
+
 use crate::{
     db,
     error::{ApiError, ApiResult},
@@ -20,7 +21,7 @@ pub(crate) fn router() -> Router<ApiState> {
         .merge(tables::router())
         .merge(fields::router())
         .merge(entries::router())
-        .route("tables/{table_id}/data", get(get_data_table))
+        .route("/tables/{table_id}/data", get(get_data_table))
 }
 
 async fn get_data_table(
@@ -33,7 +34,7 @@ async fn get_data_table(
     match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
     }
 
     let data_table = db::get_data_table(tx.as_mut(), table_id).await?;

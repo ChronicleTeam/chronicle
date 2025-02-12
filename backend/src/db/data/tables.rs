@@ -32,7 +32,7 @@ pub async fn create_table(
                 entry_id SERIAL PRIMARY KEY,
                 is_valid BOOLEAN NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                updated_at TIMESTAMPTZ,
+                updated_at TIMESTAMPTZ
             )
         "#,
     ))
@@ -83,7 +83,7 @@ pub async fn delete_table(
 ) -> sqlx::Result<()> {
     let mut tx = connection.begin().await?;
 
-    let (data_table_name,): (String,) = sqlx::query_as(
+    let data_table_name: String = sqlx::query_scalar(
         r#"
             DELETE FROM meta_table
             WHERE table_id = $1
@@ -129,7 +129,7 @@ pub async fn check_table_ownership(
     user_id: Id,
     table_id: Id,
 ) -> sqlx::Result<Relation> {
-    Ok(sqlx::query_as::<_, (Id,)>(
+    Ok(sqlx::query_scalar::<_, Id>(
         r#"
             SELECT user_id
             FROM meta_table
@@ -141,7 +141,7 @@ pub async fn check_table_ownership(
     .fetch_optional(executor)
     .await?
     .map_or(Relation::Absent, |x| {
-        if x.0 == user_id {
+        if x == user_id {
             Relation::Owned
         } else {
             Relation::NotOwned

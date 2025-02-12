@@ -10,7 +10,7 @@ pub async fn create_entry(
 ) -> sqlx::Result<Id> {
     let mut tx = connection.begin().await?;
 
-    let (data_table_name,): (String,) = sqlx::query_as(
+    let data_table_name: String = sqlx::query_scalar(
         r#"
             SELECT data_table_name
             FROM meta_table
