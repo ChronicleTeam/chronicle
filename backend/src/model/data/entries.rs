@@ -2,6 +2,7 @@ use crate::Id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
@@ -13,9 +14,9 @@ pub struct Entry {
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Cell {
-    Integer{i: i64},
-    Float{f: f64},
-    Decimal{d: Decimal},
+    Integer(i64),
+    Float(f64),
+    Decimal(Decimal),
     Boolean(bool),
     DateTime(DateTime<Utc>),
     String(String),
@@ -31,4 +32,4 @@ pub struct EntryId {
 
 // key: field_id
 #[derive(Deserialize)]
-pub struct CreateEntry(pub HashMap<Id, Cell>);
+pub struct CreateEntry(pub HashMap<Id, Value>);

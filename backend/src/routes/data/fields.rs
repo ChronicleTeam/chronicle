@@ -40,54 +40,7 @@ async fn create_field(
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
 
-    match &create_field.options {
-        FieldOptions::Integer {
-            range_start,
-            range_end,
-            ..
-        } => validate_range(*range_start, *range_end),
-        FieldOptions::Decimal {
-            range_start,
-            range_end,
-            number_precision,
-            number_scale,
-            ..
-        } => validate_range(*range_start, *range_end),
-        FieldOptions::Money {
-            range_start,
-            range_end,
-            ..
-        } => validate_range(*range_start, *range_end),
-        FieldOptions::DateTime {
-            range_start,
-            range_end,
-            // date_time_format,
-            ..
-        } => validate_range(*range_start, *range_end),
-        FieldOptions::Interval { .. } => Ok(()),
-        FieldOptions::Enumeration {
-            values,
-            default_value,
-            ..
-        } => {
-            if !values.contains_key(&default_value) {
-                Err(anyhow!("enumeration field default value does not map to a value").into())
-            } else {
-                Ok(())
-            }
-        }
-        // FieldOptions::CreationDate { date_time_format } => Ok(()),
-        // FieldOptions::ModificationDate { date_time_format } => Ok(()),
-        _ => Ok(()),
-    }?;
-
-    if let FieldOptions::Decimal {
-        number_precision: Some(number_precision),
-        ..
-    } = &mut create_field.options
-    {
-        *number_precision = u32::max(*number_precision, 1)
-    }
+    validate_field_options(&mut create_field.options)?;
 
     let field_id = db::create_field(&pool, table_id, create_field.name, create_field.options)
         .await
@@ -146,6 +99,57 @@ async fn delete_field(
     db::delete_field(tx.as_mut(), field_id).await?;
 
     tx.commit().await?;
+    Ok(())
+}
+
+fn validate_field_options(options: &mut FieldOptions) -> ApiResult<()> {
+    match options {
+        FieldOptions::Integer {
+            range_start,
+            range_end,
+            ..
+        } => validate_range(*range_start, *range_end)?,
+        FieldOptions::Decimal {
+            range_start,
+            range_end,
+            number_precision,
+            number_scale,
+            ..
+        } => {
+            validate_range(*range_start, *range_end)?;
+            *number_precision = number_precision.map(|n| n.max(1));
+            *number_scale = number_scale.map(|n| n.max(0));
+        }
+        FieldOptions::Money {
+            range_start,
+            range_end,
+            ..
+        } => validate_range(*range_start, *range_end)?,
+        FieldOptions::Progress { total_steps } => {
+            *total_steps = (*total_steps).max(1);
+        }
+        FieldOptions::DateTime {
+            range_start,
+            range_end,
+            // date_time_format,
+            ..
+        } => validate_range(*range_start, *range_end)?,
+        FieldOptions::Interval { .. } => todo!(),
+        FieldOptions::Enumeration {
+            values,
+            default_value,
+            ..
+        } => {
+            if !values.contains_key(&default_value) {
+                return Err(
+                    anyhow!("enumeration field default value does not map to a value").into(),
+                );
+            }
+        }
+        // FieldOptions::CreationDate { date_time_format } => Ok(()),
+        // FieldOptions::ModificationDate { date_time_format } => Ok(()),
+        _ => {}
+    };
     Ok(())
 }
 

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    mut entry: HashMap<Id, Cell>,
+    mut entry: HashMap<Id, Option<Cell>>,
 ) -> sqlx::Result<Id> {
     let mut tx = connection.begin().await?;
 
@@ -66,17 +66,21 @@ pub async fn create_entry(
 
 fn bind_cell<'q, O>(
     query: QueryAs<'q, Postgres, O, PgArguments>,
-    cell: Cell,
+    cell: Option<Cell>,
 ) -> QueryAs<'q, Postgres, O, PgArguments> {
-    match cell {
-        Cell::Integer { i: v } => query.bind(v),
-        Cell::Float { f: v } => query.bind(v),
-        Cell::Decimal { d: v } => query.bind(v),
-        Cell::Boolean(v) => query.bind(v),
-        Cell::DateTime(v) => query.bind(v),
-        Cell::String(v) => query.bind(v),
-        Cell::Interval(_) => todo!(),
-        Cell::Image(_) => todo!(),
-        Cell::File(_) => todo!(),
+    if let Some(cell) = cell {
+        match cell {
+            Cell::Integer(v) => query.bind(v),
+            Cell::Float(v) => query.bind(v),
+            Cell::Decimal(v) => query.bind(v),
+            Cell::Boolean(v) => query.bind(v),
+            Cell::DateTime(v) => query.bind(v),
+            Cell::String(v) => query.bind(v),
+            Cell::Interval(_) => todo!(),
+            Cell::Image(_) => todo!(),
+            Cell::File(_) => todo!(),
+        }
+    } else {
+        query.bind::<Option<bool>>(None)
     }
 }

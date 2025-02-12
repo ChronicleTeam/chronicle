@@ -7,7 +7,7 @@ use crate::{
     Id,
 };
 use itertools::Itertools;
-use sqlx::{postgres::PgRow, Acquire, FromRow, PgExecutor, Postgres, Row};
+use sqlx::{postgres::PgRow, Acquire, FromRow, Postgres, Row};
 pub use {entries::*, fields::*, tables::*};
 
 // All SELECT statements lock selected rows during the transaction.
@@ -134,15 +134,11 @@ fn cell_from_row(row: &PgRow, index: &str, field_options: &FieldOptions) -> sqlx
         FieldOptions::Text { .. } | FieldOptions::WebLink { .. } | FieldOptions::Email { .. } => {
             Cell::String(row.try_get(index)?)
         }
-        FieldOptions::Integer { .. } | FieldOptions::Progress { .. } | FieldOptions::Enumeration { .. } => Cell::Integer {
-            i: row.try_get(index)?,
-        },
-        FieldOptions::Decimal { .. } => Cell::Float {
-            f: row.try_get(index)?,
-        },
-        FieldOptions::Money { .. } => Cell::Decimal {
-            d: row.try_get(index)?,
-        },
+        FieldOptions::Integer { .. }
+        | FieldOptions::Progress { .. }
+        | FieldOptions::Enumeration { .. } => Cell::Integer(row.try_get(index)?),
+        FieldOptions::Decimal { .. } => Cell::Float(row.try_get(index)?),
+        FieldOptions::Money { .. } => Cell::Decimal(row.try_get(index)?),
         FieldOptions::DateTime { .. } => Cell::DateTime(row.try_get(index)?),
         FieldOptions::Interval { .. } => Cell::Interval(row.try_get(index)?),
         FieldOptions::Checkbox => Cell::Boolean(row.try_get(index)?),

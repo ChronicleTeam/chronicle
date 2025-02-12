@@ -1,9 +1,6 @@
 use chronicle::{config::Config, routes};
 use clap::Parser;
-use sqlx::{
-    migrate::Migrator,
-    postgres::{PgConnectOptions, PgPoolOptions},
-};
+use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
 use std::time::Duration;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -26,23 +23,17 @@ async fn main() -> anyhow::Result<()> {
 
     dotenvy::dotenv().ok();
 
-    let config = Config::parse();
+    let config = Config::try_parse()?;
 
-    let db = PgPoolOptions::new()
+    let pool = PgPoolOptions::new()
         .max_connections(50)
         .acquire_timeout(Duration::from_secs(3))
-        .connect_with(
-            PgConnectOptions::new()
-                .host(&config.database_host)
-                .port(config.database_port)
-                .username(&config.database_user)
-                .password(&config.database_password),
-        )
+        .connect(&config.database_url)
         .await?;
 
-    MIGRATOR.run(&db).await?;
+    MIGRATOR.run(&pool).await?;
 
-    routes::serve(config, db).await?;
+    routes::serve(config, pool).await?;
 
     Ok(())
 }

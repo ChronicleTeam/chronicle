@@ -32,8 +32,8 @@ pub enum FieldOptions {
         range_start: Option<f64>,
         range_end: Option<f64>,
         scientific_notation: bool,
-        number_precision: Option<u32>,
-        number_scale: Option<u32>,
+        number_precision: Option<i64>,
+        number_scale: Option<i64>,
     },
     Money {
         is_required: bool,
@@ -41,7 +41,7 @@ pub enum FieldOptions {
         range_end: Option<Decimal>,
     },
     Progress {
-        total_steps: u32,
+        total_steps: i64,
     },
     DateTime {
         is_required: bool,
@@ -64,8 +64,8 @@ pub enum FieldOptions {
     Checkbox,
     Enumeration {
         is_required: bool,
-        values: HashMap<Id, String>,
-        default_value: Id,
+        values: HashMap<i64, String>,
+        default_value: i64,
     },
     // CreationDate {
     //     date_time_format: String,
