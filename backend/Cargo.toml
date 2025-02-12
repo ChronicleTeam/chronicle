@@ -55,3 +55,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Iterator utilities
 itertools = "0.14"
+
+[dev-dependencies]
+reqwest = "0.12"

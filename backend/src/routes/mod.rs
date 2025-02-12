@@ -2,6 +2,7 @@ mod data;
 mod users;
 
 use crate::config::Config;
+use anyhow::Result;
 use axum::Router;
 use sqlx::PgPool;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
@@ -18,7 +19,7 @@ pub(crate) struct ApiState {
     pool: PgPool,
 }
 
-pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
+pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
     let app_state = ApiState {
         config: Arc::new(config),
         pool,
@@ -40,5 +41,7 @@ pub async fn serve(config: Config, pool: PgPool) -> Result<(), std::io::Error> {
     let listener = TcpListener::bind(addr).await?;
     info!("Backend running on http://{}", addr);
 
-    axum::serve(listener, app).await
+    axum::serve(listener, app).await?;
+
+    Ok(addr)
 }
