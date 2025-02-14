@@ -13,7 +13,6 @@
   }
 
   let { data }: PageProps = $props();
-  $inspect(data);
 
   let curTable = $state(null as unknown as Table)
 </script>
@@ -44,7 +43,6 @@
         <button class="px-2 bg-red-400 hover:bg-red-500 transition duration-300 rounded-md">Delete</button>
       </div>
       <DataTable table_id={curTable.table_id}/>
-      <button>+ Add Row</button>
     {/if}
   </div>
 </div>
