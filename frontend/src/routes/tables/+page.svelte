@@ -42,7 +42,7 @@
         <button class="px-2 bg-white hover:bg-gray-100 transition duration-300 rounded-md">Edit</button>
         <button class="px-2 bg-red-400 hover:bg-red-500 transition duration-300 rounded-md">Delete</button>
       </div>
-      <DataTable table_id={curTable.table_id}/>
+      <DataTable table_prop={curTable}/>
     {/if}
   </div>
 </div>
