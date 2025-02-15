@@ -1,8 +1,13 @@
 <script lang="ts">
 import type { DataTable, Field, Entry,  Cell, Text, Money, Integer, Progress } from "$lib/types.d.js";
+
 let { table_prop } = $props();
 
-const table: DataTable = $state({
+const loadTable = async () => {
+  // fetch here
+  await new Promise(resolve => setTimeout(resolve, 2000))
+  // load table
+  table = {
   table: table_prop,
   fields: [
     {
@@ -27,6 +32,7 @@ const table: DataTable = $state({
       }
     },
     {
+
       name: "Progress",
       options: {type: "Progress"}
     }
@@ -50,7 +56,16 @@ const table: DataTable = $state({
       ]
     }
   ]
-});
+}
+};
+
+let table = $state({
+  table: table_prop,
+  fields: [],
+  entries: []
+} as DataTable);
+
+loadTable();
 
 let insertEntryMode = $state(false);
 let newEntry = $state(null as unknown as Entry);
@@ -74,13 +89,13 @@ const getNewEntry = (t: DataTable): Entry => {
   };
 };
 
-const insertEntry = () => {
+const insertEntry = (t: DataTable) => {
   insertEntryMode = true;
-  newEntry = getNewEntry(table)
+  newEntry = getNewEntry(t)
 };
 
-const saveEntry = () => {
-  table.entries.push(newEntry);
+const saveEntry = (t: { d: DataTable }) => {
+  t.d.entries.push(newEntry);
   cancelEntry();
 };
 
@@ -90,44 +105,50 @@ const cancelEntry = () => {
 };
 
 </script>
-{@debug table, newEntry}
 <div class="flex flex-col items-center justify-center">
-  <table class=" border border-gray-400 bg-white text-black ">
-    <thead>
-      <tr>
-      {#each table.fields as field}
-        <th class="bg-gray-200 p-1 border-2 border-gray-400">{field.name}</th>
-      {/each}
-      </tr>
-    </thead>
-    <tbody>
-      {#each table.entries as entry}
+  {#await loadTable()} 
+    <p>Loading Table...</p>
+  {:then _} 
+    {@debug table, newEntry}
+    <table class=" border border-gray-400 bg-white text-black ">
+      <thead>
         <tr>
-          {#each entry.cells as cell}
-            <td class="border-2 border-gray-400 bg-white p-1 ">{cell}</td>
-          {/each}
+        {#each table.fields as field}
+          <th class="bg-gray-200 p-1 border-2 border-gray-400">{field.name}</th>
+        {/each}
         </tr>
-      {/each}
-      {#if insertEntryMode}
-        <tr>
-          {#if newEntry === null}
-            <td>error</td>
-          {:else}
-            {#each newEntry.cells as _, i }
-              <td class="text-gray-500 border-2 border-gray-400 bg-white size-min">
-                <input bind:value={newEntry.cells[i]} class="border-none focus:outline-hidden outline-none size-full"/>
-              </td>
+      </thead>
+      <tbody>
+        {#each table.entries as entry}
+          <tr>
+            {#each entry.cells as cell}
+              <td class="border-2 border-gray-400 bg-white p-1 ">{cell}</td>
             {/each}
-          {/if}
-        </tr>
-      {/if}
-    </tbody>
-  </table> 
-  {#if insertEntryMode}
-    <button onclick={saveEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-white">Save</button>
-    <button onclick={cancelEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-red-400 ">Cancel</button>
-  {:else}
-    <button onclick={insertEntry} class="text-center w-full mt-1 hover:mt-0 py-1 hover:py-2 transition-size duration-300 border-2 border-dashed border-gray-400">+ Add Row</button>
-  {/if}
-
+          </tr>
+        {/each}
+        {#if insertEntryMode}
+          <tr>
+            {#if newEntry === null}
+              <td>error</td>
+            {:else}
+              {#each newEntry.cells as _, i }
+                <td class="text-gray-500 border-2 border-gray-400 bg-white size-min">
+                  <input bind:value={newEntry.cells[i]} class="border-none focus:outline-hidden outline-none size-full"/>
+                </td>
+              {/each}
+            {/if}
+          </tr>
+        {/if}
+      </tbody>
+    </table> 
+    {#if insertEntryMode}
+      <button onclick={() => {
+        table.entries = [...table.entries, newEntry];
+        cancelEntry();
+      }} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-white">Save</button>
+      <button onclick={cancelEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-red-400 ">Cancel</button>
+    {:else}
+      <button onclick={() => insertEntry(table)} class="text-center w-full mt-1 hover:mt-0 py-1 hover:py-2 transition-size duration-300 border-2 border-dashed border-gray-400">+ Add Row</button>
+    {/if}
+  {/await} 
 </div>
