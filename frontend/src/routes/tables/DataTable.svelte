@@ -70,9 +70,9 @@ loadTable();
 let insertEntryMode = $state(false);
 let newEntry = $state(null as unknown as Entry);
 
-const getNewEntry = (t: DataTable): Entry => {
+const getNewEntry = (): Entry => {
   return {
-    cells: t.fields.map((f: Field): Cell => {
+    cells: table.fields.map((f: Field): Cell => {
       switch(f.options.type){
         case "Text":
           return "" as Text;
@@ -89,13 +89,13 @@ const getNewEntry = (t: DataTable): Entry => {
   };
 };
 
-const insertEntry = (t: DataTable) => {
+const insertEntry = () => {
   insertEntryMode = true;
-  newEntry = getNewEntry(t)
+  newEntry = getNewEntry()
 };
 
-const saveEntry = (t: { d: DataTable }) => {
-  t.d.entries.push(newEntry);
+const saveEntry = () => {
+  table.entries.push(newEntry);
   cancelEntry();
 };
 
@@ -142,13 +142,10 @@ const cancelEntry = () => {
       </tbody>
     </table> 
     {#if insertEntryMode}
-      <button onclick={() => {
-        table.entries = [...table.entries, newEntry];
-        cancelEntry();
-      }} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-white">Save</button>
+      <button onclick={saveEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-white">Save</button>
       <button onclick={cancelEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-red-400 ">Cancel</button>
     {:else}
-      <button onclick={() => insertEntry(table)} class="text-center w-full mt-1 hover:mt-0 py-1 hover:py-2 transition-size duration-300 border-2 border-dashed border-gray-400">+ Add Row</button>
+      <button onclick={insertEntry} class="text-center w-full mt-1 hover:mt-0 py-1 hover:py-2 transition-size duration-300 border-2 border-dashed border-gray-400">+ Add Row</button>
     {/if}
   {/await} 
 </div>
