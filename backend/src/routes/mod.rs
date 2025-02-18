@@ -1,7 +1,7 @@
 mod data;
 mod users;
 
-// #[cfg(test)]
+#[cfg(test)]
 mod tests;
 
 use crate::config::Config;

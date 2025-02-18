@@ -2,7 +2,6 @@ mod entries;
 mod fields;
 mod tables;
 
-
 use crate::{
     db,
     error::{ApiError, ApiResult},

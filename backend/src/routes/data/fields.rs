@@ -11,6 +11,7 @@ use axum::{
     routing::{patch, post},
     Json, Router,
 };
+use tracing::debug;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
@@ -34,11 +35,14 @@ async fn create_field(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
+    debug!("db::debug_get_user_id");
     match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
+
+    debug!("db::check_table_ownership");
 
     validate_field_options(&mut create_field.options)?;
 
@@ -47,6 +51,8 @@ async fn create_field(
         .on_constraint("meta_field_table_id_name_key", |_| {
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
         })?;
+
+    debug!("db::create_field");
 
     Ok(Json(FieldId { field_id }))
 }

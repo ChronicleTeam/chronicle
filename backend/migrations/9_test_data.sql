@@ -4,7 +4,7 @@ INSERT INTO
 VALUES ('admin', 'password');
 
 
-INSERT INTO meta_field (table_id, name, options)
-VALUES (1, 'Test Field', '{"type": "text", "is_required": false}'::json)
-RETURNING field_id, data_field_name;
+-- INSERT INTO meta_field (table_id, name, options)
+-- VALUES (1, 'Test Field', '{"type": "text", "is_required": false}'::json)
+-- RETURNING field_id, data_field_name;
 

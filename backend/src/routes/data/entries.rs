@@ -80,7 +80,10 @@ async fn update_entry() {
 
 async fn delete_entry() {}
 
-fn json_value_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cell>, &'static str> {
+fn json_value_to_cell(
+    value: Value,
+    field_options: &FieldOptions,
+) -> Result<Option<Cell>, &'static str> {
     match (value, field_options) {
         (
             Value::Null,

@@ -15,7 +15,6 @@ pub async fn create_entry(
             SELECT data_table_name
             FROM meta_table
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -27,7 +26,6 @@ pub async fn create_entry(
             SELECT field_id, data_field_name
             FROM meta_field
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)

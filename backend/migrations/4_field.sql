@@ -34,10 +34,3 @@ BEFORE INSERT ON meta_field
 FOR EACH ROW
 WHEN (NEW.data_field_name IS NULL)
 EXECUTE FUNCTION set_data_field_name();
-
-CREATE TABLE field_enumeration (
-    enumeration_id SERIAL PRIMARY KEY,
-    field_id INT NOT NULL REFERENCES meta_field(field_id),
-    enumeration_value TEXT NOT NULL,
-    UNIQUE (field_id, enumeration_value)
-);
