@@ -26,10 +26,10 @@
 </script>
 
 
-<div class="flex gap-4 p-4 size-full">
+<div class="flex gap-4 p-4 size-full items-stretch">
 
   <!-- Sidebar -->
-  <div class="basis-1/3 bg-gray-200 rounded-lg p-3 size-full">
+  <div class="basis-1/3 bg-gray-200 rounded-lg p-3">
     <h2>Tables</h2>
     <div class="flex flex-col">
       {#await data.tables}
@@ -45,7 +45,7 @@
   </div>
 
   <!-- Main Editor -->
-  <div class="bg-gray-200 rounded-lg p-3 size-full flex flex-col items-center">
+  <div class="bg-gray-200 rounded-lg p-3 w-full flex flex-col items-center">
     {#if editMode === EditMode.NONE}
       <h2 class="text-lg font-bold">Select a Table</h2>
     {:else if editMode === EditMode.TABLE}
