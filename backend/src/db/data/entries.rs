@@ -1,7 +1,7 @@
 use crate::{model::data::Cell, Id};
 use itertools::Itertools;
 use sqlx::{postgres::PgArguments, query::QueryAs, Acquire, Postgres};
-use std::collections::HashMap;
+use std::{cell, collections::HashMap};
 
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
@@ -40,17 +40,17 @@ pub async fn create_entry(
         .unzip();
 
     let data_field_names = data_field_names.into_iter().join(", ");
-    let parameters = (1..cells.len() + 1).map(|i| format!("${i}")).join(", ");
+    let parameters = (2..=cells.len() + 1).map(|i| format!("${i}")).join(", ");
 
     let insert_query = format!(
         r#"
-            INSERT INTO {data_table_name} ({data_field_names})
-            VALUES ({parameters})
+            INSERT INTO {data_table_name} ({data_field_names}, is_valid)
+            VALUES ({parameters}, $1)
             RETURNING entry_id
-        "#
+        "#,
     );
 
-    let mut insert_query = sqlx::query_as(&insert_query);
+    let mut insert_query = sqlx::query_as(&insert_query).bind(true);
 
     for cell in cells {
         insert_query = bind_cell(insert_query, cell);

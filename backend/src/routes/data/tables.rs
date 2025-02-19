@@ -76,6 +76,7 @@ async fn update_table(
     .await?;
 
     tx.commit().await?;
+
     Ok(Json(table))
 }
 
@@ -96,5 +97,6 @@ async fn delete_table(
     db::delete_table(tx.as_mut(), table_id).await?;
 
     tx.commit().await?;
+    
     Ok(())
 }

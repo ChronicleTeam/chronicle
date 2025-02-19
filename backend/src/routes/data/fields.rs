@@ -35,14 +35,11 @@ async fn create_field(
     let mut tx = pool.begin().await?;
 
     let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    debug!("db::debug_get_user_id");
     match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
-
-    debug!("db::check_table_ownership");
 
     validate_field_options(&mut create_field.options)?;
 
@@ -52,7 +49,7 @@ async fn create_field(
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
         })?;
 
-    debug!("db::create_field");
+    tx.commit().await?;
 
     Ok(Json(FieldId { field_id }))
 }
@@ -73,6 +70,7 @@ async fn get_fields(
     let fields = db::get_fields(tx.as_mut(), table_id).await?;
 
     tx.commit().await?;
+
     Ok(Json(fields))
 }
 
@@ -105,6 +103,7 @@ async fn delete_field(
     db::delete_field(tx.as_mut(), field_id).await?;
 
     tx.commit().await?;
+    
     Ok(())
 }
 

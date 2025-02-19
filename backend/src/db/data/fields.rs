@@ -35,8 +35,6 @@ pub async fn create_field(
     .fetch_one(tx.as_mut())
     .await?;
 
-    debug!("INSERT INTO meta_field");
-
     let data_table_name: String = sqlx::query_scalar(
         r#"
             SELECT data_table_name
@@ -47,8 +45,6 @@ pub async fn create_field(
     .bind(table_id)
     .fetch_one(tx.as_mut())
     .await?;
-
-    debug!("SELECT data_table_name");
 
     let column_type = match options {
         FieldOptions::Text { .. } => "TEXT",
@@ -75,13 +71,6 @@ pub async fn create_field(
     ))
     .execute(tx.as_mut())
     .await?;
-
-    debug!(
-        r#"
-            ALTER TABLE {data_table_name}
-            ADD COLUMN {data_field_name} {column_type}
-        "#,
-    );
 
     tx.commit().await?;
     return Ok(field_id);
