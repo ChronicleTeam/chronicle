@@ -60,7 +60,7 @@
       <!-- Main Table -->
       <DataTable table_prop={curTable}/>
     {:else if editMode === EditMode.FIELDS}
-      <FieldEditor />
+      <FieldEditor table_prop={curTable} />
     {/if}
   </div>
 </div>
