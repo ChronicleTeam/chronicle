@@ -1,49 +1,59 @@
 <script lang="ts">
-  import type {
-    DataTable,
-    Field,
-    Entry,
-    Cell,
-    Text,
-    Money,
-    Integer,
-    Progress,
+  import {
+    type DataTable,
+    type Field,
+    type Entry,
+    type Cell,
+    type Text,
+    type Money,
+    type Integer,
+    type Progress,
+    type TextOptions,
+    type MoneyOptions,
+    type IntegerOptions,
+    type ProgressOptions,
+    FieldType,
   } from "$lib/types.d.js";
 
-  const fieldTypes = ["Text", "Money", "Integer", "Progress"];
   let { table_prop } = $props();
 
+  const fieldTypes = Object.values(FieldType);
   let table: DataTable = {
     table: table_prop,
     fields: [
       {
         name: "Project Name",
         options: {
-          type: "Text",
+          type: FieldType.Text,
           is_required: true,
         },
       },
       {
         name: "Funding",
         options: {
-          type: "Money",
+          type: FieldType.Money,
           is_required: false,
         },
       },
       {
         name: "Members",
         options: {
-          type: "Integer",
+          type: FieldType.Integer,
           is_required: true,
         },
       },
       {
         name: "Progress",
-        options: { type: "Progress" },
+        options: { 
+          type: FieldType.Progress, 
+          total_steps: 100
+        },
       },
     ],
     entries: [],
-  };
+  };  
+
+  // TODO: add setter functions for bind() call such that the field options change type when the field type is changed.
 </script>
 
 <div class="w-full">
