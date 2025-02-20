@@ -11,7 +11,7 @@
   } from "$lib/types.d.js";
 
   const fieldTypes = ["Text", "Money", "Integer", "Progress"];
-  let {table_prop} = $props();
+  let { table_prop } = $props();
 
   let table: DataTable = {
     table: table_prop,
@@ -48,22 +48,24 @@
 
 <div class="w-full">
   <!-- Top bar -->
-  <input bind:value={table.table.name} class="text-lg font-bold mb-3">
+  <input bind:value={table.table.name} class="text-lg font-bold mb-3" />
   <!-- Fields -->
-  <div class="flex items-center items-stretch gap-5 w-full overflow-scroll">
+  <div class="flex items-stretch gap-5 w-full flex-nowrap">
     {#each table.fields as field, i}
       <div class="bg-white p-3 rounded-lg">
         <input bind:value={table.fields[i].name} />
-        <label for="typeSelect">Type: </label>
-        <select
-          id="typeSelect"
-          class="my-2"
-          bind:value={table.fields[i].options.type}
-        >
-          {#each fieldTypes as fieldType}
-            <option value={fieldType}>{fieldType}</option>
-          {/each}
-        </select>
+        <div class="flex items-center">
+          <label for="typeSelect" class="mr-2">Type:</label>
+          <select
+            id="typeSelect"
+            class="my-2"
+            bind:value={table.fields[i].options.type}
+          >
+            {#each fieldTypes as fieldType}
+              <option value={fieldType}>{fieldType}</option>
+            {/each}
+          </select>
+        </div>
       </div>
     {/each}
   </div>
