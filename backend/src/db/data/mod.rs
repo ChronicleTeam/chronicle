@@ -7,7 +7,7 @@ use crate::{
     Id,
 };
 use itertools::Itertools;
-use sqlx::{postgres::PgRow, Acquire, FromRow, Postgres, Row};
+use sqlx::{postgres::PgRow, types::Json, Acquire, FromRow, Postgres, Row};
 pub use {entries::*, fields::*, tables::*};
 
 // All SELECT statements lock selected rows during the transaction.
@@ -80,45 +80,55 @@ pub async fn get_data_table(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let data_field_names: Vec<String> = sqlx::query_scalar(
+    let field_data: Vec<(Id, String, Json<FieldOptions>)> = sqlx::query_as(
         r#"
-            SELECT data_field_name
+            SELECT field_id, data_field_name, options
             FROM meta_field
             WHERE table_id = $1
-            ORDER BY field_id
         "#,
     )
     .bind(table_id)
     .fetch_all(tx.as_mut())
     .await?;
 
-    let data_field_parameters = data_field_names.iter().join(", ");
+    let query_columns = field_data.iter().map(|(_, name, _)| name).join(", ");
 
     let entries = sqlx::query::<Postgres>(&format!(
         r#"
-            SELECT {data_field_parameters}, entry_id
+            SELECT {query_columns}, entry_id
             FROM {data_table_name}
         "#
     ))
     .fetch_all(tx.as_mut())
     .await?
     .into_iter()
-    .map(|row| {
-        Ok(Entry {
-            entry_id: row.try_get("entry_id")?,
-            cells: data_field_names
-                .iter()
-                .zip(fields.iter())
-                .map(|(identifier, field)| cell_from_row(&row, &identifier, &field.options.0))
-                .collect::<sqlx::Result<_>>()?,
-        })
-    })
+    .map(|row| entry_from_row(row, &field_data))
     .collect::<sqlx::Result<Vec<_>>>()?;
 
     Ok(DataTable {
         table,
         fields,
         entries,
+    })
+}
+
+
+fn entry_from_row(row: PgRow, field_data: &[(Id, String, Json<FieldOptions>)]) -> sqlx::Result<Entry> {
+    Ok(Entry {
+        entry_id: row.get("entry_id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+        cells: field_data
+            .iter()
+            .map(|(id, name, options)| {
+                match cell_from_row(&row, name.as_str(), &options.0) {
+                    Ok(v) => Ok(Some(v)),
+                    Err(sqlx::Error::ColumnNotFound(_)) => Ok(None),
+                    Err(e) => Err(e),
+                }
+                .map(|v| (*id, v))
+            })
+            .try_collect()?,
     })
 }
 
@@ -135,7 +145,5 @@ fn cell_from_row(row: &PgRow, index: &str, field_options: &FieldOptions) -> sqlx
         FieldOptions::DateTime { .. } => Cell::DateTime(row.try_get(index)?),
         FieldOptions::Interval { .. } => Cell::Interval(row.try_get(index)?),
         FieldOptions::Checkbox => Cell::Boolean(row.try_get(index)?),
-        FieldOptions::Image { .. } => Cell::Image(row.try_get(index)?),
-        FieldOptions::File { .. } => Cell::File(row.try_get(index)?),
     })
 }

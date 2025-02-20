@@ -30,7 +30,6 @@ pub async fn create_table(
         r#"
             CREATE TABLE {data_table_name} (
                 entry_id SERIAL PRIMARY KEY,
-                is_valid BOOLEAN NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ
             )
@@ -101,7 +100,7 @@ pub async fn delete_table(
     Ok(())
 }
 
-pub async fn get_user_tables(
+pub async fn get_tables(
     executor: impl PgExecutor<'_>,
     user_id: Id,
 ) -> sqlx::Result<Vec<Table>> {
@@ -123,7 +122,7 @@ pub async fn get_user_tables(
     .await?)
 }
 
-pub async fn check_table_ownership(
+pub async fn check_table_relation(
     executor: impl PgExecutor<'_>,
     user_id: Id,
     table_id: Id,

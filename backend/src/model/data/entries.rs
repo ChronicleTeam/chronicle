@@ -3,12 +3,15 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::{postgres::PgRow, FromRow};
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Entry {
     pub entry_id: Id,
-    pub cells: Vec<Cell>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub cells: HashMap<Id, Option<Cell>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -21,8 +24,6 @@ pub enum Cell {
     DateTime(DateTime<Utc>),
     String(String),
     Interval(()),
-    Image(()),
-    File(()),
 }
 
 #[derive(Serialize)]
@@ -33,3 +34,7 @@ pub struct EntryId {
 // key: field_id
 #[derive(Deserialize)]
 pub struct CreateEntry(pub HashMap<Id, Value>);
+
+// key: field_id
+#[derive(Deserialize)]
+pub struct UpdateEntry(pub HashMap<Id, Value>);

@@ -2,16 +2,16 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateField, Field, FieldId, FieldOptions},
+    model::data::{CreateField, Field, FieldId, FieldOptions, UpdateField},
     Id,
 };
 use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
-    routing::{patch, post},
+    routing::{post, put},
     Json, Router,
 };
-use tracing::debug;
+use axum_macros::debug_handler;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
@@ -23,7 +23,7 @@ pub(crate) fn router() -> Router<ApiState> {
         "/tables/{table_id}/fields",
         Router::new()
             .route("/", post(create_field).get(get_fields))
-            .route("/{field_id}", patch(update_field).delete(delete_field)),
+            .route("/{field_id}", put(update_field).delete(delete_field)),
     )
 }
 
@@ -32,10 +32,9 @@ async fn create_field(
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<FieldId>> {
-    let mut tx = pool.begin().await?;
 
-    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    match db::check_table_relation(&pool, user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
@@ -49,8 +48,6 @@ async fn create_field(
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
         })?;
 
-    tx.commit().await?;
-
     Ok(Json(FieldId { field_id }))
 }
 
@@ -58,52 +55,60 @@ async fn get_fields(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
-    let mut tx = pool.begin().await?;
-
-    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    match db::check_table_relation(&pool, user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
 
-    let fields = db::get_fields(tx.as_mut(), table_id).await?;
-
-    tx.commit().await?;
+    let fields = db::get_fields(&pool, table_id).await?;
 
     Ok(Json(fields))
 }
 
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
-    Path(table_id): Path<Id>,
+    Path((table_id, field_id)): Path<(Id, Id)>,
+    Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
-    todo!()
+
+    let user_id = db::debug_get_user_id(&pool).await?;
+    match db::check_table_relation(&pool, user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
+    match db::check_field_relation(&pool, table_id, field_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned | db::Relation::Absent => return Err(ApiError::NotFound),
+    }
+
+    validate_field_options(&mut update_field.options)?;
+
+    let field = db::update_field(&pool, field_id, update_field.name, update_field.options).await?;
+
+    Ok(Json(field))
 }
 
 async fn delete_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let mut tx = pool.begin().await?;
 
-    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-
-    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    match db::check_table_relation(&pool, user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
-
-    match db::check_field_relation(tx.as_mut(), table_id, field_id).await? {
+    match db::check_field_relation(&pool, table_id, field_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned | db::Relation::Absent => return Err(ApiError::NotFound),
     }
 
-    db::delete_field(tx.as_mut(), field_id).await?;
+    db::delete_field(&pool, field_id).await?;
 
-    tx.commit().await?;
-    
     Ok(())
 }
 

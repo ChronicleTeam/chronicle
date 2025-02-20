@@ -27,16 +27,16 @@ async fn get_data_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<DataTable>> {
-    let mut tx = pool.begin().await?;
+    
+    let user_id = db::debug_get_user_id(&pool).await?;
 
-    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+    match db::check_table_relation(&pool, user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
 
-    let data_table = db::get_data_table(tx.as_mut(), table_id).await?;
+    let data_table = db::get_data_table(&pool, table_id).await?;
 
     Ok(Json(data_table))
 }

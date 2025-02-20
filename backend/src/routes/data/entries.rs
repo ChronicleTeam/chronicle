@@ -4,19 +4,19 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{Cell, CreateEntry, EntryId, FieldOptions},
+    model::data::{Cell, CreateEntry, Entry, EntryId, FieldOptions, UpdateEntry},
     Id,
 };
 use axum::{
     extract::{Path, State},
-    routing::{patch, post},
+    routing::{patch, post, put},
     Json, Router,
 };
+use axum_macros::debug_handler;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
-use serde::de::value;
-use serde_json::{from_str, Number, Value};
+use serde_json::Value;
 
 const IS_REQUIRED_MESSAGE: &str = "A value is required";
 const OUT_OF_RANGE_MESSAGE: &str = "Value is out of range";
@@ -29,38 +29,78 @@ pub(crate) fn router() -> Router<ApiState> {
         "/tables/{table_id}/entries",
         Router::new()
             .route("/", post(create_entry))
-            .route("/{entry_id}", patch(update_entry).delete(delete_entry)),
+            .route("/{entry_id}", put(update_entry).delete(delete_entry)),
     )
 }
 
 async fn create_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
-    Json(CreateEntry(mut raw_entry)): Json<CreateEntry>,
+    Json(CreateEntry(entry)): Json<CreateEntry>,
 ) -> ApiResult<Json<EntryId>> {
-    let mut tx = pool.begin().await?;
-
-    let user_id = db::debug_get_user_id(tx.as_mut()).await?;
-    match db::check_table_ownership(tx.as_mut(), user_id, table_id).await? {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    match db::check_table_relation(&pool, user_id, table_id).await? {
         db::Relation::Owned => {}
         db::Relation::NotOwned => return Err(ApiError::Forbidden),
         db::Relation::Absent => return Err(ApiError::NotFound),
     }
 
-    let fields_options = db::get_fields_options(tx.as_mut(), table_id).await?;
+    let fields_options = db::get_fields_options(&pool, table_id).await?;
 
-    let (entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields_options
+    let entry = convert_entry(entry, fields_options)?;
+
+    let entry_id = db::create_entry(&pool, table_id, entry).await?;
+
+    Ok(Json(EntryId { entry_id }))
+}
+
+
+#[debug_handler]
+async fn update_entry(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path((table_id, entry_id)): Path<(Id, Id)>,
+    Json(UpdateEntry(entry)): Json<UpdateEntry>,
+) -> ApiResult<Json<Entry>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    match db::check_table_relation(&pool, user_id, table_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
+
+    match db::check_entry_relation(&pool, table_id, entry_id).await? {
+        db::Relation::Owned => {}
+        db::Relation::NotOwned => return Err(ApiError::Forbidden),
+        db::Relation::Absent => return Err(ApiError::NotFound),
+    }
+
+    let fields_options = db::get_fields_options(&pool, table_id).await?;
+
+    let entry = convert_entry(entry, fields_options)?;
+
+    let entry = db::update_entry(&pool, table_id, entry_id, entry).await?;
+
+    Ok(Json(entry))
+}
+
+async fn delete_entry() {}
+
+fn convert_entry(
+    mut entry: HashMap<Id, Value>,
+    fields_options: HashMap<Id, FieldOptions>,
+) -> ApiResult<HashMap<Id, Option<Cell>>> {
+    let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields_options
         .iter()
         .map(|(field_id, options)| {
-            let json_value = raw_entry.remove(field_id).unwrap_or(Value::Null);
-            json_value_to_cell(json_value, options)
+            let json_value = entry.remove(field_id).unwrap_or(Value::Null);
+            json_to_cell(json_value, options)
                 .map(|cell| (*field_id, cell))
                 .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
         })
         .partition_result();
 
     error_messages.extend(
-        raw_entry
+        entry
             .keys()
             .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID_MESSAGE)),
     );
@@ -69,23 +109,10 @@ async fn create_entry(
         return Err(ApiError::unprocessable_entity(error_messages));
     }
 
-    let entry_id = db::create_entry(tx.as_mut(), table_id, entry).await?;
-
-    tx.commit().await?;
-
-    Ok(Json(EntryId { entry_id }))
+    Ok(new_entry)
 }
 
-async fn update_entry() {
-    todo!()
-}
-
-async fn delete_entry() {}
-
-fn json_value_to_cell(
-    value: Value,
-    field_options: &FieldOptions,
-) -> Result<Option<Cell>, &'static str> {
+fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cell>, &'static str> {
     match (value, field_options) {
         (
             Value::Null,
@@ -96,9 +123,7 @@ fn json_value_to_cell(
             | FieldOptions::DateTime { is_required, .. }
             | FieldOptions::WebLink { is_required, .. }
             | FieldOptions::Email { is_required, .. }
-            | FieldOptions::Enumeration { is_required, .. }
-            | FieldOptions::Image { is_required, .. }
-            | FieldOptions::File { is_required, .. },
+            | FieldOptions::Enumeration { is_required, .. },
         ) => {
             if *is_required {
                 Err(IS_REQUIRED_MESSAGE)
@@ -183,9 +208,10 @@ fn json_value_to_cell(
             }
         }
         (_, FieldOptions::Interval { .. }) => todo!(),
-        (Value::String(value),FieldOptions::Text { .. } | FieldOptions::WebLink { .. } | FieldOptions::Email { .. }) => {
-            Ok(Some(Cell::String(value)))
-        }
+        (
+            Value::String(value),
+            FieldOptions::Text { .. } | FieldOptions::WebLink { .. } | FieldOptions::Email { .. },
+        ) => Ok(Some(Cell::String(value))),
         (Value::Bool(value), FieldOptions::Checkbox) => Ok(Some(Cell::Boolean(value))),
         (Value::Number(value), FieldOptions::Enumeration { values, .. }) => {
             if let Some(value) = value.as_i64() {
@@ -198,8 +224,6 @@ fn json_value_to_cell(
                 Err(INVALID_TYPE_MESSAGE)
             }
         }
-        (_, FieldOptions::Image { .. }) => todo!(),
-        (_, FieldOptions::File { .. }) => todo!(),
         _ => Err(INVALID_TYPE_MESSAGE),
     }
 }
