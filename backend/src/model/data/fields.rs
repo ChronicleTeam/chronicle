@@ -16,7 +16,7 @@ pub struct Field {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
+// #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum FieldOptions {
     Text {

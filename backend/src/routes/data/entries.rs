@@ -71,6 +71,8 @@ async fn create_entry(
 
     let entry_id = db::create_entry(tx.as_mut(), table_id, entry).await?;
 
+    tx.commit().await?;
+
     Ok(Json(EntryId { entry_id }))
 }
 
@@ -80,7 +82,10 @@ async fn update_entry() {
 
 async fn delete_entry() {}
 
-fn json_value_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cell>, &'static str> {
+fn json_value_to_cell(
+    value: Value,
+    field_options: &FieldOptions,
+) -> Result<Option<Cell>, &'static str> {
     match (value, field_options) {
         (
             Value::Null,
@@ -178,10 +183,7 @@ fn json_value_to_cell(value: Value, field_options: &FieldOptions) -> Result<Opti
             }
         }
         (_, FieldOptions::Interval { .. }) => todo!(),
-        (Value::String(value), FieldOptions::WebLink { is_required }) => {
-            Ok(Some(Cell::String(value)))
-        }
-        (Value::String(value), FieldOptions::Email { is_required }) => {
+        (Value::String(value),FieldOptions::Text { .. } | FieldOptions::WebLink { .. } | FieldOptions::Email { .. }) => {
             Ok(Some(Cell::String(value)))
         }
         (Value::Bool(value), FieldOptions::Checkbox) => Ok(Some(Cell::Boolean(value))),

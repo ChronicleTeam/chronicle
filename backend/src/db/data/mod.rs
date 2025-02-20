@@ -37,7 +37,6 @@ pub async fn get_data_table(
                 updated_at
             FROM meta_table
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -58,7 +57,6 @@ pub async fn get_data_table(
     //             updated_at
     //         FROM meta_table
     //         WHERE table_id = $1
-    //         FOR UPDATE
     //     "#,
     // )
     // .fetch_one(tx.as_mut())
@@ -76,7 +74,6 @@ pub async fn get_data_table(
             FROM meta_field
             WHERE table_id = $1
             ORDER BY field_id
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -89,7 +86,6 @@ pub async fn get_data_table(
             FROM meta_field
             WHERE table_id = $1
             ORDER BY field_id
-            FOR UPDATE
         "#,
     )
     .bind(table_id)

@@ -116,7 +116,6 @@ pub async fn get_user_tables(
                 updated_at
             FROM meta_table
             WHERE user_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(user_id)
@@ -134,7 +133,6 @@ pub async fn check_table_ownership(
             SELECT user_id
             FROM meta_table
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)

@@ -1,7 +1,7 @@
+use crate::Id;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use crate::Id;
 
 #[derive(Serialize, FromRow)]
 pub struct Table {

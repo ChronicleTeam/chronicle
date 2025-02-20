@@ -11,6 +11,7 @@ use axum::{
     routing::{patch, post},
     Json, Router,
 };
+use tracing::debug;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
@@ -48,6 +49,8 @@ async fn create_field(
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
         })?;
 
+    tx.commit().await?;
+
     Ok(Json(FieldId { field_id }))
 }
 
@@ -67,6 +70,7 @@ async fn get_fields(
     let fields = db::get_fields(tx.as_mut(), table_id).await?;
 
     tx.commit().await?;
+
     Ok(Json(fields))
 }
 
@@ -99,6 +103,7 @@ async fn delete_field(
     db::delete_field(tx.as_mut(), field_id).await?;
 
     tx.commit().await?;
+    
     Ok(())
 }
 

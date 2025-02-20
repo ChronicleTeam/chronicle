@@ -4,6 +4,7 @@ use crate::{
 };
 use sqlx::{types::Json, Acquire, FromRow, PgExecutor, Postgres};
 use std::collections::HashMap;
+use tracing::debug;
 
 use super::Relation;
 
@@ -39,7 +40,6 @@ pub async fn create_field(
             SELECT data_table_name
             FROM meta_table
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -101,7 +101,6 @@ pub async fn delete_field(
             JOIN meta_field AS f
             ON f.table_id = t.table_id
             WHERE field_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(field_id)
@@ -133,7 +132,6 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
                 updated_at
             FROM meta_field
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -150,7 +148,6 @@ pub async fn get_fields_options(
             SELECT field_id, options
             FROM meta_field
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
@@ -171,16 +168,16 @@ pub async fn check_field_relation(
             SELECT table_id
             FROM meta_field
             WHERE field_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(field_id)
     .fetch_optional(executor)
     .await?
-    .map_or(Relation::Absent, |x| if x == table_id {
-        Relation::Owned
-    } else {
-        Relation::NotOwned
+    .map_or(Relation::Absent, |x| {
+        if x == table_id {
+            Relation::Owned
+        } else {
+            Relation::NotOwned
+        }
     }))
 }
-
