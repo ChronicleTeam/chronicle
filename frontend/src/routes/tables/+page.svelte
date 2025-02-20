@@ -46,7 +46,7 @@
   </div>
 
   <!-- Main Editor -->
-  <div class="bg-gray-200 basis-[36rem] grow-[5] rounded-lg p-3 flex flex-col items-center">
+  <div class="bg-gray-200 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center ">
     {#if editMode === EditMode.NONE}
       <h2 class="text-lg font-bold">Select a Table</h2>
     {:else if editMode === EditMode.TABLE}

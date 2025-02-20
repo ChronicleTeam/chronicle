@@ -50,7 +50,7 @@
   <!-- Top bar -->
   <input bind:value={table.table.name} class="text-lg font-bold mb-3" />
   <!-- Fields -->
-  <div class="flex items-stretch gap-5 w-full flex-nowrap">
+  <div class="flex items-stretch gap-5 w-full flex-nowrap overflow-scroll">
     {#each table.fields as field, i}
       <div class="bg-white p-3 rounded-lg">
         <input bind:value={table.fields[i].name} />
