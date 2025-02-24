@@ -2,7 +2,6 @@ use chronicle::{config::Config, routes, setup_tracing};
 use clap::Parser;
 use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
 use std::time::Duration;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // Points to the migrations folder
 

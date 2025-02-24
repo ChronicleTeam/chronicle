@@ -67,27 +67,29 @@ pub enum FieldOptions {
         values: HashMap<i64, String>,
         default_value: i64,
     },
-    // CreationDate {
-    //     date_time_format: String,
-    // },
-    // ModificationDate {
-    //     date_time_format: String,
-    // },
-    Image {
-        is_required: bool,
-    },
-    File {
-        is_required: bool,
-    },
 }
 
-#[derive(Serialize)]
-pub struct FieldId {
-    pub field_id: Id,
+#[derive(FromRow)]
+pub struct FullField {
+    #[sqlx(flatten)]
+    pub field: Field,
+    pub data_field_name: String,
 }
+
+// #[derive(Serialize)]
+// pub struct FieldId {
+//     pub field_id: Id,
+// }
 
 #[derive(Deserialize)]
 pub struct CreateField {
+    pub name: String,
+    pub options: FieldOptions,
+}
+
+
+#[derive(Deserialize)]
+pub struct UpdateField {
     pub name: String,
     pub options: FieldOptions,
 }
