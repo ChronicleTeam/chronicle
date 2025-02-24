@@ -1,10 +1,9 @@
 use crate::{
-    model::data::{Field, FieldOptions},
+    model::data::{Field, FieldOptions, FullField},
     Id,
 };
 use sqlx::{types::Json, Acquire, FromRow, PgExecutor, Postgres};
 use std::{collections::HashMap, mem::discriminant};
-use tracing::debug;
 
 use super::Relation;
 
@@ -19,14 +18,24 @@ pub async fn create_field(
     table_id: Id,
     name: String,
     options: FieldOptions,
-) -> sqlx::Result<Id> {
+) -> sqlx::Result<Field> {
     let mut tx = connection.begin().await?;
 
-    let (field_id, data_field_name): (Id, String) = sqlx::query_as(
+    let FullField {
+        field,
+        data_field_name,
+    } = sqlx::query_as(
         r#"
             INSERT INTO meta_field (table_id, name, options)
             VALUES ($1, $2, $3)
-            RETURNING field_id, data_field_name
+            RETURNING
+                field_id,
+                table_id,
+                name,
+                options,
+                created_at,
+                updated_at,
+                data_field_name
         "#,
     )
     .bind(table_id)
@@ -71,7 +80,8 @@ pub async fn create_field(
     .await?;
 
     tx.commit().await?;
-    return Ok(field_id);
+
+    return Ok(field);
 }
 
 pub async fn update_field(
@@ -96,7 +106,7 @@ pub async fn update_field(
     // Should create a new field and attempt to convert
     if discriminant(&options) != discriminant(&old_options) {
         todo!("Not implemented")
-    } 
+    }
 
     let field: Field = sqlx::query_as(
         r#"
@@ -129,16 +139,24 @@ pub async fn delete_field(
 ) -> sqlx::Result<()> {
     let mut tx = connection.begin().await?;
 
-    let FieldIdentifier {
-        data_table_name,
-        data_field_name,
-    } = sqlx::query_as(
+    let data_table_name: String = sqlx::query_scalar(
         r#"
-            SELECT data_table_name, data_field_name
+            SELECT data_table_name
             FROM meta_table AS t
             JOIN meta_field AS f
-            ON f.table_id = t.table_id
+            ON t.table_id = f.table_id
             WHERE field_id = $1
+        "#,
+    )
+    .bind(field_id)
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    let data_field_name: String = sqlx::query_scalar(
+        r#"
+            DELETE FROM meta_field
+            WHERE field_id = $1
+            RETURNING data_field_name
         "#,
     )
     .bind(field_id)
@@ -155,11 +173,12 @@ pub async fn delete_field(
     .await?;
 
     tx.commit().await?;
+
     Ok(())
 }
 
 pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<Field>> {
-    Ok(sqlx::query_as(
+    sqlx::query_as(
         r#"
             SELECT
                 field_id,
@@ -174,14 +193,14 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
     )
     .bind(table_id)
     .fetch_all(executor)
-    .await?)
+    .await
 }
 
 pub async fn get_fields_options(
     executor: impl PgExecutor<'_>,
     table_id: Id,
 ) -> sqlx::Result<HashMap<Id, FieldOptions>> {
-    Ok(sqlx::query_as::<_, (Id, Json<FieldOptions>)>(
+    sqlx::query_as::<_, (Id, Json<FieldOptions>)>(
         r#"
             SELECT field_id, options
             FROM meta_field
@@ -190,10 +209,12 @@ pub async fn get_fields_options(
     )
     .bind(table_id)
     .fetch_all(executor)
-    .await?
-    .into_iter()
-    .map(|(field_id, options)| (field_id, options.0))
-    .collect())
+    .await
+    .map(|x| {
+        x.into_iter()
+            .map(|(field_id, options)| (field_id, options.0))
+            .collect()
+    })
 }
 
 pub async fn check_field_relation(
@@ -201,7 +222,7 @@ pub async fn check_field_relation(
     table_id: Id,
     field_id: Id,
 ) -> sqlx::Result<Relation> {
-    Ok(sqlx::query_scalar::<_, Id>(
+    sqlx::query_scalar::<_, Id>(
         r#"
             SELECT table_id
             FROM meta_field
@@ -210,12 +231,10 @@ pub async fn check_field_relation(
     )
     .bind(field_id)
     .fetch_optional(executor)
-    .await?
-    .map_or(Relation::Absent, |x| {
-        if x == table_id {
-            Relation::Owned
-        } else {
-            Relation::NotOwned
-        }
-    }))
+    .await
+    .map(|id| match id {
+        None => Relation::Absent,
+        Some(id) if id == table_id => Relation::Owned,
+        Some(_) => Relation::NotOwned,
+    })
 }

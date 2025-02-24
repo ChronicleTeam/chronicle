@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateTable, Table, TableId, UpdateTable},
+    model::data::{CreateTable, Table, UpdateTable},
     Id,
 };
 use axum::{
@@ -26,16 +26,16 @@ pub(crate) fn router() -> Router<ApiState> {
 async fn create_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_table): Json<CreateTable>,
-) -> ApiResult<Json<TableId>> {
+) -> ApiResult<Json<Table>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    let table_id = db::create_table(&pool, user_id, create_table.name, create_table.description)
+    let table = db::create_table(&pool, user_id, create_table.name, create_table.description)
         .await
         .on_constraint("meta_table_user_id_name_key", |_| {
             ApiError::unprocessable_entity([TABLE_NAME_CONFLICT])
         })?;
 
-    Ok(Json(TableId { table_id }))
+    Ok(Json(table))
 }
 
 async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<Json<Vec<Table>>> {
@@ -52,11 +52,7 @@ async fn update_table(
 ) -> ApiResult<Json<Table>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id).await?.to_api_result()?;
 
     let table =
         db::update_table(&pool, table_id, update_table.name, update_table.description).await?;
@@ -69,12 +65,7 @@ async fn delete_table(
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
     let user_id = db::debug_get_user_id(&pool).await?;
-
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id).await?.to_api_result()?;
 
     db::delete_table(&pool, table_id).await?;
 

@@ -69,10 +69,17 @@ pub enum FieldOptions {
     },
 }
 
-#[derive(Serialize)]
-pub struct FieldId {
-    pub field_id: Id,
+#[derive(FromRow)]
+pub struct FullField {
+    #[sqlx(flatten)]
+    pub field: Field,
+    pub data_field_name: String,
 }
+
+// #[derive(Serialize)]
+// pub struct FieldId {
+//     pub field_id: Id,
+// }
 
 #[derive(Deserialize)]
 pub struct CreateField {

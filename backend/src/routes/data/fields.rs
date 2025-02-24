@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateField, Field, FieldId, FieldOptions, UpdateField},
+    model::data::{CreateField, Field, FieldOptions, UpdateField},
     Id,
 };
 use anyhow::anyhow;
@@ -11,7 +11,6 @@ use axum::{
     routing::{post, put},
     Json, Router,
 };
-use axum_macros::debug_handler;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
@@ -31,24 +30,21 @@ async fn create_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
-) -> ApiResult<Json<FieldId>> {
-
+) -> ApiResult<Json<Field>> {
     let user_id = db::debug_get_user_id(&pool).await?;
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
 
     validate_field_options(&mut create_field.options)?;
 
-    let field_id = db::create_field(&pool, table_id, create_field.name, create_field.options)
+    let field = db::create_field(&pool, table_id, create_field.name, create_field.options)
         .await
         .on_constraint("meta_field_table_id_name_key", |_| {
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
         })?;
 
-    Ok(Json(FieldId { field_id }))
+    Ok(Json(field))
 }
 
 async fn get_fields(
@@ -56,11 +52,9 @@ async fn get_fields(
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = db::debug_get_user_id(&pool).await?;
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
 
     let fields = db::get_fields(&pool, table_id).await?;
 
@@ -72,17 +66,13 @@ async fn update_field(
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
-
     let user_id = db::debug_get_user_id(&pool).await?;
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
-    match db::check_field_relation(&pool, table_id, field_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned | db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+    db::check_field_relation(&pool, table_id, field_id)
+        .await?
+        .to_api_result()?;
 
     validate_field_options(&mut update_field.options)?;
 
@@ -95,17 +85,13 @@ async fn delete_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-
     let user_id = db::debug_get_user_id(&pool).await?;
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
-    match db::check_field_relation(&pool, table_id, field_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned | db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+    db::check_field_relation(&pool, table_id, field_id)
+        .await?
+        .to_api_result()?;
 
     db::delete_field(&pool, field_id).await?;
 

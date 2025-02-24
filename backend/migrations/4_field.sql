@@ -18,12 +18,7 @@ $$
 DECLARE
     field_count INTEGER;
 BEGIN
-    SELECT COUNT(*) + 1 INTO field_count
-    FROM meta_field
-    WHERE table_id = NEW.table_id;
-
-    NEW.data_field_name := '_' || field_count;
-
+    NEW.data_field_name := '_' || NEW.field_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

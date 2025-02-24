@@ -4,15 +4,14 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{Cell, CreateEntry, Entry, EntryId, FieldOptions, UpdateEntry},
+    model::data::{Cell, CreateEntry, Entry, FieldOptions, UpdateEntry},
     Id,
 };
 use axum::{
     extract::{Path, State},
-    routing::{patch, post, put},
+    routing::{post, put},
     Json, Router,
 };
-use axum_macros::debug_handler;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
@@ -37,42 +36,33 @@ async fn create_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(CreateEntry(entry)): Json<CreateEntry>,
-) -> ApiResult<Json<EntryId>> {
+) -> ApiResult<Json<Entry>> {
     let user_id = db::debug_get_user_id(&pool).await?;
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
 
     let fields_options = db::get_fields_options(&pool, table_id).await?;
 
     let entry = convert_entry(entry, fields_options)?;
 
-    let entry_id = db::create_entry(&pool, table_id, entry).await?;
+    let entry = db::create_entry(&pool, table_id, entry).await?;
 
-    Ok(Json(EntryId { entry_id }))
+    Ok(Json(entry))
 }
 
-
-#[debug_handler]
 async fn update_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry(entry)): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
     let user_id = db::debug_get_user_id(&pool).await?;
-    match db::check_table_relation(&pool, user_id, table_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
-
-    match db::check_entry_relation(&pool, table_id, entry_id).await? {
-        db::Relation::Owned => {}
-        db::Relation::NotOwned => return Err(ApiError::Forbidden),
-        db::Relation::Absent => return Err(ApiError::NotFound),
-    }
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+    db::check_entry_relation(&pool, table_id, entry_id)
+        .await?
+        .to_api_result()?;
 
     let fields_options = db::get_fields_options(&pool, table_id).await?;
 
@@ -83,7 +73,22 @@ async fn update_entry(
     Ok(Json(entry))
 }
 
-async fn delete_entry() {}
+async fn delete_entry(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path((table_id, entry_id)): Path<(Id, Id)>,
+) -> ApiResult<()> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+    db::check_entry_relation(&pool, table_id, entry_id)
+        .await?
+        .to_api_result()?;
+
+    db::delete_entry(&pool, table_id, entry_id).await?;
+
+    Ok(())
+}
 
 fn convert_entry(
     mut entry: HashMap<Id, Value>,

@@ -1,4 +1,4 @@
-use super::{entry_from_row, Relation};
+use super::Relation;
 use crate::{
     model::data::{Cell, Entry, FieldOptions},
     Id,
@@ -10,13 +10,14 @@ use sqlx::{
     types::Json,
     Acquire, PgExecutor, Postgres,
 };
+use tracing::debug;
 use std::collections::HashMap;
 
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     mut entry: HashMap<Id, Option<Cell>>,
-) -> sqlx::Result<Id> {
+) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
     let data_table_name: String = sqlx::query_scalar(
@@ -30,9 +31,9 @@ pub async fn create_entry(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let field_data: Vec<(Id, String)> = sqlx::query_as(
+    let field_data: Vec<(Id, String, Json<FieldOptions>)> = sqlx::query_as(
         r#"
-            SELECT field_id, data_field_name
+            SELECT field_id, data_field_name, options
             FROM meta_field
             WHERE table_id = $1
         "#,
@@ -42,8 +43,8 @@ pub async fn create_entry(
     .await?;
 
     let (cells, data_field_names): (Vec<_>, Vec<_>) = field_data
-        .into_iter()
-        .filter_map(|(field_id, identifier)| entry.remove(&field_id).zip(Some(identifier)))
+        .iter()
+        .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
         .unzip();
 
     let query_parameters = (1..=cells.len()).map(|i| format!("${i}")).join(", ");
@@ -53,19 +54,24 @@ pub async fn create_entry(
         r#"
             INSERT INTO {data_table_name} ({query_columns})
             VALUES ({query_parameters})
-            RETURNING entry_id
+            RETURNING
+                {query_columns},
+                entry_id,
+                created_at,
+                updated_at
+
         "#,
     );
-    let mut insert_query = sqlx::query_scalar(&insert_query);
+    let mut insert_query = sqlx::query(&insert_query);
 
     for cell in cells {
-        insert_query = bind_cell_scalar(insert_query, cell);
+        insert_query = bind_cell(insert_query, cell);
     }
 
-    let entry_id: Id = insert_query.fetch_one(tx.as_mut()).await?;
+    let row = insert_query.fetch_one(tx.as_mut()).await?;
 
     tx.commit().await?;
-    Ok(entry_id)
+    Ok(Entry::from_row(row, &field_data).unwrap())
 }
 
 pub async fn update_entry(
@@ -124,11 +130,44 @@ pub async fn update_entry(
         update_query = bind_cell(update_query, cell);
     }
 
-    let entry = entry_from_row(update_query.fetch_one(tx.as_mut()).await?, &field_data)?;
+    let entry = Entry::from_row(update_query.fetch_one(tx.as_mut()).await?, &field_data).unwrap();
 
     tx.commit().await?;
 
     Ok(entry)
+}
+
+pub async fn delete_entry(
+    connection: impl Acquire<'_, Database = Postgres>,
+    table_id: Id,
+    entry_id: Id,
+) -> sqlx::Result<()> {
+    let mut tx = connection.begin().await?;
+
+    let data_table_name: String = sqlx::query_scalar(
+        r#"
+            SELECT data_table_name
+            FROM meta_table
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    sqlx::query(&format!(
+        r#"
+            DELETE FROM {data_table_name}
+            WHERE entry_id = $1
+        "#
+    ))
+    .bind(entry_id)
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(())
 }
 
 pub async fn check_entry_relation(

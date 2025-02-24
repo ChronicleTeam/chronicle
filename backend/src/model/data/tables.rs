@@ -13,10 +13,17 @@ pub struct Table {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize)]
-pub struct TableId {
-    pub table_id: Id,
+#[derive(FromRow)]
+pub struct FullTable {
+    #[sqlx(flatten)]
+    pub table: Table,
+    pub data_table_name: String
 }
+
+// #[derive(Serialize)]
+// pub struct TableId {
+//     pub table_id: Id,
+// }
 
 #[derive(Deserialize)]
 pub struct CreateTable {
