@@ -114,12 +114,12 @@ const cancelEntry = () => {
 };
 
 </script>
-<div class="flex flex-col items-center justify-center">
+<div class="flex flex-col items-center justify-center gap-3">
   {#await loadTable} 
     <p>Loading Table...</p>
   {:then _} 
     {@debug table, newEntry}
-    <table class=" border border-gray-400 bg-white text-black ">
+    <table class=" border border-gray-400 bg-white text-black w-full">
       <thead>
         <tr>
         {#each table.fields as field}
@@ -151,10 +151,12 @@ const cancelEntry = () => {
       </tbody>
     </table> 
     {#if insertEntryMode}
-      <button onclick={saveEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-white">Save</button>
-      <button onclick={cancelEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-red-400 ">Cancel</button>
+      <div class="flex justify-center gap-3">
+        <button onclick={saveEntry} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
+        <button onclick={cancelEntry} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
+      </div>
     {:else}
-      <button onclick={insertEntry} class="text-center w-full mt-1 hover:mt-0 py-1 hover:py-2 transition-size duration-300 border-2 border-dashed border-gray-400">+ Add Row</button>
+      <button onclick={insertEntry} class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition">+ Add Row</button>
     {/if}
 {err}
   {/await} 

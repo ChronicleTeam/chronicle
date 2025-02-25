@@ -42,7 +42,7 @@
         {/each}
       {/await}
     </div>
-    <button class="text-center w-full rounded-xl p-2 hover:p-3 transition-size duration-300 border-2 border-dashed border-black">Add Table</button>
+    <button class="text-center w-full rounded-xl p-2 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition-all">Add Table</button>
   </div>
 
   <!-- Main Editor -->
@@ -53,8 +53,8 @@
       <!-- Top Bar -->
       <div class="flex items-center gap-2 mb-2">
         <h2 class="text-lg font-bold">{curTable.name}</h2>
-        <button onclick={()=>{editMode = EditMode.FIELDS}} class="px-2 bg-white hover:bg-gray-100 transition duration-300 rounded-md">Edit</button>
-        <button class="px-2 bg-red-400 hover:bg-red-500 transition duration-300 rounded-md">Delete</button>
+        <button onclick={()=>{editMode = EditMode.FIELDS}} class="px-2 bg-white hover:bg-gray-100 transition rounded">Edit</button>
+        <button class="px-2 bg-red-400 hover:bg-red-500 transition rounded">Delete</button>
       </div>
 
       <!-- Main Table -->

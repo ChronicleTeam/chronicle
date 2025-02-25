@@ -538,17 +538,20 @@
               {/if}
             </div>
           {/each}
-        <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 px-2 py-1">Remove</button>
+        <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition">Remove</button>
       </div>
-      {#if i < table.fields.length-1}
+      {#if i < table.fields.length-1 || removedOGFields.length > 0}
         <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(i)} aria-label="add field">+</button>
       {/if}
     {/each}
     {#each removedOGFields as field, i}
       <div class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2 ">
         <p class="font-bold">{field.name} ({field.options.type})</p>
-        <button class="py-1 px-2 border-2 border-gray-400 border-dashed rounded-lg" onclick={() => restoreField(i)}>Restore</button>
+        <button class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition" onclick={() => restoreField(i)}>Restore</button>
       </div>
+      {#if i < removedOGFields.length-1}
+        <button class="p-4 text-center text-transparent text-base" disabled>+</button>
+      {/if}
     {/each}
   </div>
 </div>
