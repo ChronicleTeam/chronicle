@@ -27,7 +27,7 @@
   let { table_prop } = $props();
 
   const fieldTypes = Object.values(FieldType);
-  let table: DataTable = $state({
+  let originalTable: DataTable = {
     table: table_prop,
     fields: [
       {
@@ -60,7 +60,9 @@
       },
     ],
     entries: [],
-  });
+  };
+
+  let table = $state(originalTable);
 
   type InputType =
     | "button"
@@ -470,7 +472,21 @@
     }
   }));
 
-  $inspect(table, optionInputList);
+  
+  const removeField = (i: number): void => {
+    table.fields.splice(i, 1);
+  }
+
+  let removedOGFields = $derived(originalTable.fields.filter((f: Field) => !table.fields.some((g: Field) => g.name === f.name)))
+
+  const restoreField = (i: number): void => {
+    table.fields.push(removedOGFields[i]);
+  }
+  
+  $inspect(table, originalTable, removedOGFields)
+
+
+
   let optionalCheckboxStates = $state([] as boolean[][]);
   optionalCheckboxStates = optionInputList.map((val) => {
     return val.map(v => !v.optional);
@@ -483,7 +499,7 @@
   <!-- Fields  -->
   <div class="flex items-stretch gap-5 w-full flex-nowrap overflow-scroll">
     {#each table.fields as field, i}
-      <div class="bg-white p-3 rounded-lg flex flex-col justify-between">
+      <div class="bg-white border-2 border-gray-400 p-3 rounded-lg flex flex-col justify-between">
         <input bind:value={table.fields[i].name} />
           {#each optionInputList[i] as optionInput, j}
             <div class="flex items-center my-2">
@@ -504,7 +520,13 @@
               {/if}
             </div>
           {/each}
-        <button class="rounded-md self-center bg-red-400 px-2 py-1">Remove</button>
+        <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 px-2 py-1">Remove</button>
+      </div>
+    {/each}
+    {#each removedOGFields as field, i}
+      <div class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2 ">
+        <p class="font-bold">{field.name} ({field.options.type})</p>
+        <button class="py-1 px-2 border-2 border-gray-400 border-dashed rounded-lg" onclick={() => restoreField(i)}>Restore</button>
       </div>
     {/each}
   </div>
