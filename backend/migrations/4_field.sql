@@ -18,12 +18,7 @@ $$
 DECLARE
     field_count INTEGER;
 BEGIN
-    SELECT COUNT(*) + 1 INTO field_count
-    FROM meta_field
-    WHERE table_id = NEW.table_id;
-
-    NEW.data_field_name := '_' || field_count;
-
+    NEW.data_field_name := '_' || NEW.field_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -34,10 +29,3 @@ BEFORE INSERT ON meta_field
 FOR EACH ROW
 WHEN (NEW.data_field_name IS NULL)
 EXECUTE FUNCTION set_data_field_name();
-
-CREATE TABLE field_enumeration (
-    enumeration_id SERIAL PRIMARY KEY,
-    field_id INT NOT NULL REFERENCES meta_field(field_id),
-    enumeration_value TEXT NOT NULL,
-    UNIQUE (field_id, enumeration_value)
-);

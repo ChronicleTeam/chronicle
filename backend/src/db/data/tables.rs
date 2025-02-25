@@ -1,4 +1,7 @@
-use crate::{model::data::Table, Id};
+use crate::{
+    model::data::{FullTable, Table},
+    Id,
+};
 use sqlx::{Acquire, PgExecutor, Postgres};
 
 use super::Relation;
@@ -8,14 +11,24 @@ pub async fn create_table(
     user_id: Id,
     name: String,
     description: String,
-) -> sqlx::Result<Id> {
+) -> sqlx::Result<Table> {
     let mut tx = connection.begin().await?;
 
-    let (table_id, data_table_name): (Id, String) = sqlx::query_as(
+    let FullTable {
+        table,
+        data_table_name,
+    } = sqlx::query_as(
         r#"
             INSERT INTO meta_table (user_id, name, description)
             VALUES ($1, $2, $3) 
-            RETURNING table_id, data_table_name
+            RETURNING
+                table_id,
+                user_id,
+                name,
+                description,
+                created_at,
+                updated_at,
+                data_table_name
         "#,
     )
     .bind(user_id)
@@ -30,7 +43,6 @@ pub async fn create_table(
         r#"
             CREATE TABLE {data_table_name} (
                 entry_id SERIAL PRIMARY KEY,
-                is_valid BOOLEAN NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ
             )
@@ -47,7 +59,7 @@ pub async fn create_table(
 
     tx.commit().await?;
 
-    Ok(table_id)
+    Ok(table)
 }
 
 pub async fn update_table(
@@ -56,7 +68,7 @@ pub async fn update_table(
     name: String,
     description: String,
 ) -> sqlx::Result<Table> {
-    Ok(sqlx::query_as(
+    sqlx::query_as(
         r#"
             UPDATE meta_table
             SET name = $1, description = $2
@@ -74,7 +86,7 @@ pub async fn update_table(
     .bind(description)
     .bind(table_id)
     .fetch_one(executor)
-    .await?)
+    .await
 }
 
 pub async fn delete_table(
@@ -98,14 +110,13 @@ pub async fn delete_table(
         .execute(tx.as_mut())
         .await?;
 
+    tx.commit().await?;
+
     Ok(())
 }
 
-pub async fn get_user_tables(
-    executor: impl PgExecutor<'_>,
-    user_id: Id,
-) -> sqlx::Result<Vec<Table>> {
-    Ok(sqlx::query_as(
+pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<Table>> {
+    sqlx::query_as(
         r#"
             SELECT
                 table_id,
@@ -116,35 +127,31 @@ pub async fn get_user_tables(
                 updated_at
             FROM meta_table
             WHERE user_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(user_id)
     .fetch_all(executor)
-    .await?)
+    .await
 }
 
-pub async fn check_table_ownership(
+pub async fn check_table_relation(
     executor: impl PgExecutor<'_>,
     user_id: Id,
     table_id: Id,
 ) -> sqlx::Result<Relation> {
-    Ok(sqlx::query_scalar::<_, Id>(
+    sqlx::query_scalar::<_, Id>(
         r#"
             SELECT user_id
             FROM meta_table
             WHERE table_id = $1
-            FOR UPDATE
         "#,
     )
     .bind(table_id)
     .fetch_optional(executor)
-    .await?
-    .map_or(Relation::Absent, |x| {
-        if x == user_id {
-            Relation::Owned
-        } else {
-            Relation::NotOwned
-        }
-    }))
+    .await
+    .map(|id| match id {
+        None => Relation::Absent,
+        Some(id) if id == user_id => Relation::Owned,
+        Some(_) => Relation::NotOwned,
+    })
 }

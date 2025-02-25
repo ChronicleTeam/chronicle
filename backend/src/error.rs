@@ -104,7 +104,7 @@ impl IntoResponse for ApiError {
             }
 
             Self::Anyhow(ref e) => {
-                tracing::error!("Generic error: {:?}", e);
+                tracing::error!("Anyhow error: {:?}", e);
             }
 
             // Other errors get mapped normally.
