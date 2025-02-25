@@ -1,63 +1,72 @@
 <script lang="ts">
 import type { DataTable, Field, Entry,  Cell, Text, Money, Integer, Progress } from "$lib/types.d.js";
+import { API_URL } from "$lib/api.d.js";
 
 let { table_prop } = $props();
 
-const loadTable = async () => {
-  // fetch here
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  // load table
-  table = {
-  table: table_prop,
-  fields: [
-    {
-      name: "Project Name",
-      options: {
-          type: "Text",
-          is_required: true
+let err = $state();
+
+const loadTable = fetch(API_URL + `/${table_prop.table_id}/data`)
+    .then((response) => response.json())
+    .then((json) => {table = json})
+    .catch((e) => {
+      err = e;
+      table = {
+      table: table_prop,
+      fields: [
+        {
+          name: "Project Name",
+          options: {
+              type: "Text",
+              is_required: true
+            }
+        },
+        {
+          name: "Funding",
+          options: {
+            type: "Money",
+            is_required: false
+          }
+        },
+        {
+          name: "Members",
+          options: {
+            type: "Integer",
+            is_required: true
+          }
+        },
+        {
+    
+          name: "Progress",
+          options: {type: "Progress"}
         }
-    },
-    {
-      name: "Funding",
-      options: {
-        type: "Money",
-        is_required: false
-      }
-    },
-    {
-      name: "Members",
-      options: {
-        type: "Integer",
-        is_required: true
-      }
-    },
-    {
-
-      name: "Progress",
-      options: {type: "Progress"}
-    }
-  ],
-
-  entries: [
-    {
-      cells: [
-        "Project Alpha" as Text,
-        30000 as Money,
-        1 as Integer,
-        60 as Progress
-      ]
-    },
-    {
-        cells: [
-        "Project Beta" as Text,
-        40000 as Money,
-        2 as Integer,
-        20 as Progress
+      ],
+    
+      entries: [
+        {
+          cells: [
+            "Project Alpha" as Text,
+            30000 as Money,
+            1 as Integer,
+            60 as Progress
+          ]
+        },
+        {
+            cells: [
+            "Project Beta" as Text,
+            40000 as Money,
+            2 as Integer,
+            20 as Progress
+          ]
+        }
       ]
     }
-  ]
-}
-};
+  });
+
+
+
+
+
 
 let table = $state({
   table: table_prop,
@@ -65,14 +74,14 @@ let table = $state({
   entries: []
 } as DataTable);
 
-loadTable();
+
 
 let insertEntryMode = $state(false);
 let newEntry = $state(null as unknown as Entry);
 
-const getNewEntry = (t: DataTable): Entry => {
+const getNewEntry = (): Entry => {
   return {
-    cells: t.fields.map((f: Field): Cell => {
+    cells: table.fields.map((f: Field): Cell => {
       switch(f.options.type){
         case "Text":
           return "" as Text;
@@ -89,13 +98,13 @@ const getNewEntry = (t: DataTable): Entry => {
   };
 };
 
-const insertEntry = (t: DataTable) => {
+const insertEntry = () => {
   insertEntryMode = true;
-  newEntry = getNewEntry(t)
+  newEntry = getNewEntry()
 };
 
-const saveEntry = (t: { d: DataTable }) => {
-  t.d.entries.push(newEntry);
+const saveEntry = () => {
+  table.entries.push(newEntry);
   cancelEntry();
 };
 
@@ -105,12 +114,12 @@ const cancelEntry = () => {
 };
 
 </script>
-<div class="flex flex-col items-center justify-center">
-  {#await loadTable()} 
+<div class="flex flex-col items-center justify-center gap-3">
+  {#await loadTable} 
     <p>Loading Table...</p>
   {:then _} 
     {@debug table, newEntry}
-    <table class=" border border-gray-400 bg-white text-black ">
+    <table class=" border border-gray-400 bg-white text-black w-full">
       <thead>
         <tr>
         {#each table.fields as field}
@@ -142,13 +151,13 @@ const cancelEntry = () => {
       </tbody>
     </table> 
     {#if insertEntryMode}
-      <button onclick={() => {
-        table.entries = [...table.entries, newEntry];
-        cancelEntry();
-      }} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-white">Save</button>
-      <button onclick={cancelEntry} class="text-center mt-1 py-1 px-2 hover:py-2 transition-size duration-300 rounded bg-red-400 ">Cancel</button>
+      <div class="flex justify-center gap-3">
+        <button onclick={saveEntry} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
+        <button onclick={cancelEntry} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
+      </div>
     {:else}
-      <button onclick={() => insertEntry(table)} class="text-center w-full mt-1 hover:mt-0 py-1 hover:py-2 transition-size duration-300 border-2 border-dashed border-gray-400">+ Add Row</button>
+      <button onclick={insertEntry} class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition">+ Add Row</button>
     {/if}
+{err}
   {/await} 
 </div>
