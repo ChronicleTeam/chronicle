@@ -35,6 +35,8 @@ export type IntegerOptions = {
 export type DecimalOptions = {
   type: FieldType.Decimal;
   is_required: boolean;
+  range_start?: number;
+  range_end?: number;
   scientific_notation: boolean;
   number_precision?: number;
   number_scale?: number;

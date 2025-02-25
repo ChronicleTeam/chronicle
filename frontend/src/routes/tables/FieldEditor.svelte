@@ -21,13 +21,13 @@
     type EnumerationOptions,
     type ImageOptions,
     type FileOptions,
+    type FieldOptions,
   } from "$lib/types.d.js";
-    import { optimizeDeps } from "vite";
 
   let { table_prop } = $props();
 
   const fieldTypes = Object.values(FieldType);
-  let table: DataTable = {
+  let table: DataTable = $state({
     table: table_prop,
     fields: [
       {
@@ -60,7 +60,7 @@
       },
     ],
     entries: [],
-  };
+  });
 
   // TODO: add setter functions for bind() call such that the field options change type when the field type is changed.
   const fieldTypeSetters = $derived(
@@ -101,7 +101,7 @@
 
   type InputType =
     | "button"
-    | "checkbox"
+//    | "checkbox"
     | "color"
     | "date"
     | "datetime-local"
@@ -125,33 +125,37 @@
 
   type OptionInput =
     | {
+        name: string;
         label: string;
         type: InputType;
         optional: boolean;
-        enabled: boolean;
         bindSetter: (val: any) => void;
         bindGetter: () => string | boolean | number;
       }
     | {
+        name: string;
         label: string;
         type: "select";
         optional: boolean;
-        enabled: boolean;
         selectOptions: string[];
         bindSetter: (val: any) => void;
         bindGetter: () => string | boolean | number;
-      };
-
-  const GetOptionInputList = (f: Field): OptionInput[] => {
-    return [];
+      }
+  | {
+    name: string;
+    label:string;
+    type: "checkbox";
+    optional: boolean;
+    bindSetter: (val: any) => void;
+    bindGetter: () => boolean;
   };
 
   const getTypeOptionInput = (i: number): OptionInput => {
     return {
+      name: "type",
       label: "Type",
       type: "select",
       optional:  false,
-      enabled: true,
       selectOptions: fieldTypes,
       bindGetter: () => {
         return table.fields[i].options.type
@@ -263,10 +267,10 @@
 
   const getRequiredOptionInput = (i: number): OptionInput => {
     return {
+      name: "is_required",
       label: "Is Required",
       type: "checkbox",
       optional: false,
-      enabled: true,
       bindGetter: () => {
         return (table.fields[i].options as RequirableOptions).is_required;
       },
@@ -276,7 +280,7 @@
     }
   };
 
-  const OptionInputList = $derived(table.fields.map((f: Field, i: number): OptionInput[] => {
+  const optionInputList = $derived(table.fields.map((f: Field, i: number): OptionInput[] => {
     switch(f.options.type) {
       case FieldType.Text:
         return [
@@ -288,10 +292,10 @@
           getTypeOptionInput(i),
           getRequiredOptionInput(i),
           {
+            name: "range_start",
             label: "Range start",
             type: "number",
             optional: true,
-            enabled: false,
             bindGetter: () => {
               return (table.fields[i].options as IntegerOptions).range_start ?? 0;
             },
@@ -299,15 +303,15 @@
               (table.fields[i].options as IntegerOptions).range_start = val;
             }
           },{
+            name: "range_end",
             label: "Range end",
             type: "number",
             optional: true,
-            enabled: false,
             bindGetter: () => {
-              return (table.fields[i].options as IntegerOptions).range_start ?? 0;
+              return (table.fields[i].options as IntegerOptions).range_end ?? 100;
             },
             bindSetter: (val: number) => {
-              (table.fields[i].options as IntegerOptions).range_start = val;
+              (table.fields[i].options as IntegerOptions).range_end = val;
             }
           }
         ];
@@ -316,10 +320,34 @@
           getTypeOptionInput(i),
           getRequiredOptionInput(i),
           {
+            name: "range_start",
+            label: "Range start",
+            type: "number",
+            optional: true,
+            bindGetter: () => {
+              return (table.fields[i].options as DecimalOptions).range_start ?? 0;
+            },
+            bindSetter: (val: number) => {
+              (table.fields[i].options as DecimalOptions).range_start = val;
+            }
+          },
+          {
+            name: "range_end",
+            label: "Range end",
+            type: "number",
+            optional: true,
+            bindGetter: () => {
+              return (table.fields[i].options as DecimalOptions).range_end ?? 0;
+            },
+            bindSetter: (val: number) => {
+              (table.fields[i].options as DecimalOptions).range_end = val;
+            }
+          },
+          {
+            name: "scientific_notation",
             label: "Scientific notation",
             type: "checkbox",
             optional: false,
-            enabled: true,
             bindGetter: () => {
               return (table.fields[i].options as DecimalOptions).scientific_notation;
             },
@@ -328,10 +356,10 @@
             }
           },
           {
+            name: "number_precision",
             label: "Number Precision",
             type: "number",
             optional: true,
-            enabled: false,
             bindGetter: () => {
               return (table.fields[i].options as DecimalOptions).number_precision ?? 0;
             },
@@ -339,10 +367,10 @@
               (table.fields[i].options as DecimalOptions).number_precision = val;
             }
           },{
+            name: "number_scale",
             label: "Number Scale",
             type: "number",
             optional: true,
-            enabled: false,
             bindGetter: () => {
               return (table.fields[i].options as DecimalOptions).number_scale ?? 0;
             },
@@ -351,9 +379,95 @@
             }
           }
         ];
-      case FieldType.Money: // TODO
-      case FieldType.Progress: // TODO
-      case FieldType.DateTime: // TODO
+      case FieldType.Money: 
+        return [
+          getTypeOptionInput(i),
+          getRequiredOptionInput(i),
+          {
+            name: "range_start",
+            label: "Range start",
+            type: "number",
+            optional: true,
+            bindGetter: () => {
+              return (table.fields[i].options as MoneyOptions).range_start ?? 0;
+            },
+            bindSetter: (val: number) => {
+              (table.fields[i].options as MoneyOptions).range_start = val;
+            }
+          },
+          {
+            name: "range_end",
+            label: "Range end",
+            type: "number",
+            optional: true,
+            bindGetter: () => {
+              return (table.fields[i].options as MoneyOptions).range_end ?? 0;
+            },
+            bindSetter: (val: number) => {
+              (table.fields[i].options as MoneyOptions).range_end = val;
+            }
+          },
+        ];
+      case FieldType.Progress:
+        return [
+          getTypeOptionInput(i),
+          getRequiredOptionInput(i),
+          {
+            name: "total_steps",
+            label: "Total steps",
+            type: "number",
+            optional: false,
+            bindGetter: () => {
+              return (table.fields[i].options as ProgressOptions).total_steps ?? 0;
+            },
+            bindSetter: (val: number) => {
+              (table.fields[i].options as ProgressOptions).total_steps = val;
+            }
+          }
+        ];
+      case FieldType.DateTime:
+        return [
+          getTypeOptionInput(i),
+          getRequiredOptionInput(i),
+          {
+            name: "range_start",
+            label: "Range start",
+            type: "datetime-local",
+            optional: true,
+            bindGetter: () => {
+              return (table.fields[i].options as DateTimeOptions).range_start?.toISOString() ?? (new Date()).toString();
+            },
+            bindSetter: (val: string) => {
+              (table.fields[i].options as DateTimeOptions).range_start = new Date(val);
+            }
+          },
+          {
+            name: "range_end",
+            label: "Range end",
+            type: "datetime-local",
+            optional: true,
+            bindGetter: () => {
+              return (table.fields[i].options as DateTimeOptions).range_end?.toISOString() ?? (new Date()).toString();
+            },
+            bindSetter: (val: string) => {
+
+              (table.fields[i].options as DateTimeOptions).range_end = new Date(val);
+            }
+          },
+          {
+            name: "date_time_format",
+            label: "DateTime format",
+            type: "text",
+            optional: false,
+            bindGetter: () => {
+              return (table.fields[i].options as DateTimeOptions).date_time_format;
+            },
+            bindSetter: (val: string) => {
+
+              (table.fields[i].options as DateTimeOptions).date_time_format = val;
+            }
+          },
+        ];
       case FieldType.Interval:
         return [
           getTypeOptionInput(i),
@@ -369,8 +483,16 @@
           getTypeOptionInput(i),
           getRequiredOptionInput(i),
         ];
-      case FieldType.Checkbox: // TODO
-      case FieldType.Enumeration: // TODO
+      case FieldType.Checkbox: 
+        return [
+          getTypeOptionInput(i),
+        ];
+      case FieldType.Enumeration:
+        // TODO: Add map input somehow
+        return [
+          getTypeOptionInput(i),
+          getRequiredOptionInput(i),
+        ];
       case FieldType.Image:
         return [
           getTypeOptionInput(i),
@@ -386,7 +508,11 @@
     }
   }));
 
-
+  $inspect(table, optionInputList);
+  let optionalCheckboxStates = $state([] as boolean[][]);
+  optionalCheckboxStates = optionInputList.map((val) => {
+    return val.map(v => !v.optional);
+  });
 </script>
 
 <div class="w-full">
@@ -397,35 +523,25 @@
     {#each table.fields as field, i}
       <div class="bg-white p-3 rounded-lg">
         <input bind:value={table.fields[i].name} />
-        <div class="flex items-center">
-          <label for="typeSelect" class="mr-2">Type:</label>
-          <select
-            id="typeSelect"
-            class="my-2"
-            bind:value={table.fields[i].options.type}
-          >
-            {#each fieldTypes as fieldType}
-              <option value={fieldType}>{fieldType}:</option>
-            {/each}
-          </select>
-          {#each GetOptionInputList(field) as optionInput}
-            <div class="flex items-center">
+          {#each optionInputList[i] as optionInput, j}
+            <div class="flex items-center my-2">
               {#if optionInput.optional}
-                <input type="checkbox" bind:value={optionInput.enabled}/>
+                <input class="mr-2" type="checkbox" bind:checked={() => optionalCheckboxStates[i][j], (val) => {optionalCheckboxStates[i][j] = val; if(!val) delete (table.fields[i].options as any)[optionInput.name]}}/>
               {/if}
-              <label for={optionInput.label}>{optionInput.label}</label>
+              <label class={["mr-2 min-w-28", !optionalCheckboxStates[i][j] && "text-gray-300"]} for={optionInput.label + i}>{optionInput.label}:</label>
               {#if optionInput.type === "select"}
-                <select disabled={optionInput.enabled} id={optionInput.label}>
+                <select disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} bind:value={optionInput.bindGetter, optionInput.bindSetter}>
                   {#each optionInput.selectOptions as opt}
                     <option>{opt}</option>
                   {/each}
                 </select>
+              {:else if optionInput.type === "checkbox"}
+                <input class={[!optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type="checkbox" bind:checked={optionInput.bindGetter, optionInput.bindSetter} />
               {:else}
-                <input id={optionInput.label} type={optionInput.type} />
+                <input class={[!optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type={optionInput.type} bind:value={optionInput.bindGetter, optionInput.bindSetter} />
               {/if}
             </div>
           {/each}
-        </div>
       </div>
     {/each}
   </div>
