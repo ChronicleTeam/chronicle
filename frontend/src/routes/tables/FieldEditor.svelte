@@ -62,46 +62,8 @@
     entries: [],
   });
 
-  // TODO: add setter functions for bind() call such that the field options change type when the field type is changed.
-  const fieldTypeSetters = $derived(
-    table.fields.map((f: Field, i: number) => {
-      return (val: FieldType) => {
-        if (table.fields[i].options.type != val) {
-          table.fields[i].options.type = val;
-          switch (val) {
-            case FieldType.Text:
-              table.fields[i].options = {
-                type: val,
-                is_required: true,
-              } as TextOptions;
-              break;
-            case FieldType.Money:
-              table.fields[i].options = {
-                type: val,
-                is_required: true,
-              } as MoneyOptions;
-              break;
-            case FieldType.Integer:
-              table.fields[i].options = {
-                type: val,
-                is_required: true,
-              } as IntegerOptions;
-              break;
-            case FieldType.Progress:
-              table.fields[i].options = {
-                type: val,
-                total_steps: 100,
-              } as ProgressOptions;
-              break;
-          }
-        }
-      };
-    }),
-  );
-
   type InputType =
     | "button"
-//    | "checkbox"
     | "color"
     | "date"
     | "datetime-local"
@@ -521,7 +483,7 @@
   <!-- Fields  -->
   <div class="flex items-stretch gap-5 w-full flex-nowrap overflow-scroll">
     {#each table.fields as field, i}
-      <div class="bg-white p-3 rounded-lg">
+      <div class="bg-white p-3 rounded-lg flex flex-col justify-between">
         <input bind:value={table.fields[i].name} />
           {#each optionInputList[i] as optionInput, j}
             <div class="flex items-center my-2">
@@ -538,10 +500,11 @@
               {:else if optionInput.type === "checkbox"}
                 <input class={[!optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type="checkbox" bind:checked={optionInput.bindGetter, optionInput.bindSetter} />
               {:else}
-                <input class={[!optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type={optionInput.type} bind:value={optionInput.bindGetter, optionInput.bindSetter} />
+                <input class={["w-24", !optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type={optionInput.type} bind:value={optionInput.bindGetter, optionInput.bindSetter} />
               {/if}
             </div>
           {/each}
+        <button class="rounded-md self-center bg-red-400 px-2 py-1">Remove</button>
       </div>
     {/each}
   </div>
