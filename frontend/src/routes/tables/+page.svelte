@@ -18,32 +18,48 @@
 
   const loadTables: () =>Promise<Table[]> = () => fetch(API_URL + "/tables").then(response => response.json())
 
-  const addTable = () => {
+  const addTable = (name: string) => {
       fetch(API_URL + "/tables", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          name: "Table 1" + Math.floor(Math.random() * 10000),
+          name,
           description: ""
         })
-      }).then(() => {
-          asyncTables = loadTables();
-        })
+      }).then((r) => {
+        console.log(r);
+        if(r.ok){
+        addTableMode = false;
+        asyncTables = loadTables();
+        addTableError = "";
+        } else {
+          if(r.headers.get("content-type") === "application/json"){
+            r.json().then((j) => {
+              addTableError = "Error: " + j.name;
+            });
+          }
+          addTableError = r.statusText;
+        }
+      });
   };
 
-  let asyncTables: Promise<Table[]> = $state(loadTables())
+  let asyncTables: Promise<Table[]> = $state(loadTables());
 
-  let curTable = $state(null as unknown as Table)
+  let curTable = $state(null as unknown as Table);
 
   const EditMode = {
     NONE: 0,
     TABLE: 1,
     FIELDS: 2
-  }
+  };
 
-  let editMode = $state(EditMode.NONE)
+  let editMode = $state(EditMode.NONE);
+
+  let addTableMode = $state(false);
+  let addTableField = $state("");
+  let addTableError = $state("");
 </script>
 
 
@@ -58,13 +74,23 @@
       {:then tables}
         {#each tables as t}
           <button onclick={() => {curTable = t; editMode = EditMode.TABLE}} 
-            class="text-left bg-gray-200 hover:bg-gray-400 transition duration-300 rounded-md p-2">{t.name}</button>
+            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-md p-2">{t.name}</button>
         {/each}
       {/await}
     </div>
-    <button onclick={addTable} class="text-center w-full rounded-xl p-2 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition-all">Add Table</button>
+    <div class={["rounded-xl py-2 border-2 border-dashed border-gray-400 flex flex-col items-center transition gap-3", !addTableMode && "hover:bg-gray-400"]}>
+      {#if addTableMode}
+        <p class="text-center">New Table</p>
+        <input bind:value={addTableField} id="table-name-input" />
+        <button onclick={() => addTable(addTableField)} class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition">Create</button>
+      {:else}
+        <button onclick={() => {addTableMode = true}} class="text-center w-full">Add Table</button>
+      {/if}
+    </div>
+    {#if addTableError !== ""}
+     <p class="text-red-500">{addTableError}</p>
+    {/if}
   </div>
-
   <!-- Main Editor -->
   <div class="bg-gray-200 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center ">
     {#if editMode === EditMode.NONE}
