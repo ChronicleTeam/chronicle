@@ -16,7 +16,7 @@
 
 
 
-  const loadTables: () =>Promise<Table[]> = () => fetch(API_URL + "/tables").then(response => response.json())
+  const loadTables: () =>Promise<Table[]> = () => fetch(`${API_URL}/tables`).then(response => response.json())
 
   const addTable = (name: string) => {
       fetch(API_URL + "/tables", {
@@ -29,11 +29,10 @@
           description: ""
         })
       }).then((r) => {
-        console.log(r);
         if(r.ok){
-        addTableMode = false;
-        asyncTables = loadTables();
-        addTableError = "";
+          addTableMode = false;
+          asyncTables = loadTables();
+          addTableError = "";
         } else {
           if(r.headers.get("content-type") === "application/json"){
             r.json().then((j) => {
@@ -47,7 +46,7 @@
 
   let asyncTables: Promise<Table[]> = $state(loadTables());
 
-  let curTable = $state(null as unknown as Table);
+  let curTable: Table | null = $state(null as unknown as Table);
 
   const EditMode = {
     NONE: 0,
@@ -60,6 +59,28 @@
   let addTableMode = $state(false);
   let addTableField = $state("");
   let addTableError = $state("");
+
+
+  const deleteCurTable = () => {
+    if(curTable === null){
+      return;
+    }
+
+    fetch(`${API_URL}/tables/${curTable.table_id}`, {
+      method: "DELETE"
+    }).then((r) => {
+      if(r.ok){
+        curTable = null;
+        asyncTables = loadTables(); 
+        deleteTableError = "";
+        editMode = EditMode.NONE;
+      } else {
+        deleteTableError = "An error occured.";
+      }
+    });
+  };
+
+  let deleteTableError = $state("");
 </script>
 
 
@@ -93,19 +114,24 @@
   </div>
   <!-- Main Editor -->
   <div class="bg-gray-200 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center ">
-    {#if editMode === EditMode.NONE}
+    {#if editMode === EditMode.NONE || curTable === null}
       <h2 class="text-lg font-bold">Select a Table</h2>
-    {:else if editMode === EditMode.TABLE}
+    {:else if editMode === EditMode.TABLE && curTable !== null}
       <!-- Top Bar -->
       <div class="flex items-center gap-2 mb-2">
         <h2 class="text-lg font-bold">{curTable.name}</h2>
         <button onclick={()=>{editMode = EditMode.FIELDS}} class="px-2 bg-white hover:bg-gray-100 transition rounded">Edit</button>
-        <button class="px-2 bg-red-400 hover:bg-red-500 transition rounded">Delete</button>
+        <button onclick={deleteCurTable} class="px-2 bg-red-400 hover:bg-red-500 transition rounded">Delete</button>
       </div>
 
       <!-- Main Table -->
       <DataTable table_prop={curTable}/>
-    {:else if editMode === EditMode.FIELDS}
+
+      <!-- Error -->
+      {#if deleteTableError !== ""}
+        <p class="text-red-500">{deleteTableError}</p>
+      {/if}
+    {:else if editMode === EditMode.FIELDS && curTable !== null}
       <FieldEditor table_prop={curTable} />
     {/if}
   </div>
