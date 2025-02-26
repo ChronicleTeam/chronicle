@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { DataTable, Field, Entry,  Cell, Text, Money, Integer, Progress } from "$lib/types.d.js";
+import {FieldType } from "$lib/types.d.js"
 import { API_URL } from "$lib/api.d.js";
 
 let { table_prop } = $props();
@@ -17,28 +18,31 @@ const loadTable = fetch(API_URL + `/${table_prop.table_id}/data`)
         {
           name: "Project Name",
           options: {
-              type: "Text",
+              type: FieldType.Text,
               is_required: true
             }
         },
         {
           name: "Funding",
           options: {
-            type: "Money",
+            type: FieldType.Money,
             is_required: false
           }
         },
         {
           name: "Members",
           options: {
-            type: "Integer",
+            type: FieldType.Integer,
             is_required: true
           }
         },
         {
     
           name: "Progress",
-          options: {type: "Progress"}
+          options: {
+            type: FieldType.Progress,
+            total_steps: 100
+          }
         }
       ],
     
