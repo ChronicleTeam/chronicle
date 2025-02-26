@@ -24,45 +24,29 @@
     type FieldOptions,
   } from "$lib/types.d.js";
 
+  import { API_URL } from "$lib/api.d.js";
+
   let { table_prop } = $props();
 
-  const fieldTypes = Object.values(FieldType);
   let originalTable: DataTable = {
     table: table_prop,
-    fields: [
-      {
-        name: "Project Name",
-        options: {
-          type: FieldType.Text,
-          is_required: true,
-        },
-      },
-      {
-        name: "Funding",
-        options: {
-          type: FieldType.Money,
-          is_required: false,
-        },
-      },
-      {
-        name: "Members",
-        options: {
-          type: FieldType.Integer,
-          is_required: true,
-        },
-      },
-      {
-        name: "Progress",
-        options: {
-          type: FieldType.Progress,
-          total_steps: 100,
-        },
-      },
-    ],
+    fields: [],
     entries: [],
   };
 
   let table = $state(originalTable);
+
+  const loadFields = () => {
+    fetch(`${API_URL}/tables/${table_prop.table_id}/fields`)
+      .then(r => r.json())
+      .then(j => {
+        originalTable.fields = j;
+        table = originalTable;
+        optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+      })
+  }
+  loadFields()
+  const fieldTypes = Object.values(FieldType);
 
   type InputType =
     | "button"
@@ -323,7 +307,7 @@
             name: "number_precision",
             label: "Number Precision",
             type: "number",
-            opggtional: true,
+            optional: true,
             bindGetter: () => {
               return (table.fields[i].options as DecimalOptions).number_precision ?? 0;
             },
@@ -488,9 +472,7 @@
     };
 
     table.fields.splice(i+1,0,newField);
-  optionalCheckboxStates = optionInputList.map((val) => {
-    return val.map(v => !v.optional);
-  });
+    optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
   }
   
   const removeField = (i: number): void => {
@@ -506,9 +488,7 @@
   $inspect(table, originalTable, removedOGFields)
 
   let optionalCheckboxStates = $state([] as boolean[][]);
-  optionalCheckboxStates = optionInputList.map((val) => {
-    return val.map(v => !v.optional);
-  });
+  optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
 </script>
 
 <div class="w-full">
@@ -516,6 +496,11 @@
   <input bind:value={table.table.name} class="text-lg font-bold mb-3" />
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
+    {#if table.fields.length === 0}
+      <button class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed" onclick={() => addField(0)} aria-label="add field">+</button>
+    {:else}
+      <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(i)} aria-label="add field">+</button>
+    {/if}
     {#each table.fields as field, i}
       <div class="bg-white border-2 border-gray-400 p-3 rounded-lg flex flex-col justify-between">
         <input bind:value={table.fields[i].name} />
@@ -540,9 +525,7 @@
           {/each}
         <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition">Remove</button>
       </div>
-      {#if i < table.fields.length-1 || removedOGFields.length > 0}
         <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(i)} aria-label="add field">+</button>
-      {/if}
     {/each}
     {#each removedOGFields as field, i}
       <div class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2 ">
