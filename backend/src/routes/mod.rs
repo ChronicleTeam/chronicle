@@ -11,8 +11,7 @@ use sqlx::PgPool;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tower_http::{
-    catch_panic::CatchPanicLayer, compression::CompressionLayer, timeout::TimeoutLayer,
-    trace::TraceLayer,
+    catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer
 };
 use tracing::info;
 
@@ -32,6 +31,7 @@ fn create_app(api_state: ApiState) -> Router {
             TraceLayer::new_for_http().on_failure(()),
             TimeoutLayer::new(Duration::from_secs(30)),
             CatchPanicLayer::new(),
+            CorsLayer::permissive(),
         ))
         .with_state(api_state)
 }
