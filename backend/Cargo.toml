@@ -30,6 +30,7 @@ tower-http = { version = "0.6", features = [
   "sensitive-headers",
   "timeout",
   "trace",
+  "cors",
 ] }
 
 # Configuration
