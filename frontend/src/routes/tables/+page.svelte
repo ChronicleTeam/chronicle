@@ -125,8 +125,9 @@
       </div>
 
       <!-- Main Table -->
-      <DataTable table_prop={curTable}/>
-
+      {#key curTable.table_id}
+        <DataTable table_prop={curTable}/>
+      {/key}
       <!-- Error -->
       {#if deleteTableError !== ""}
         <p class="text-red-500">{deleteTableError}</p>

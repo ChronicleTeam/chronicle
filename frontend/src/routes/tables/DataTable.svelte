@@ -30,6 +30,7 @@ loadTable()
 let insertEntryMode = $state(false);
 let newEntry = $state(null as unknown as Entry);
 
+// TODO: Use enum and implement for all types
 const getNewEntry = (): Entry => {
   return {
     cells: table.fields.map((f: Field): Cell => {
@@ -102,7 +103,7 @@ const cancelEntry = () => {
         <button onclick={saveEntry} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
         <button onclick={cancelEntry} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
       </div>
-    {:else if table.entries.length > 0}
+    {:else if table.fields.length > 0}
       <button onclick={insertEntry} class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition">+ Add Row</button>
     {/if}
 {err}
