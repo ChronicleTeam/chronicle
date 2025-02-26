@@ -2,6 +2,7 @@
   import type { PageProps } from './$types';
   import DataTable from './DataTable.svelte';
   import FieldEditor from './FieldEditor.svelte';
+  import { API_URL } from '$lib/api.d.js';
   type Id = number;
 
   type Table = {
@@ -13,7 +14,26 @@
     updated_at?: Date;
   }
 
-  let { data }: PageProps = $props();
+
+
+  const loadTables: () =>Promise<Table[]> = () => fetch(API_URL + "/tables").then(response => response.json())
+
+  const addTable = () => {
+      fetch(API_URL + "/tables", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: "Table 1" + Math.floor(Math.random() * 10000),
+          description: ""
+        })
+      }).then(() => {
+          asyncTables = loadTables();
+        })
+  };
+
+  let asyncTables: Promise<Table[]> = $state(loadTables())
 
   let curTable = $state(null as unknown as Table)
 
@@ -33,7 +53,7 @@
   <div class="basis-[12rem] grow bg-gray-200 rounded-lg p-3">
     <h2>Tables</h2>
     <div class="flex flex-col">
-      {#await data.tables}
+      {#await asyncTables}
         Loading...
       {:then tables}
         {#each tables as t}
@@ -42,7 +62,7 @@
         {/each}
       {/await}
     </div>
-    <button class="text-center w-full rounded-xl p-2 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition-all">Add Table</button>
+    <button onclick={addTable} class="text-center w-full rounded-xl p-2 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition-all">Add Table</button>
   </div>
 
   <!-- Main Editor -->
