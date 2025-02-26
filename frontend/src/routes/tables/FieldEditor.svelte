@@ -323,7 +323,7 @@
             name: "number_precision",
             label: "Number Precision",
             type: "number",
-            opggtional: true,
+            optional: true,
             bindGetter: () => {
               return (table.fields[i].options as DecimalOptions).number_precision ?? 0;
             },

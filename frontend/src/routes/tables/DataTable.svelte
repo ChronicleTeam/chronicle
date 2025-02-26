@@ -7,7 +7,7 @@ let { table_prop } = $props();
 
 let err = $state();
 
-const loadTable = fetch(API_URL + `/${table_prop.table_id}/data`)
+const loadTable = fetch(API_URL + `/tables/${table_prop.table_id}/data`)
     .then((response) => response.json())
     .then((json) => {table = json})
     .catch((e) => {
