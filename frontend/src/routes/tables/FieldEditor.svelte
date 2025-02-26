@@ -28,20 +28,20 @@
 
   let { table_prop } = $props();
 
-  let originalTable: DataTable = {
+  let originalTable: DataTable = $state({
     table: table_prop,
     fields: [],
     entries: [],
-  };
+  });
 
-  let table = $state(originalTable);
+  let table = $state($state.snapshot(originalTable));
 
   const loadFields = () => {
     fetch(`${API_URL}/tables/${table_prop.table_id}/fields`)
       .then(r => r.json())
       .then(j => {
         originalTable.fields = j;
-        table = originalTable;
+        table = $state.snapshot(originalTable);
         optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
       })
   }
@@ -464,6 +464,11 @@
     }
 
     let newField: Field = {
+      // These first three fields should be set upon creation by the backend and are merely defined here to satisfy Typescript
+      table_id: -1,
+      user_id: -1, 
+      field_id: -1,
+
       name: newFieldName,
       options: {
         type: FieldType.Text,
@@ -479,10 +484,10 @@
     table.fields.splice(i, 1);
   }
 
-  let removedOGFields = $derived(originalTable.fields.filter((f: Field) => !table.fields.some((g: Field) => g.name === f.name)))
+  let removedOGFields = $derived(originalTable.fields.filter((f: Field) => table.fields.every((g: Field) => g.field_id !== f.field_id)));
 
   const restoreField = (i: number): void => {
-    table.fields.push(removedOGFields[i]);
+    table.fields.push($state.snapshot(removedOGFields[i]));
   }
   
   $inspect(table, originalTable, removedOGFields)
@@ -495,10 +500,8 @@
     let promises = []
 
     // create new fields
-    let newFields = table.fields.filter(f => originalTable.fields.every(h => f.name !== h.name))
-    console.log(newFields)
+    let newFields = table.fields.filter(f => originalTable.fields.every(h => f.field_id !== h.field_id))
     for(const field of newFields) {
-      console.log(field)
       promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields`, {
         method: "POST",
         headers: {
@@ -510,7 +513,13 @@
 
     // TODO: modify existing fields
 
-    // TODO: delete fields
+    // delete fields
+    for(const field of removedOGFields){
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
+          method: "DELETE"
+      }))
+    }
+
 
     // reload
     Promise.allSettled(promises).then(loadFields)
@@ -526,7 +535,7 @@
     {#if table.fields.length === 0}
       <button class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed" onclick={() => addField(0)} aria-label="add field">+</button>
     {:else}
-      <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(i)} aria-label="add field">+</button>
+      <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(0)} aria-label="add field">+</button>
     {/if}
     {#each table.fields as field, i}
       <div class="bg-white border-2 border-gray-400 p-3 rounded-lg flex flex-col justify-between">

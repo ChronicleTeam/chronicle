@@ -15,6 +15,9 @@ export enum FieldType {
   File = "File",
 }
 export type Field = {
+  table_id: number;
+  user_id: number;
+  field_id: number;
   name: string;
   options: FieldOptions;
   updated_at?: Date;
