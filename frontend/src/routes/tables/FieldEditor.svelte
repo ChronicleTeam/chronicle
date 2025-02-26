@@ -489,11 +489,38 @@
 
   let optionalCheckboxStates = $state([] as boolean[][]);
   optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+
+
+  const saveFields = () => {
+    let promises = []
+
+    // create new fields
+    let newFields = table.fields.filter(f => originalTable.fields.every(h => f.name !== h.name))
+    console.log(newFields)
+    for(const field of newFields) {
+      console.log(field)
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(field)
+      }))
+    }
+
+    // TODO: modify existing fields
+
+    // TODO: delete fields
+
+    // reload
+    Promise.allSettled(promises).then(loadFields)
+  }
 </script>
 
 <div class="w-full">
   <!-- Top bar -->
   <input bind:value={table.table.name} class="text-lg font-bold mb-3" />
+  
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
     {#if table.fields.length === 0}
@@ -537,4 +564,12 @@
       {/if}
     {/each}
   </div>
+  
+  <!-- Bottom Bar -->
+  {#if originalTable !== table}
+    <div class="flex items-center justify-center gap-3">
+      <button onclick={saveFields} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
+      <button class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
+    </div>
+  {/if}
 </div>
