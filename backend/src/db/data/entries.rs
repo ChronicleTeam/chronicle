@@ -10,8 +10,8 @@ use sqlx::{
     types::Json,
     Acquire, PgExecutor, Postgres,
 };
-use tracing::debug;
 use std::collections::HashMap;
+use tracing::debug;
 
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
@@ -47,18 +47,19 @@ pub async fn create_entry(
         .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
         .unzip();
 
-    let query_parameters = (1..=cells.len()).map(|i| format!("${i}")).join(", ");
-    let query_columns = data_field_names.into_iter().join(", ");
+    let parameters = (1..=cells.len()).map(|i| format!("${i}")).join(", ");
+    let insert_columns = data_field_names.iter().join(", ");
+    let return_columns = data_field_names
+        .iter()
+        .map(|x| x.as_str())
+        .chain(["entry_id", "created_at", "updated_at"])
+        .join(", ");
 
     let insert_query = format!(
         r#"
-            INSERT INTO {data_table_name} ({query_columns})
-            VALUES ({query_parameters})
-            RETURNING
-                {query_columns},
-                entry_id,
-                created_at,
-                updated_at
+            INSERT INTO {data_table_name} ({insert_columns})
+            VALUES ({parameters})
+            RETURNING {return_columns}
 
         "#,
     );
@@ -109,19 +110,23 @@ pub async fn update_entry(
         .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
         .unzip();
 
-    let query_parameters = data_field_names
+    let parameters = data_field_names
         .iter()
         .enumerate()
         .map(|(i, column)| format!("{column} = ${}", i + 2))
         .join(", ");
-    let query_columns = data_field_names.into_iter().join(", ");
+    let return_columns = data_field_names
+        .into_iter()
+        .map(String::as_str)
+        .chain(["entry_id", "created_at", "updated_at"])
+        .join(", ");
 
     let update_query = format!(
         r#"
             UPDATE {data_table_name}
-            SET {query_parameters}
+            SET {parameters}
             WHERE entry_id = $1
-            RETURNING {query_columns}, entry_id, created_at, updated_at
+            RETURNING {return_columns}
         "#,
     );
     let mut update_query = sqlx::query(&update_query).bind(entry_id);

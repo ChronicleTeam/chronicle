@@ -24,7 +24,7 @@ curl -v -X POST http://localhost:3000/api/tables/1/entries \
 
 curl -v -X PUT http://localhost:3000/api/tables/1/entries/1 \
      -H "Content-Type: application/json" \
-     -d '{"1": "Other text", "2": 321}'
+     -d '{"1": "New text", "2": 666}'
 
 curl -v -X DELETE http://localhost:3000/api/tables/1/entries/1
 
