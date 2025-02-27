@@ -28,12 +28,15 @@ impl Entry {
             cells: field_data
                 .iter()
                 .map(|(id, name, options)| {
-                    match Cell::from_row(&row, name.as_str(), &options.0) {
-                        Ok(v) => Ok(Some(v)),
-                        Err(sqlx::Error::ColumnNotFound(_)) => Ok(None),
-                        Err(e) => Err(e),
-                    }
-                    .map(|v| (*id, v))
+                    Cell::from_row(&row, name.as_str(), &options.0)
+                        .or_else(|e| {
+                            if matches!(e, sqlx::Error::ColumnNotFound(_)) {
+                                Ok(None)
+                            } else {
+                                Err(e)
+                            }
+                        })
+                        .map(|v| (*id, v))
                 })
                 .try_collect()?,
         })
@@ -53,19 +56,29 @@ pub enum Cell {
 }
 
 impl Cell {
-    fn from_row(row: &PgRow, index: &str, field_options: &FieldOptions) -> sqlx::Result<Cell> {
+    fn from_row(
+        row: &PgRow,
+        index: &str,
+        field_options: &FieldOptions,
+    ) -> sqlx::Result<Option<Cell>> {
         Ok(match field_options {
             FieldOptions::Text { .. }
             | FieldOptions::WebLink { .. }
-            | FieldOptions::Email { .. } => Cell::String(row.try_get(index)?),
+            | FieldOptions::Email { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::String),
             FieldOptions::Integer { .. }
             | FieldOptions::Progress { .. }
-            | FieldOptions::Enumeration { .. } => Cell::Integer(row.try_get(index)?),
-            FieldOptions::Decimal { .. } => Cell::Float(row.try_get(index)?),
-            FieldOptions::Money { .. } => Cell::Decimal(row.try_get(index)?),
-            FieldOptions::DateTime { .. } => Cell::DateTime(row.try_get(index)?),
-            FieldOptions::Interval { .. } => Cell::Interval(row.try_get(index)?),
-            FieldOptions::Checkbox => Cell::Boolean(row.try_get(index)?),
+            | FieldOptions::Enumeration { .. } => {
+                row.try_get::<Option<_>, _>(index)?.map(Cell::Integer)
+            }
+            FieldOptions::Decimal { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
+            FieldOptions::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
+            FieldOptions::DateTime { .. } => {
+                row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime)
+            }
+            FieldOptions::Interval { .. } => {
+                row.try_get::<Option<_>, _>(index)?.map(Cell::Interval)
+            }
+            FieldOptions::Checkbox => row.try_get::<Option<_>, _>(index)?.map(Cell::Boolean),
         })
     }
 }

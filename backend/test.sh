@@ -31,3 +31,5 @@ curl -v -X DELETE http://localhost:3000/api/tables/1/entries/1
 curl -v -X DELETE http://localhost:3000/api/tables/1/fields/1
 
 curl -v -X DELETE http://localhost:3000/api/tables/1
+
+curl -v -X GET http://localhost:3000/api/tables/1/data
