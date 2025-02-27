@@ -13,10 +13,10 @@ const loadTable = () => {
     .then((json) => {table = json})
 };
 
-
-
-
-
+const EntryMode = {
+  DISPLAY: 0,
+  INSERT: 1,
+}
 
 let table = $state({
   table: table_prop,
@@ -27,7 +27,7 @@ let table = $state({
 loadTable()
 
 
-let insertEntryMode = $state(false);
+let entryMode = $state(EntryMode.DISPLAY);
 let newEntry = $state(null as unknown as Entry);
 
 // TODO: implement for all types
@@ -51,7 +51,7 @@ const getNewEntry = (): Entry => {
 };
 
 const insertEntry = () => {
-  insertEntryMode = true;
+  entryMode = EntryMode.INSERT;
   newEntry = getNewEntry()
 };
 
@@ -68,7 +68,7 @@ const saveEntry = () => {
 };
 
 const cancelEntry = () => {
-  insertEntryMode = false;
+  entryMode = EntryMode.DISPLAY;
   newEntry = null as unknown as Entry;
 };
 
@@ -91,7 +91,7 @@ $inspect(table, newEntry);
             {/each}
           </tr>
         {/each}
-        {#if insertEntryMode}
+        {#if entryMode === EntryMode.INSERT}
           <tr>
             {#if newEntry === null}
               <td>error</td>
@@ -106,7 +106,7 @@ $inspect(table, newEntry);
         {/if}
       </tbody>
     </table> 
-    {#if insertEntryMode}
+    {#if entryMode === EntryMode.INSERT}
       <div class="flex justify-center gap-3">
         <button onclick={saveEntry} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
         <button onclick={cancelEntry} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
