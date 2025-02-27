@@ -496,8 +496,12 @@
   optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
 
 
+
   const saveFields = () => {
     let promises = []
+
+
+    // TODO: reduce field objects to minimum required request bodies AND/OR refactor fetches into their own functions
 
     // create new fields
     let newFields = table.fields.filter(f => originalTable.fields.every(h => f.field_id !== h.field_id))
@@ -507,22 +511,54 @@
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(field)
-      }))
+        body: JSON.stringify({
+          name: field.name,
+          options: field.options})
+      }));
     }
 
-    // TODO: modify existing fields
+    // modify existing fields
+    let moddedFields = table.fields.filter(f => originalTable.fields.some(h => f.field_id === h.field_id && !recursiveCompare(f, h)));
+    for(const field of moddedFields){
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: field.name,
+          options: field.options
+        })
+      }));
+    }
 
     // delete fields
     for(const field of removedOGFields){
       promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
           method: "DELETE"
-      }))
+      }));
     }
 
 
     // reload
     Promise.allSettled(promises).then(loadFields)
+  }
+
+  const recursiveCompare= (a: any, b: any):boolean => {
+    console.log(a, b);
+    if (typeof a !== typeof b) return false;
+
+    if(a === null){
+      return b === null;
+    } else if(Array.isArray(a)){
+      // compare every element
+      return a.every((obj, i) => recursiveCompare(obj, b[i]));
+    } else if(typeof a === "object") {
+      // Check if keys match...                                                 ...and if they do, check if objects match
+      return recursiveCompare(Object.keys(a).sort(), Object.keys(b).sort()) && Object.keys(a).every(k => recursiveCompare(a[k], b[k]));
+    } else {
+      return a === b;
+    }
   }
 </script>
 
