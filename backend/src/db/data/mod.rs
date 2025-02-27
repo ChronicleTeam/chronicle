@@ -2,6 +2,8 @@ mod entries;
 mod fields;
 mod tables;
 
+use std::iter;
+
 use crate::{
     error::{ApiError, ApiResult},
     model::data::{DataTable, Entry, Field, FieldOptions, FullTable},

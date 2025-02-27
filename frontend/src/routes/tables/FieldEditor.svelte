@@ -24,45 +24,29 @@
     type FieldOptions,
   } from "$lib/types.d.js";
 
-  let { table_prop } = $props();
+  import { API_URL } from "$lib/api.d.js";
 
-  const fieldTypes = Object.values(FieldType);
-  let originalTable: DataTable = {
+  let { table_prop, on_save } = $props();
+
+  let originalTable: DataTable = $state({
     table: table_prop,
-    fields: [
-      {
-        name: "Project Name",
-        options: {
-          type: FieldType.Text,
-          is_required: true,
-        },
-      },
-      {
-        name: "Funding",
-        options: {
-          type: FieldType.Money,
-          is_required: false,
-        },
-      },
-      {
-        name: "Members",
-        options: {
-          type: FieldType.Integer,
-          is_required: true,
-        },
-      },
-      {
-        name: "Progress",
-        options: {
-          type: FieldType.Progress,
-          total_steps: 100,
-        },
-      },
-    ],
+    fields: [],
     entries: [],
-  };
+  });
 
-  let table = $state(originalTable);
+  let table = $state($state.snapshot(originalTable));
+
+  const loadFields = () => {
+    fetch(`${API_URL}/tables/${table_prop.table_id}/fields`)
+      .then(r => r.json())
+      .then(j => {
+        originalTable.fields = j;
+        table = $state.snapshot(originalTable);
+        optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+      })
+  }
+  loadFields()
+  const fieldTypes = Object.values(FieldType);
 
   type InputType =
     | "button"
@@ -323,7 +307,7 @@
             name: "number_precision",
             label: "Number Precision",
             type: "number",
-            opggtional: true,
+            optional: true,
             bindGetter: () => {
               return (table.fields[i].options as DecimalOptions).number_precision ?? 0;
             },
@@ -480,6 +464,11 @@
     }
 
     let newField: Field = {
+      // These first three fields should be set upon creation by the backend and are merely defined here to satisfy Typescript
+      table_id: -1,
+      user_id: -1, 
+      field_id: -1,
+
       name: newFieldName,
       options: {
         type: FieldType.Text,
@@ -488,34 +477,108 @@
     };
 
     table.fields.splice(i+1,0,newField);
-  optionalCheckboxStates = optionInputList.map((val) => {
-    return val.map(v => !v.optional);
-  });
+    optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
   }
   
   const removeField = (i: number): void => {
     table.fields.splice(i, 1);
   }
 
-  let removedOGFields = $derived(originalTable.fields.filter((f: Field) => !table.fields.some((g: Field) => g.name === f.name)))
+  let removedOGFields = $derived(originalTable.fields.filter((f: Field) => table.fields.every((g: Field) => g.field_id !== f.field_id)));
 
   const restoreField = (i: number): void => {
-    table.fields.push(removedOGFields[i]);
+    table.fields.push($state.snapshot(removedOGFields[i]));
   }
   
   $inspect(table, originalTable, removedOGFields)
 
   let optionalCheckboxStates = $state([] as boolean[][]);
-  optionalCheckboxStates = optionInputList.map((val) => {
-    return val.map(v => !v.optional);
-  });
+  optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+
+
+
+  const saveFields = () => {
+    let promises = []
+
+
+    // TODO: reduce field objects to minimum required request bodies AND/OR refactor fetches into their own functions
+
+    // create new fields
+    let newFields = table.fields.filter(f => originalTable.fields.every(h => f.field_id !== h.field_id))
+    for(const field of newFields) {
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: field.name,
+          options: field.options})
+      }));
+    }
+
+    // modify existing fields
+    let moddedFields = table.fields.filter(f => originalTable.fields.some(h => f.field_id === h.field_id && !recursiveCompare(f, h)));
+    for(const field of moddedFields){
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: field.name,
+          options: field.options
+        })
+      }));
+    }
+
+    // delete fields
+    for(const field of removedOGFields){
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
+          method: "DELETE"
+      }));
+    }
+
+
+    // quit or reload
+    Promise.allSettled(promises).then((results) => {
+      if(results.every(r => r.status == "fulfilled" && r.value.ok)){
+        on_save();
+      } else {
+        loadFields();
+      }
+    })
+  }
+
+  const recursiveCompare= (a: any, b: any):boolean => {
+    console.log(a, b);
+    if (typeof a !== typeof b) return false;
+
+    if(a === null){
+      return b === null;
+    } else if(Array.isArray(a)){
+      // compare every element
+      return a.every((obj, i) => recursiveCompare(obj, b[i]));
+    } else if(typeof a === "object") {
+      // Check if keys match...                                                 ...and if they do, check if objects match
+      return recursiveCompare(Object.keys(a).sort(), Object.keys(b).sort()) && Object.keys(a).every(k => recursiveCompare(a[k], b[k]));
+    } else {
+      return a === b;
+    }
+  }
 </script>
 
 <div class="w-full">
   <!-- Top bar -->
   <input bind:value={table.table.name} class="text-lg font-bold mb-3" />
+  
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
+    {#if table.fields.length === 0}
+      <button class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed" onclick={() => addField(0)} aria-label="add field">+</button>
+    {:else}
+      <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(0)} aria-label="add field">+</button>
+    {/if}
     {#each table.fields as field, i}
       <div class="bg-white border-2 border-gray-400 p-3 rounded-lg flex flex-col justify-between">
         <input bind:value={table.fields[i].name} />
@@ -540,9 +603,7 @@
           {/each}
         <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition">Remove</button>
       </div>
-      {#if i < table.fields.length-1 || removedOGFields.length > 0}
         <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(i)} aria-label="add field">+</button>
-      {/if}
     {/each}
     {#each removedOGFields as field, i}
       <div class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2 ">
@@ -554,4 +615,12 @@
       {/if}
     {/each}
   </div>
+  
+  <!-- Bottom Bar -->
+  {#if originalTable !== table}
+    <div class="flex items-center justify-center gap-3">
+      <button onclick={saveFields} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
+      <button onclick={on_save} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
+    </div>
+  {/if}
 </div>
