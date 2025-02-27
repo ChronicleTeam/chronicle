@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { DataTable, Field, Entry,  Cell, Text, Money, Integer, Progress } from "$lib/types.d.js";
-import {FieldType } from "$lib/types.d.js"
+import { FieldType } from "$lib/types.d.js"
 import { API_URL } from "$lib/api.d.js";
 
 let { table_prop } = $props();
@@ -35,13 +35,13 @@ const getNewEntry = (): Entry => {
   return {
     cells: table.fields.map((f: Field): Cell => {
       switch(f.options.type){
-        case "Text":
+        case FieldType.Text:
           return "" as Text;
-        case "Money":
+        case FieldType.Money:
           return 0 as Money;
-        case "Integer":
+        case FieldType.Integer:
           return 0 as Integer;
-        case "Progress":
+        case FieldType.Progress:
           return 0 as Progress;
         default:
           return "" as Text;
