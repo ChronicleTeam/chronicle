@@ -26,7 +26,7 @@
 
   import { API_URL } from "$lib/api.d.js";
 
-  let { table_prop } = $props();
+  let { table_prop, on_save } = $props();
 
   let originalTable: DataTable = $state({
     table: table_prop,
@@ -540,8 +540,14 @@
     }
 
 
-    // reload
-    Promise.allSettled(promises).then(loadFields)
+    // quit or reload
+    Promise.allSettled(promises).then((results) => {
+      if(results.every(r => r.status == "fulfilled" && r.value.ok)){
+        on_save();
+      } else {
+        loadFields();
+      }
+    })
   }
 
   const recursiveCompare= (a: any, b: any):boolean => {

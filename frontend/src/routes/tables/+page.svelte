@@ -133,7 +133,7 @@
         <p class="text-red-500">{deleteTableError}</p>
       {/if}
     {:else if editMode === EditMode.FIELDS && curTable !== null}
-      <FieldEditor table_prop={curTable} />
+      <FieldEditor on_save={() => {editMode = EditMode.TABLE}} table_prop={curTable} />
     {/if}
   </div>
 </div>
