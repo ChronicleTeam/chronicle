@@ -30,23 +30,23 @@ loadTable()
 let insertEntryMode = $state(false);
 let newEntry = $state(null as unknown as Entry);
 
-// TODO: Use enum and implement for all types
+// TODO: implement for all types
 const getNewEntry = (): Entry => {
   return {
-    cells: table.fields.map((f: Field): Cell => {
+    cells: Object.fromEntries(table.fields.map((f: Field): [string, Cell] => {
       switch(f.options.type){
         case FieldType.Text:
-          return "" as Text;
+          return [f.field_id.toString(), "" as Text];
         case FieldType.Money:
-          return 0 as Money;
+          return [f.field_id.toString(), 0 as Money];
         case FieldType.Integer:
-          return 0 as Integer;
+          return [f.field_id.toString(), 0 as Integer];
         case FieldType.Progress:
-          return 0 as Progress;
+          return [f.field_id.toString(), 0 as Progress];
         default:
-          return "" as Text;
+          return [f.field_id.toString(), "" as Text];
       }
-    })
+    }))
   };
 };
 
@@ -57,7 +57,14 @@ const insertEntry = () => {
 
 const saveEntry = () => {
   table.entries.push(newEntry);
-  cancelEntry();
+
+  fetch(`${API_URL}/tables/${table_prop.table_id}/entries`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(newEntry.cells)
+  }).then(cancelEntry).then(loadTable);
 };
 
 const cancelEntry = () => {
@@ -65,6 +72,7 @@ const cancelEntry = () => {
   newEntry = null as unknown as Entry;
 };
 
+$inspect(table, newEntry);
 </script>
 <div class="flex flex-col items-center justify-center gap-3">
     <table class=" border border-gray-400 bg-white text-black w-full">
@@ -78,8 +86,8 @@ const cancelEntry = () => {
       <tbody>
         {#each table.entries as entry}
           <tr>
-            {#each entry.cells as cell}
-              <td class="border-2 border-gray-400 bg-white p-1 ">{cell}</td>
+            {#each table.fields as field}
+              <td class="border-2 border-gray-400 bg-white p-1 ">{entry.cells[field.field_id]}</td>
             {/each}
           </tr>
         {/each}
@@ -88,9 +96,9 @@ const cancelEntry = () => {
             {#if newEntry === null}
               <td>error</td>
             {:else}
-              {#each newEntry.cells as _, i }
+              {#each Object.keys(newEntry.cells) as key }
                 <td class="text-gray-500 border-2 border-gray-400 bg-white size-min">
-                  <input bind:value={newEntry.cells[i]} class="border-none focus:outline-hidden outline-none size-full"/>
+                  <input bind:value={newEntry.cells[key]} class="border-none focus:outline-hidden outline-none size-full"/>
                 </td>
               {/each}
             {/if}

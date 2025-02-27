@@ -123,10 +123,17 @@ export type DataTable = {
 
 // Entry
 export type Entry = {
-  cells: Cell[];
+  cells: Cells;
 };
 
+
+
 // Cell
+export type Cells = {
+  [key: string]: Cell;
+}
+
+
 export type Text = string;
 export type Integer = number;
 export type Decimal = number;
