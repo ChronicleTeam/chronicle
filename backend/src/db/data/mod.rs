@@ -86,11 +86,15 @@ pub async fn get_data_table(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let query_columns = field_data.iter().map(|(_, name, _)| name).join(", ");
+    let select_columns = field_data
+        .iter()
+        .map(|(_, name, _)| name.as_str())
+        .chain(["entry_id", "created_at", "updated_at"])
+        .join(", ");
 
     let entries = sqlx::query::<Postgres>(&format!(
         r#"
-            SELECT {query_columns}, entry_id
+            SELECT {select_columns}
             FROM {data_table_name}
         "#
     ))
