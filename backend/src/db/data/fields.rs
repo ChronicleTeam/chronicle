@@ -110,9 +110,9 @@ pub async fn update_field(
 
     let field: Field = sqlx::query_as(
         r#"
-            UPDATE meta_table
-            SET name = $1, description = $2
-            WHERE table_id = $3
+            UPDATE meta_field
+            SET name = $1, options = $2
+            WHERE field_id = $3
             RETURNING
                 field_id,
                 table_id,
