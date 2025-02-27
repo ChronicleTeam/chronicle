@@ -2,6 +2,8 @@ mod entries;
 mod fields;
 mod tables;
 
+use std::iter;
+
 use crate::{
     error::{ApiError, ApiResult},
     model::data::{DataTable, Entry, Field, FieldOptions, FullTable},
@@ -86,11 +88,15 @@ pub async fn get_data_table(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let query_columns = field_data.iter().map(|(_, name, _)| name).join(", ");
+    let query_columns = field_data
+        .iter()
+        .map(|(_, name, _)| name.as_str())
+        .chain(iter::once("entry_id"))
+        .join(", ");
 
     let entries = sqlx::query::<Postgres>(&format!(
         r#"
-            SELECT {query_columns}, entry_id
+            SELECT {query_columns}
             FROM {data_table_name}
         "#
     ))
