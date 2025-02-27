@@ -620,7 +620,7 @@
   {#if originalTable !== table}
     <div class="flex items-center justify-center gap-3">
       <button onclick={saveFields} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
-      <button class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
+      <button onclick={on_save} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
     </div>
   {/if}
 </div>
