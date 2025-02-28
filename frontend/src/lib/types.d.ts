@@ -162,3 +162,50 @@ export type Cell =
   | Enumeration
   | Image
   | File;
+
+// Variable Inputs
+
+export type InputType =
+  | "button"
+  | "color"
+  | "date"
+  | "datetime-local"
+  | "email"
+  | "file"
+  | "hidden"
+  | "image"
+  | "month"
+  | "number"
+  | "password"
+  | "radio"
+  | "range"
+  | "reset"
+  | "search"
+  | "submit"
+  | "tel"
+  | "text"
+  | "time"
+  | "url"
+  | "week";
+
+export type InputParameters = 
+    | {
+        label: string;
+        type: InputType;
+        bindSetter: (val: any) => void;
+        bindGetter: () => string | boolean | number;
+      }
+    | {
+        label: string;
+        type: "select";
+        selectOptions: string[];
+        bindSetter: (val: any) => void;
+        bindGetter: () => string | boolean | number;
+      }
+  | {
+    label:string;
+    type: "checkbox";
+    bindSetter: (val: any) => void;
+    bindGetter: () => boolean;
+  };
+

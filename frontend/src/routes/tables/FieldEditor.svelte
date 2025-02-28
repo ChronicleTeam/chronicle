@@ -22,8 +22,9 @@
     type ImageOptions,
     type FileOptions,
     type FieldOptions,
+    type InputParameters
   } from "$lib/types.d.js";
-
+  import VariableInput from "$lib/components/VariableInput.svelte";
   import { API_URL } from "$lib/api.d.js";
 
   let { table_prop, on_save } = $props();
@@ -48,57 +49,13 @@
   loadFields()
   const fieldTypes = Object.values(FieldType);
 
-  type InputType =
-    | "button"
-    | "color"
-    | "date"
-    | "datetime-local"
-    | "email"
-    | "file"
-    | "hidden"
-    | "image"
-    | "month"
-    | "number"
-    | "password"
-    | "radio"
-    | "range"
-    | "reset"
-    | "search"
-    | "submit"
-    | "tel"
-    | "text"
-    | "time"
-    | "url"
-    | "week";
 
-  type OptionInput =
-    | {
-        name: string;
-        label: string;
-        type: InputType;
-        optional: boolean;
-        bindSetter: (val: any) => void;
-        bindGetter: () => string | boolean | number;
-      }
-    | {
-        name: string;
-        label: string;
-        type: "select";
-        optional: boolean;
-        selectOptions: string[];
-        bindSetter: (val: any) => void;
-        bindGetter: () => string | boolean | number;
-      }
-  | {
-    name: string;
-    label:string;
-    type: "checkbox";
-    optional: boolean;
-    bindSetter: (val: any) => void;
-    bindGetter: () => boolean;
-  };
+  type OptionInputParameters = InputParameters & {
+    optional: boolean,
+    name: string,
+  }
 
-  const getTypeOptionInput = (i: number): OptionInput => {
+  const getTypeOptionInput = (i: number): OptionInputParameters => {
     return {
       name: "type",
       label: "Type",
@@ -213,7 +170,7 @@
   | ImageOptions
   | FileOptions; 
 
-  const getRequiredOptionInput = (i: number): OptionInput => {
+  const getRequiredOptionInput = (i: number): OptionInputParameters => {
     return {
       name: "is_required",
       label: "Is Required",
@@ -228,7 +185,7 @@
     }
   };
 
-  const optionInputList = $derived(table.fields.map((f: Field, i: number): OptionInput[] => {
+  const optionInputList = $derived(table.fields.map((f: Field, i: number): OptionInputParameters[] => {
     switch(f.options.type) {
       case FieldType.Text:
         return [
@@ -587,18 +544,7 @@
               {#if optionInput.optional}
                 <input class="mr-2" type="checkbox" bind:checked={() => optionalCheckboxStates[i][j], (val) => {optionalCheckboxStates[i][j] = val; if(!val) delete (table.fields[i].options as any)[optionInput.name]}}/>
               {/if}
-              <label class={["mr-2 min-w-28", !optionalCheckboxStates[i][j] && "text-gray-300"]} for={optionInput.label + i}>{optionInput.label}:</label>
-              {#if optionInput.type === "select"}
-                <select disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} bind:value={optionInput.bindGetter, optionInput.bindSetter}>
-                  {#each optionInput.selectOptions as opt}
-                    <option>{opt}</option>
-                  {/each}
-                </select>
-              {:else if optionInput.type === "checkbox"}
-                <input class={[!optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type="checkbox" bind:checked={optionInput.bindGetter, optionInput.bindSetter} />
-              {:else}
-                <input class={["w-24", !optionalCheckboxStates[i][j] && "text-gray-300 border-gray-300"]} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label + i} type={optionInput.type} bind:value={optionInput.bindGetter, optionInput.bindSetter} />
-              {/if}
+              <VariableInput innerClass={["w-24", !optionalCheckboxStates && "text-gray-300 border-gray-300"]} params={optionInput} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label+i} />
             </div>
           {/each}
         <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition">Remove</button>
