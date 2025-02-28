@@ -29,7 +29,6 @@ loadTable()
 
 
 let entryMode = $state(EntryMode.DISPLAY);
-let newEntry = $state(null as unknown as Entry);
 
 // TODO: implement for all types
 const getNewEntry = (): Entry => {
@@ -75,14 +74,15 @@ const cancelEntry = () => {
   }
 
   entryMode = EntryMode.DISPLAY;
-  newEntry = null as unknown as Entry;
   editableEntry = -1;
 };
 
 let editableEntry = $state(-1);
+let deleteConfirmation = $state(false);
 const editEntry = (i : number) => {
   entryMode = EntryMode.EDIT;
   editableEntry = i;
+  deleteConfirmation = false;
 }
 
 const updateEntry = () => {
@@ -131,7 +131,15 @@ const cellToInputParams = (entryIdx: number, f: Field) => {
   }
 }
 
-$inspect(table, newEntry, entryMode, editableEntry);
+const deleteEntry = () => {
+  if(editableEntry === -1) return;
+
+  fetch(`${API_URL}/tables/${table_prop.table_id}/entries/${table.entries[editableEntry].entry_id}`, {
+    method: "DELETE"
+  }).then(cancelEntry).then(loadTable);
+}
+
+$inspect(table, entryMode, editableEntry);
 </script>
 <div class="flex flex-col items-center justify-center gap-3">
     <table class=" border border-gray-400 bg-white text-black w-full">
@@ -152,27 +160,19 @@ $inspect(table, newEntry, entryMode, editableEntry);
             {/each}
           </tr>
         {/each}
-      <!--
-        {#if entryMode === EntryMode.INSERT}
-          <tr>
-            {#if newEntry === null}
-              <td>error</td>
-            {:else}
-              {#each Object.keys(newEntry.cells) as key }
-                <td class="text-gray-500 border-2 border-gray-400 bg-white size-min">
-                  <VariableInput disabled={i !== editableEntry} innerClass="border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none" params={cellToInputParams(i, field)}/>
-                  <input bind:value={newEntry.cells[key]} class="border-none focus:outline-hidden outline-none size-full"/>
-                </td>
-              {/each}
-            {/if}
-          </tr>
-        {/if} -->
       </tbody>
     </table> 
     {#if entryMode === EntryMode.INSERT || entryMode === EntryMode.EDIT}
       <div class="flex justify-center gap-3">
         <button onclick={entryMode === EntryMode.INSERT ? saveEntry : updateEntry} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Save</button>
         <button onclick={cancelEntry} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Cancel</button>
+        {#if entryMode === EntryMode.EDIT}
+          {#if deleteConfirmation}
+            <button onclick={deleteEntry} class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition">Confirm delete</button>
+          {:else}
+            <button onclick={() => {deleteConfirmation = true}} class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition">Delete Entry</button>
+          {/if}
+        {/if}
       </div>
     {:else if entryMode === EntryMode.DISPLAY && table.fields.length > 0}
       <button onclick={insertEntry} class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition">+ Add Row</button>
