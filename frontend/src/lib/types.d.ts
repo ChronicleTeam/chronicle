@@ -123,6 +123,7 @@ export type DataTable = {
 
 // Entry
 export type Entry = {
+  entry_id: number;
   cells: Cells;
 };
 
