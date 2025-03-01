@@ -22,7 +22,8 @@
     type ImageOptions,
     type FileOptions,
     type FieldOptions,
-    type InputParameters
+    type InputParameters,
+    parseJSONTable
   } from "$lib/types.d.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import { API_URL } from "$lib/api.d.js";
@@ -41,7 +42,7 @@
     fetch(`${API_URL}/tables/${table_prop.table_id}/fields`)
       .then(r => r.json())
       .then(j => {
-        originalTable.fields = j;
+        originalTable.fields = parseJSONTable({table: {}, fields: j, entries: []}).fields;
         table = $state.snapshot(originalTable);
         optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
       })
@@ -340,7 +341,7 @@
             type: "datetime-local",
             optional: true,
             bindGetter: () => {
-              return (table.fields[i].options as DateTimeOptions).range_start?.toISOString() ?? (new Date()).toString();
+              return (table.fields[i].options as DateTimeOptions).range_start?.toISOString().substring(0,19) ?? (new Date()).toISOString().substring(0,19);
             },
             bindSetter: (val: string) => {
               (table.fields[i].options as DateTimeOptions).range_start = new Date(val);
@@ -352,7 +353,7 @@
             type: "datetime-local",
             optional: true,
             bindGetter: () => {
-              return (table.fields[i].options as DateTimeOptions).range_end?.toISOString() ?? (new Date()).toString();
+              return (table.fields[i].options as DateTimeOptions).range_end?.toISOString().substring(0,19) ?? (new Date()).toISOString().substring(0,19);
             },
             bindSetter: (val: string) => {
 
@@ -523,6 +524,8 @@
       return a === b;
     }
   }
+
+  $inspect(table)
 </script>
 
 <div class="w-full">

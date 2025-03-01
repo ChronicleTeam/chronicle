@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { DataTable, Field, Entry,  Cell, Text, Integer, Decimal, Money, Progress, DateTime, Interval, Weblink, Email, Checkbox, Enumeration, InputParameters } from "$lib/types.d.js";
-import { FieldType } from "$lib/types.d.js"
+import { FieldType, parseJSONTable } from "$lib/types.d.js"
 import { API_URL } from "$lib/api.d.js";
 import VariableInput from "$lib/components/VariableInput.svelte";
 let { table_prop } = $props();
@@ -10,20 +10,9 @@ let err = $state();
 const loadTable = () => {
   fetch(`${API_URL}/tables/${table_prop.table_id}/data`)
     .then((response) => response.json())
-    .then(json => {parseJSONIntoTable(json)})
+    .then(json => {table = parseJSONTable(json)})
 };
 
-const parseJSONIntoTable = (jsonObj: DataTable) => {
-  table = jsonObj;
-
-  for(const field of table.fields){
-    if(field.options.type === FieldType.DateTime){
-      for(let i = 0; i < table.entries.length; i++){
-        table.entries[i].cells[field.field_id] = new Date(table.entries[i].cells[field.field_id] as string)
-      }
-    }
-  }
-}
 
 
 const EntryMode = {
