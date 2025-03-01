@@ -461,6 +461,20 @@
 
     // TODO: reduce field objects to minimum required request bodies AND/OR refactor fetches into their own functions
 
+    // modify table name/description
+    if(table.table.name !== originalTable.table.name || table.table.description !== originalTable.table.description){
+      promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}`,{
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: table.table.name,
+          description: table.table.description
+        })
+      }));
+    }
+
     // create new fields
     let newFields = table.fields.filter(f => originalTable.fields.every(h => f.field_id !== h.field_id))
     for(const field of newFields) {
@@ -509,7 +523,6 @@
   }
 
   const recursiveCompare= (a: any, b: any):boolean => {
-    console.log(a, b);
     if (typeof a !== typeof b) return false;
 
     if(a === null){
@@ -525,12 +538,14 @@
     }
   }
 
-  $inspect(table)
 </script>
 
 <div class="w-full">
   <!-- Top bar -->
-  <input bind:value={table.table.name} class="text-lg font-bold mb-3" />
+  <label for="name-input">Name: </label>
+  <input id="name-input" bind:value={table.table.name} class="text-lg font-bold mb-3" />
+  <label for="decsription-input">Description: </label>
+  <input id="description-input" bind:value={table.table.description} class="text-lg font-bold mb-3" />
   
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">

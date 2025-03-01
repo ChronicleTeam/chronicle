@@ -118,12 +118,13 @@
       <h2 class="text-lg font-bold">Select a Table</h2>
     {:else if editMode === EditMode.TABLE && curTable !== null}
       <!-- Top Bar -->
-      <div class="flex items-center gap-2 mb-2">
+      <div class="flex items-center gap-2">
         <h2 class="text-lg font-bold">{curTable.name}</h2>
         <button onclick={()=>{editMode = EditMode.FIELDS}} class="px-2 bg-white hover:bg-gray-100 transition rounded">Edit</button>
         <button onclick={deleteCurTable} class="px-2 bg-red-400 hover:bg-red-500 transition rounded">Delete</button>
       </div>
-
+      <h3 class="text-lg mb-2">{curTable.description}</h3>
+      
       <!-- Main Table -->
       {#key curTable.table_id}
         <DataTable table_prop={curTable}/>
@@ -133,7 +134,7 @@
         <p class="text-red-500">{deleteTableError}</p>
       {/if}
     {:else if editMode === EditMode.FIELDS && curTable !== null}
-      <FieldEditor on_save={() => {editMode = EditMode.TABLE}} table_prop={curTable} />
+      <FieldEditor on_save={() => {editMode = EditMode.TABLE; asyncTables = loadTables()}} table_prop={curTable} />
     {/if}
   </div>
 </div>
