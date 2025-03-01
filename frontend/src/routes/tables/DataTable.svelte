@@ -10,8 +10,21 @@ let err = $state();
 const loadTable = () => {
   fetch(`${API_URL}/tables/${table_prop.table_id}/data`)
     .then((response) => response.json())
-    .then((json) => {table = json})
+    .then(json => {parseJSONIntoTable(json)})
 };
+
+const parseJSONIntoTable = (jsonObj: DataTable) => {
+  table = jsonObj;
+
+  for(const field of table.fields){
+    if(field.options.type === FieldType.DateTime){
+      for(let i = 0; i < table.entries.length; i++){
+        table.entries[i].cells[field.field_id] = new Date(table.entries[i].cells[field.field_id] as string)
+      }
+    }
+  }
+}
+
 
 const EntryMode = {
   DISPLAY: 0,
@@ -108,8 +121,8 @@ const cellToInputParams = (entryIdx: number, f: Field) => {
       } as InputParameters;
     case FieldType.DateTime:
       return {
-        type: "date",
-        bindGetter: () => (table.entries[entryIdx].cells[f.field_id] as Date).toISOString(),
+        type: "datetime-local",
+        bindGetter: () => (table.entries[entryIdx].cells[f.field_id] as Date ?? new Date()).toISOString().substring(0, 19),
         bindSetter: (val: string) => {table.entries[entryIdx].cells[f.field_id] = new Date(val)}
       } as InputParameters;
     case FieldType.Checkbox:
