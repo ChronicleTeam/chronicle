@@ -1,6 +1,6 @@
 <script lang="ts">
-import type { DataTable, Field, Entry,  Cell, Text, Money, Integer, Progress, InputParameters } from "$lib/types.d.js";
-import { FieldType } from "$lib/types.d.js"
+import type { DataTable, Field, Entry,  Cell, Text, Integer, Decimal, Money, Progress, DateTime, Interval, Weblink, Email, Checkbox, Enumeration, InputParameters } from "$lib/types.d.js";
+import { FieldType, parseJSONTable } from "$lib/types.d.js"
 import { API_URL } from "$lib/api.d.js";
 import VariableInput from "$lib/components/VariableInput.svelte";
 let { table_prop } = $props();
@@ -10,8 +10,10 @@ let err = $state();
 const loadTable = () => {
   fetch(`${API_URL}/tables/${table_prop.table_id}/data`)
     .then((response) => response.json())
-    .then((json) => {table = json})
+    .then(json => {table = parseJSONTable(json)})
 };
+
+
 
 const EntryMode = {
   DISPLAY: 0,
@@ -30,19 +32,33 @@ loadTable()
 
 let entryMode = $state(EntryMode.DISPLAY);
 
-// TODO: implement for all types
 const getNewEntry = (): Entry => {
   return {
+    entry_id: -1,
     cells: Object.fromEntries(table.fields.map((f: Field): [string, Cell] => {
       switch(f.options.type){
         case FieldType.Text:
           return [f.field_id.toString(), "" as Text];
-        case FieldType.Money:
-          return [f.field_id.toString(), 0 as Money];
         case FieldType.Integer:
           return [f.field_id.toString(), 0 as Integer];
+        case FieldType.Decimal:
+          return [f.field_id.toString(), 0 as Decimal];
+        case FieldType.Money:
+          return [f.field_id.toString(), 0 as Money];
         case FieldType.Progress:
           return [f.field_id.toString(), 0 as Progress];
+        case FieldType.DateTime:
+          return [f.field_id.toString(), new Date() as DateTime];
+        case FieldType.Interval:
+          return [f.field_id.toString(), null as Interval];
+        case FieldType.WebLink:
+          return [f.field_id.toString(), "" as Weblink];
+        case FieldType.Email:
+          return [f.field_id.toString(), "" as Email];
+        case FieldType.Checkbox:
+          return [f.field_id.toString(), false as Checkbox];
+        case FieldType.Enumeration:
+          return [f.field_id.toString(), 0 as Enumeration];
         default:
           return [f.field_id.toString(), "" as Text];
       }
@@ -108,8 +124,8 @@ const cellToInputParams = (entryIdx: number, f: Field) => {
       } as InputParameters;
     case FieldType.DateTime:
       return {
-        type: "date",
-        bindGetter: () => (table.entries[entryIdx].cells[f.field_id] as Date).toISOString(),
+        type: "datetime-local",
+        bindGetter: () => (table.entries[entryIdx].cells[f.field_id] as Date ?? new Date()).toISOString().substring(0, 19),
         bindSetter: (val: string) => {table.entries[entryIdx].cells[f.field_id] = new Date(val)}
       } as InputParameters;
     case FieldType.Checkbox:
