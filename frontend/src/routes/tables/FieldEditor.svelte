@@ -454,7 +454,6 @@
     table.fields.push($state.snapshot(removedOGFields[i]));
   }
   
-  $inspect(table, originalTable, removedOGFields)
 
   let optionalCheckboxStates = $state([] as boolean[][]);
   optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
@@ -462,7 +461,8 @@
 
   let fieldErrors = $state([] as string[]);
   table.fields.forEach(f => {fieldErrors[f.field_id] = ""});
-
+  
+  let metadataError = $state("");
   const saveFields = () => {
     let promises = []
 
@@ -480,7 +480,18 @@
           name: table.table.name,
           description: table.table.description
         })
-      }));
+      }).then(async response => {
+          if(response.status === 200){
+            let metadata = await response.json()
+            originalTable.table.name = metadata.name;
+            originalTable.table.description = metadata.description;
+            metadataError = "";
+            return {ok: true}
+          } else if(response.status === 422) {
+            metadataError = await response.text();
+          }
+            return {ok: false}
+        }));
     }
 
     // create new fields
@@ -499,6 +510,7 @@
             let newField = await response.json()
             originalTable.fields.push(newField)
             table.fields[table.fields.findIndex(f => f.field_id ===field.field_id)].field_id = newField.field_id;
+            fieldErrors[field.field_id] = "";
             return {ok: true}
           }else if(response.status === 422){
             let text = await response.text() 
@@ -523,6 +535,7 @@
       }).then(async response => {
           if(response.status === 200){
             originalTable.fields[originalTable.fields.findIndex(f => f.field_id === field.field_id)] = await response.json()
+            fieldErrors[field.field_id] = "";
             return {ok: true};
           }else if(response.status === 422){
             let text = await response.text() 
@@ -553,7 +566,6 @@
         on_save();
       } else {
         originalTable.fields = parseJSONTable({table: {}, fields: $state.snapshot(originalTable).fields, entries: []}).fields;
-        // table = $state.snapshot(originalTable);
       }
     })
   }
@@ -582,7 +594,8 @@
   <input id="name-input" bind:value={table.table.name} class="text-lg font-bold mb-3" />
   <label for="decsription-input">Description: </label>
   <input id="description-input" bind:value={table.table.description} class="text-lg font-bold mb-3" />
-  
+  {#if metadataError !== ""} <p class="text-red-500">{metadataError}</p>{/if}
+
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
     {#if table.fields.length === 0}
