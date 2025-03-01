@@ -45,6 +45,7 @@
         originalTable.fields = parseJSONTable({table: {}, fields: j, entries: []}).fields;
         table = $state.snapshot(originalTable);
         optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+        table.fields.forEach(f => {fieldErrors[f.field_id] = ""});
       })
   }
   loadFields()
@@ -421,11 +422,15 @@
       newFieldName = "New Field " + ++j;
     }
 
+    let id = -1;
+    while(table.fields.some(f => f.field_id === id)){
+      id--;
+    }
     let newField: Field = {
       // These first three fields should be set upon creation by the backend and are merely defined here to satisfy Typescript
       table_id: -1,
       user_id: -1, 
-      field_id: -1,
+      field_id: id,
 
       name: newFieldName,
       options: {
@@ -436,6 +441,7 @@
 
     table.fields.splice(i+1,0,newField);
     optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+    table.fields.forEach(f => {fieldErrors[f.field_id] = ""});
   }
   
   const removeField = (i: number): void => {
@@ -454,6 +460,8 @@
   optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
 
 
+  let fieldErrors = $state([] as string[]);
+  table.fields.forEach(f => {fieldErrors[f.field_id] = ""});
 
   const saveFields = () => {
     let promises = []
@@ -477,7 +485,7 @@
 
     // create new fields
     let newFields = table.fields.filter(f => originalTable.fields.every(h => f.field_id !== h.field_id))
-    for(const field of newFields) {
+    newFields.forEach((field, i) => {
       promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields`, {
         method: "POST",
         headers: {
@@ -486,12 +494,23 @@
         body: JSON.stringify({
           name: field.name,
           options: field.options})
-      }));
-    }
+      }).then(async response => {
+          if(response.status === 200){
+            let newField = await response.json()
+            originalTable.fields.push(newField)
+            table.fields[table.fields.findIndex(f => f.field_id ===field.field_id)].field_id = newField.field_id;
+            return {ok: true}
+          }else if(response.status === 422){
+            let text = await response.text() 
+            fieldErrors[field.field_id] = text;
+          }
+          return {ok: false}
+        }));
+    })
 
     // modify existing fields
     let moddedFields = table.fields.filter(f => originalTable.fields.some(h => f.field_id === h.field_id && !recursiveCompare(f, h)));
-    for(const field of moddedFields){
+    moddedFields.forEach((field, i) => {
       promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
         method: "PUT",
         headers: {
@@ -501,14 +520,30 @@
           name: field.name,
           options: field.options
         })
-      }));
-    }
+      }).then(async response => {
+          if(response.status === 200){
+            originalTable.fields[originalTable.fields.findIndex(f => f.field_id === field.field_id)] = await response.json()
+            return {ok: true};
+          }else if(response.status === 422){
+            let text = await response.text() 
+            fieldErrors[field.field_id] = text;
+          }
+          return {ok: false};
+        }))
+    })
 
     // delete fields
     for(const field of removedOGFields){
       promises.push(fetch(`${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`, {
           method: "DELETE"
-      }));
+      }).then(async response => {
+          if(response.status === 200){
+            originalTable.fields.splice(originalTable.fields.findIndex(f => f.field_id === field.field_id), 1);
+            return {ok: true};
+          }
+          fieldErrors[field.field_id] = "Could not delete";
+          return {ok: false};
+        }));
     }
 
 
@@ -517,7 +552,8 @@
       if(results.every(r => r.status == "fulfilled" && r.value.ok)){
         on_save();
       } else {
-        loadFields();
+        originalTable.fields = parseJSONTable({table: {}, fields: $state.snapshot(originalTable).fields, entries: []}).fields;
+        // table = $state.snapshot(originalTable);
       }
     })
   }
@@ -555,17 +591,24 @@
       <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(0)} aria-label="add field">+</button>
     {/if}
     {#each table.fields as field, i}
-      <div class="bg-white border-2 border-gray-400 p-3 rounded-lg flex flex-col justify-between">
+      <div class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between ">
         <input bind:value={table.fields[i].name} />
           {#each optionInputList[i] as optionInput, j}
-            <div class="flex items-center my-2">
-              {#if optionInput.optional}
-                <input class="mr-2" type="checkbox" bind:checked={() => optionalCheckboxStates[i][j], (val) => {optionalCheckboxStates[i][j] = val; if(!val) delete (table.fields[i].options as any)[optionInput.name]}}/>
-              {/if}
-              <VariableInput innerClass={["w-24", !optionalCheckboxStates && "text-gray-300 border-gray-300"]} params={optionInput} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label+i} />
+            <div class="my-2">
+              <div class="flex items-center">
+                {#if optionInput.optional}
+                  <input class="mr-2" type="checkbox" bind:checked={() => optionalCheckboxStates[i][j], (val) => {optionalCheckboxStates[i][j] = val; if(!val) delete (table.fields[i].options as any)[optionInput.name]}}/>
+                {/if}
+                <VariableInput innerClass={["w-24", !optionalCheckboxStates && "text-gray-300 border-gray-300"]} params={optionInput} disabled={!optionalCheckboxStates[i][j]} id={optionInput.label+i} />
+              </div>
             </div>
           {/each}
         <button onclick={() => removeField(i)} class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition">Remove</button>
+        {#if fieldErrors[field.field_id] !== ""}
+        <div class="rounded-lg text-red-500">
+          {fieldErrors[field.field_id]}
+        </div>
+        {/if}
       </div>
         <button class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all" onclick={() => addField(i)} aria-label="add field">+</button>
     {/each}
