@@ -81,7 +81,14 @@ const saveEntry = () => {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(table.entries[table.entries.length-1].cells)
-  }).then(cancelEntry).then(loadTable);
+  }).then(async (response) => {
+      if(response.status === 200){
+        cancelEntry();
+        loadTable();
+      } else if(response.status === 422){
+        fieldErrors = await response.json();
+      }
+    });
 };
 
 const cancelEntry = () => {
@@ -91,6 +98,7 @@ const cancelEntry = () => {
 
   entryMode = EntryMode.DISPLAY;
   editableEntry = -1;
+  fieldErrors = {}
 };
 
 let editableEntry = $state(-1);
@@ -100,7 +108,7 @@ const editEntry = (i : number) => {
   editableEntry = i;
   deleteConfirmation = false;
 }
-
+let fieldErrors = $state({} as {[key: number]: string})
 const updateEntry = () => {
   fetch(`${API_URL}/tables/${table_prop.table_id}/entries/${table.entries[editableEntry].entry_id}`, {
     method: "PUT",
@@ -108,7 +116,14 @@ const updateEntry = () => {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(table.entries[editableEntry].cells)
-  }).then(cancelEntry).then(loadTable);
+  }).then(async (response) => {
+      if(response.status === 200){
+        cancelEntry();
+        loadTable();
+      } else if(response.status === 422){
+        fieldErrors = await response.json();
+      }
+    });
 }
 
 const cellToInputParams = (entryIdx: number, f: Field) => {
@@ -170,7 +185,17 @@ $inspect(table, entryMode, editableEntry);
         {#each table.entries as entry, i}
           <tr>
             {#each table.fields as field}
-              <td class={["text-black border-2 border-gray-400 size-min", editableEntry === i && "bg-blue-200", editableEntry !== i && "bg-white"]} onclick={() => {if(entryMode === EntryMode.DISPLAY) editEntry(i)}}>
+              <td class={["relative text-black border-2 border-gray-400 size-min", editableEntry === i && "bg-blue-200", editableEntry !== i && "bg-white"]} onclick={() => {if(entryMode === EntryMode.DISPLAY) editEntry(i)}}>
+                {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
+                  <div class="absolute bottom-full inset-x-0 flex flex-col items-center">
+                    <div class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm">
+                      Error: {fieldErrors[field.field_id]}
+                    </div>
+                    <svg width="20" height="10">
+                      <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
+                    </svg>
+                  </div>
+                {/if}
                 <VariableInput disabled={i !== editableEntry} innerClass={["border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none", editableEntry === i && "bg-blue-200", editableEntry !== i && "bg-white"]} params={cellToInputParams(i, field)}/>
               </td>
             {/each}
