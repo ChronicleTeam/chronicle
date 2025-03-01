@@ -138,7 +138,7 @@
               table.fields[i].options = {
                 type: val,
                 is_required: true,
-                values: new Map([["Item", 0]]),
+                values: {} as {[key:number]:string},
                 default: 0
               };
               break;
@@ -155,6 +155,7 @@
               };
               break;
           }
+          optionalCheckboxStates[i] = optionInputList[i].map(v => !v.optional);
         }
       }
     }
@@ -399,6 +400,35 @@
         return [
           getTypeOptionInput(i),
           getRequiredOptionInput(i),
+          {
+            name: "values",
+            label: "values",
+            type: "textarea",
+            optional: false,
+            bindGetter:() => {
+              return Object.entries((table.fields[i].options as EnumerationOptions).values)
+                  .map((entry)=> entry[0].toString() +":"+entry[1])
+                  .join("\n")
+            },
+            bindSetter:(val: string) => {
+              (table.fields[i].options as EnumerationOptions).values = Object.fromEntries(
+                  val.split("\n")
+                  .map(line => {let entry = line.split(":", 2); return entry.length < 2 ? [entry[0], ""] : entry}) // split
+                  .map((entry: string[]) => [parseInt(entry[0]), entry[1]]) // parse
+                  .map((entry, i, arr) => {
+                    if(isNaN(entry[0] as number)){
+                      let i = 0;
+                      while(arr.some(e => e[0] === i)){
+                        i++
+                      }
+                      return [i, entry[1]]
+                    } else {
+                      return entry
+                    }
+                  } // catch NaN
+                  ) as [number, string][]);
+            }
+          }
         ];
       case FieldType.Image:
         return [
@@ -440,7 +470,7 @@
     };
 
     table.fields.splice(i+1,0,newField);
-    optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
+    optionalCheckboxStates.splice(i+1, 0, optionInputList[i].map(v => !v.optional));
     table.fields.forEach(f => {fieldErrors[f.field_id] = ""});
   }
   
@@ -457,12 +487,13 @@
 
   let optionalCheckboxStates = $state([] as boolean[][]);
   optionalCheckboxStates = optionInputList.map(val => val.map(v => !v.optional));
-
+  $inspect(optionalCheckboxStates);
 
   let fieldErrors = $state([] as string[]);
   table.fields.forEach(f => {fieldErrors[f.field_id] = ""});
   
   let metadataError = $state("");
+
   const saveFields = () => {
     let promises = []
 

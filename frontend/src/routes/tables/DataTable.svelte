@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { DataTable, Field, Entry,  Cell, Text, Integer, Decimal, Money, Progress, DateTime, Interval, Weblink, Email, Checkbox, Enumeration, InputParameters } from "$lib/types.d.js";
+import type { DataTable, Field, Entry,  Cell, Text, Integer, Decimal, Money, Progress, DateTime, Interval, Weblink, Email, Checkbox, Enumeration, InputParameters, EnumerationOptions } from "$lib/types.d.js";
 import { FieldType, parseJSONTable } from "$lib/types.d.js"
 import { API_URL } from "$lib/api.d.js";
 import VariableInput from "$lib/components/VariableInput.svelte";
@@ -10,7 +10,9 @@ let err = $state();
 const loadTable = () => {
   fetch(`${API_URL}/tables/${table_prop.table_id}/data`)
     .then((response) => response.json())
-    .then(json => {table = parseJSONTable(json)})
+    .then(json => {
+      table = parseJSONTable(json)
+    })
 };
 
 
@@ -149,10 +151,17 @@ const cellToInputParams = (entryIdx: number, f: Field) => {
         bindGetter: () => table.entries[entryIdx].cells[f.field_id],
         bindSetter: (val: boolean) => {table.entries[entryIdx].cells[f.field_id] = val}
       } as InputParameters;
+    case FieldType.Enumeration:
+      return{
+        type: "select",
+        selectOptions: Object.values(f.options.values),
+        bindGetter: () => (f.options as EnumerationOptions).values[table.entries[entryIdx].cells[f.field_id] as number],
+        bindSetter: (val: string) => {table.entries[entryIdx].cells[f.field_id] = parseInt((Object.entries((f.options as EnumerationOptions).values).find(e => e[1] === val) ?? ["0"])[0])}
+        
+      } as InputParameters;
     case FieldType.Text:
     case FieldType.WebLink:
     case FieldType.Email:
-    case FieldType.Enumeration:
     default:
       return {
         type: "text",

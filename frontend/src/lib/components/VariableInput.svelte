@@ -14,6 +14,8 @@ let { params, disabled = false, id, innerClass = "", onclick }: { params: InputP
       <option>{opt}</option>
     {/each}
   </select>
+{:else if params.type === "textarea"}
+  <textarea disabled={disabled} id={id} class={innerClass} bind:value={params.bindGetter, params.bindSetter} onclick={onclick}></textarea>
 {:else if params.type === "checkbox"}
   <input disabled={disabled} id={id} type="checkbox" bind:checked={params.bindGetter, params.bindSetter} onclick={onclick} />
 {:else}

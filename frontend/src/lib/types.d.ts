@@ -86,7 +86,7 @@ export type CheckboxOptions = {
 export type EnumerationOptions = {
   type: FieldType.Enumeration;
   is_required: boolean;
-  values: Map;
+  values: {[key:number]: string};
   default: number;
 };
 
@@ -204,11 +204,17 @@ export type InputParameters =
         bindGetter: () => string | boolean | number;
       }
   | {
-    label:string;
-    type: "checkbox";
-    bindSetter: (val: any) => void;
-    bindGetter: () => boolean;
-  };
+      label:string;
+      type: "checkbox";
+      bindSetter: (val: any) => void;
+      bindGetter: () => boolean;
+    }
+  | {
+      label: string;
+      type: "textarea";
+      bindSetter: (val: string) => void,
+      bindGetter: () => string
+};
 
 export const parseJSONTable = (jsonObj: DataTable): DataTable => {
   let outTable = jsonObj;
