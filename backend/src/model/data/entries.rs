@@ -1,4 +1,4 @@
-use super::FieldOptions;
+use super::FieldKind;
 use crate::Id;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -22,7 +22,7 @@ pub struct Entry {
 impl Entry {
     pub fn from_row(
         row: PgRow,
-        field_data: &[(Id, String, Json<FieldOptions>)],
+        field_data: &[(Id, String, Json<FieldKind>)],
     ) -> sqlx::Result<Entry> {
         Ok(Entry {
             entry_id: row.get("entry_id"),
@@ -30,8 +30,8 @@ impl Entry {
             updated_at: row.get("updated_at"),
             cells: field_data
                 .iter()
-                .map(|(id, name, options)| {
-                    Cell::from_row(&row, name.as_str(), &options.0)
+                .map(|(id, name, field_kind)| {
+                    Cell::from_row(&row, name.as_str(), &field_kind.0)
                         .or_else(|e| {
                             if matches!(e, sqlx::Error::ColumnNotFound(_)) {
                                 Ok(None)
@@ -62,26 +62,26 @@ impl Cell {
     fn from_row(
         row: &PgRow,
         index: &str,
-        field_options: &FieldOptions,
+        field_kind: &FieldKind,
     ) -> sqlx::Result<Option<Cell>> {
-        Ok(match field_options {
-            FieldOptions::Text { .. }
-            | FieldOptions::WebLink { .. }
-            | FieldOptions::Email { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::String),
-            FieldOptions::Integer { .. }
-            | FieldOptions::Progress { .. }
-            | FieldOptions::Enumeration { .. } => {
+        Ok(match field_kind {
+            FieldKind::Text { .. }
+            | FieldKind::WebLink { .. }
+            | FieldKind::Email { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::String),
+            FieldKind::Integer { .. }
+            | FieldKind::Progress { .. }
+            | FieldKind::Enumeration { .. } => {
                 row.try_get::<Option<_>, _>(index)?.map(Cell::Integer)
             }
-            FieldOptions::Decimal { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
-            FieldOptions::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
-            FieldOptions::DateTime { .. } => {
+            FieldKind::Decimal { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
+            FieldKind::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
+            FieldKind::DateTime { .. } => {
                 row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime)
             }
-            FieldOptions::Interval { .. } => {
+            FieldKind::Interval { .. } => {
                 row.try_get::<Option<_>, _>(index)?.map(Cell::Interval)
             }
-            FieldOptions::Checkbox => row.try_get::<Option<_>, _>(index)?.map(Cell::Boolean),
+            FieldKind::Checkbox => row.try_get::<Option<_>, _>(index)?.map(Cell::Boolean),
         })
     }
 }

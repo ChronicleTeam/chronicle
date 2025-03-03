@@ -7,22 +7,22 @@ curl -v -X POST http://localhost:3000/api/tables \
 
 curl -v -X POST http://localhost:3000/api/tables/1/fields \
     -H "Content-Type: application/json" \
-    -d '{"name": "Field 1", "options": {"type": "Text", "is_required": true}}'
+    -d '{"name": "Field 1", "field_kind": {"type": "Text", "is_required": true}}'
 
 curl -v -X POST http://localhost:3000/api/tables/1/fields \
     -H "Content-Type: application/json" \
-    -d '{"name": "Field 2", "options": {"type": "Integer", "is_required": true}}'
+    -d '{"name": "Field 2", "field_kind": {"type": "Integer", "is_required": true}}'
 
 set json '{
     "name": "Enum field",
-    "options": {
+    "field_kind": {
         "type": "Enumeration",
         "is_required": true,
-        "values": [
-            [1, "val1"],
-            [2, "val2"],
-            [3, "val3"]
-        ],
+        "values": {
+            "1": "val1",
+            "2": "val2",
+            "3": "val3"
+        },
         "default_value": 1
     }
 }'

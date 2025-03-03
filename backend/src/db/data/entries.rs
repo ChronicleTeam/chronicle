@@ -1,6 +1,6 @@
 use super::Relation;
 use crate::{
-    model::data::{Cell, Entry, FieldOptions},
+    model::data::{Cell, Entry, FieldKind},
     Id,
 };
 use itertools::Itertools;
@@ -31,9 +31,9 @@ pub async fn create_entry(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let field_data: Vec<(Id, String, Json<FieldOptions>)> = sqlx::query_as(
+    let field_data: Vec<(Id, String, Json<FieldKind>)> = sqlx::query_as(
         r#"
-            SELECT field_id, data_field_name, options
+            SELECT field_id, data_field_name, field_kind
             FROM meta_field
             WHERE table_id = $1
         "#,
@@ -94,9 +94,9 @@ pub async fn update_entry(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let field_data: Vec<(Id, String, Json<FieldOptions>)> = sqlx::query_as(
+    let field_data: Vec<(Id, String, Json<FieldKind>)> = sqlx::query_as(
         r#"
-            SELECT field_id, data_field_name, options
+            SELECT field_id, data_field_name, field_kind
             FROM meta_field
             WHERE table_id = $1
         "#,

@@ -1,10 +1,8 @@
-use std::{collections::HashMap, str::FromStr};
-
 use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{Cell, CreateEntry, Entry, FieldOptions, UpdateEntry},
+    model::data::{Cell, CreateEntry, Entry, Field, FieldKind, UpdateEntry},
     Id,
 };
 use axum::{
@@ -16,6 +14,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
 use serde_json::Value;
+use std::{collections::HashMap, str::FromStr};
 
 const IS_REQUIRED_MESSAGE: &str = "A value is required";
 const OUT_OF_RANGE_MESSAGE: &str = "Value is out of range";
@@ -42,9 +41,9 @@ async fn create_entry(
         .await?
         .to_api_result()?;
 
-    let fields_options = db::get_fields_options(&pool, table_id).await?;
+    let fields = db::get_fields(&pool, table_id).await?;
 
-    let entry = convert_entry(entry, fields_options)?;
+    let entry = convert_entry(entry, fields)?;
 
     let entry = db::create_entry(&pool, table_id, entry).await?;
 
@@ -64,9 +63,9 @@ async fn update_entry(
         .await?
         .to_api_result()?;
 
-    let fields_options = db::get_fields_options(&pool, table_id).await?;
+    let fields = db::get_fields(&pool, table_id).await?;
 
-    let entry = convert_entry(entry, fields_options)?;
+    let entry = convert_entry(entry, fields)?;
 
     let entry = db::update_entry(&pool, table_id, entry_id, entry).await?;
 
@@ -92,13 +91,13 @@ async fn delete_entry(
 
 fn convert_entry(
     mut entry: HashMap<Id, Value>,
-    fields_options: HashMap<Id, FieldOptions>,
+    fields: Vec<Field>,
 ) -> ApiResult<HashMap<Id, Option<Cell>>> {
-    let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields_options
+    let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields
         .iter()
-        .map(|(field_id, options)| {
+        .map(|Field {field_id, field_kind, ..}| {
             let json_value = entry.remove(field_id).unwrap_or(Value::Null);
-            json_to_cell(json_value, options)
+            json_to_cell(json_value, field_kind)
                 .map(|cell| (*field_id, cell))
                 .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
         })
@@ -117,18 +116,18 @@ fn convert_entry(
     Ok(new_entry)
 }
 
-fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cell>, &'static str> {
-    match (value, field_options) {
+fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'static str> {
+    match (value, field_kind) {
         (
             Value::Null,
-            FieldOptions::Text { is_required }
-            | FieldOptions::Integer { is_required, .. }
-            | FieldOptions::Decimal { is_required, .. }
-            | FieldOptions::Money { is_required, .. }
-            | FieldOptions::DateTime { is_required, .. }
-            | FieldOptions::WebLink { is_required, .. }
-            | FieldOptions::Email { is_required, .. }
-            | FieldOptions::Enumeration { is_required, .. },
+            FieldKind::Text { is_required }
+            | FieldKind::Integer { is_required, .. }
+            | FieldKind::Decimal { is_required, .. }
+            | FieldKind::Money { is_required, .. }
+            | FieldKind::DateTime { is_required, .. }
+            | FieldKind::WebLink { is_required, .. }
+            | FieldKind::Email { is_required, .. }
+            | FieldKind::Enumeration { is_required, .. },
         ) => {
             if *is_required {
                 Err(IS_REQUIRED_MESSAGE)
@@ -138,7 +137,7 @@ fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cel
         }
         (
             Value::Number(value),
-            FieldOptions::Integer {
+            FieldKind::Integer {
                 range_start,
                 range_end,
                 ..
@@ -154,7 +153,7 @@ fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cel
 
         (
             Value::Number(value),
-            FieldOptions::Decimal {
+            FieldKind::Decimal {
                 range_start,
                 range_end,
                 scientific_notation,
@@ -172,7 +171,7 @@ fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cel
         }
         (
             Value::String(value),
-            FieldOptions::Money {
+            FieldKind::Money {
                 range_start,
                 range_end,
                 ..
@@ -185,7 +184,7 @@ fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cel
                 Err(INVALID_TYPE_MESSAGE)
             }
         }
-        (Value::Number(value), FieldOptions::Progress { total_steps }) => {
+        (Value::Number(value), FieldKind::Progress { total_steps }) => {
             if let Some(value) = value.as_i64() {
                 if value > *total_steps as i64 || value < 0 {
                     Ok(Some(Cell::Integer(value)))
@@ -198,7 +197,7 @@ fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cel
         }
         (
             Value::String(value),
-            FieldOptions::DateTime {
+            FieldKind::DateTime {
                 range_start,
                 range_end,
                 date_time_format,
@@ -212,13 +211,13 @@ fn json_to_cell(value: Value, field_options: &FieldOptions) -> Result<Option<Cel
                 Err(INVALID_TYPE_MESSAGE)
             }
         }
-        (_, FieldOptions::Interval { .. }) => todo!(),
+        (_, FieldKind::Interval { .. }) => todo!(),
         (
             Value::String(value),
-            FieldOptions::Text { .. } | FieldOptions::WebLink { .. } | FieldOptions::Email { .. },
+            FieldKind::Text { .. } | FieldKind::WebLink { .. } | FieldKind::Email { .. },
         ) => Ok(Some(Cell::String(value))),
-        (Value::Bool(value), FieldOptions::Checkbox) => Ok(Some(Cell::Boolean(value))),
-        (Value::Number(value), FieldOptions::Enumeration { values, .. }) => {
+        (Value::Bool(value), FieldKind::Checkbox) => Ok(Some(Cell::Boolean(value))),
+        (Value::Number(value), FieldKind::Enumeration { values, .. }) => {
             if let Some(value) = value.as_i64() {
                 if values.contains_key(&value) {
                     Ok(Some(Cell::Integer(value)))
