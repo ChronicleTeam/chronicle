@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateField, Field, FieldOptions, UpdateField},
+    model::data::{CreateField, Field, FieldKind, UpdateField},
     Id,
 };
 use anyhow::anyhow;
@@ -36,9 +36,9 @@ async fn create_field(
         .await?
         .to_api_result()?;
 
-    validate_field_options(&mut create_field.options)?;
+    validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&pool, table_id, create_field.name, create_field.options)
+    let field = db::create_field(&pool, table_id, create_field.name, create_field.field_kind)
         .await
         .on_constraint("meta_field_table_id_name_key", |_| {
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
@@ -74,9 +74,9 @@ async fn update_field(
         .await?
         .to_api_result()?;
 
-    validate_field_options(&mut update_field.options)?;
+    validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field.name, update_field.options).await?;
+    let field = db::update_field(&pool, field_id, update_field.name, update_field.field_kind).await?;
 
     Ok(Json(field))
 }
@@ -98,14 +98,14 @@ async fn delete_field(
     Ok(())
 }
 
-fn validate_field_options(options: &mut FieldOptions) -> ApiResult<()> {
-    match options {
-        FieldOptions::Integer {
+fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
+    match field_kind {
+        FieldKind::Integer {
             range_start,
             range_end,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldOptions::Decimal {
+        FieldKind::Decimal {
             range_start,
             range_end,
             number_precision,
@@ -116,22 +116,22 @@ fn validate_field_options(options: &mut FieldOptions) -> ApiResult<()> {
             *number_precision = number_precision.map(|n| n.max(1));
             *number_scale = number_scale.map(|n| n.max(0));
         }
-        FieldOptions::Money {
+        FieldKind::Money {
             range_start,
             range_end,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldOptions::Progress { total_steps } => {
+        FieldKind::Progress { total_steps } => {
             *total_steps = (*total_steps).max(1);
         }
-        FieldOptions::DateTime {
+        FieldKind::DateTime {
             range_start,
             range_end,
             // date_time_format,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldOptions::Interval { .. } => todo!(),
-        FieldOptions::Enumeration {
+        FieldKind::Interval { .. } => todo!(),
+        FieldKind::Enumeration {
             values,
             default_value,
             ..
@@ -142,8 +142,6 @@ fn validate_field_options(options: &mut FieldOptions) -> ApiResult<()> {
                 );
             }
         }
-        // FieldOptions::CreationDate { date_time_format } => Ok(()),
-        // FieldOptions::ModificationDate { date_time_format } => Ok(()),
         _ => {}
     };
     Ok(())

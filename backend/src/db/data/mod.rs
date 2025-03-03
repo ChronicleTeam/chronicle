@@ -6,7 +6,7 @@ use std::iter;
 
 use crate::{
     error::{ApiError, ApiResult},
-    model::data::{DataTable, Entry, Field, FieldOptions, FullTable},
+    model::data::{DataTable, Entry, Field, FieldKind, FullTable},
     Id,
 };
 use itertools::Itertools;
@@ -65,7 +65,7 @@ pub async fn get_data_table(
                 field_id,
                 table_id,
                 name,
-                options,
+                field_kind,
                 created_at,
                 updated_at
             FROM meta_field
@@ -77,9 +77,9 @@ pub async fn get_data_table(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let field_data: Vec<(Id, String, Json<FieldOptions>)> = sqlx::query_as(
+    let field_data: Vec<(Id, String, Json<FieldKind>)> = sqlx::query_as(
         r#"
-            SELECT field_id, data_field_name, options
+            SELECT field_id, data_field_name, field_kind
             FROM meta_field
             WHERE table_id = $1
         "#,

@@ -6,8 +6,8 @@ use super::CalculatedField;
 #[derive(Serialize)]
 pub struct Plot {
     table_id: Id,
-    columns: Vec<CalculatedField>,
-    rows: Vec<CalculatedField>,
+    x_axis: CalculatedField,
+    y_axis: CalculatedField,
     plot_kind: PlotKind,
     data: (),
     created_at: DateTime<Utc>,
