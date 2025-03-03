@@ -6,7 +6,7 @@ use serde::Serialize;
 pub use {entries::*, fields::*, tables::*};
 
 #[derive(Serialize)]
-pub struct DataTable {
+pub struct TableData {
     pub table: Table,
     pub fields: Vec<Field>,
     pub entries: Vec<Entry>,

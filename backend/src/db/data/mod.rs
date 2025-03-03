@@ -6,15 +6,12 @@ use std::iter;
 
 use crate::{
     error::{ApiError, ApiResult},
-    model::data::{DataTable, Entry, Field, FieldKind, FullTable},
+    model::data::{TableData, Entry, Field, FieldKind, FullTable},
     Id,
 };
 use itertools::Itertools;
 use sqlx::{types::Json, Acquire, Postgres};
 pub use {entries::*, fields::*, tables::*};
-
-// All SELECT statements lock selected rows during the transaction.
-// A regular connection will lock only for the duration of the function.
 
 pub enum Relation {
     Owned,
@@ -32,10 +29,10 @@ impl Relation {
     }
 }
 
-pub async fn get_data_table(
+pub async fn get_table_data(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-) -> sqlx::Result<DataTable> {
+) -> sqlx::Result<TableData> {
     let mut tx = connection.begin().await?;
 
     let FullTable {
@@ -106,7 +103,7 @@ pub async fn get_data_table(
     .map(|row| Entry::from_row(row, &field_data).unwrap())
     .collect_vec();
 
-    Ok(DataTable {
+    Ok(TableData {
         table,
         fields,
         entries,
