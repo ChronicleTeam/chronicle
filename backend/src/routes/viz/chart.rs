@@ -1,19 +1,20 @@
 use axum::{extract::{Path, State}, routing::post, Json, Router};
-use crate::{error::ApiResult, model::viz::{CreatePlot, Plot}, routes::ApiState};
+use axum_macros::debug_handler;
+use crate::{error::ApiResult, model::viz::{CreateChart}, routes::ApiState};
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().nest(
         "/plots",
         Router::new()
-            .route("/", post(create_plot)),
+            .route("/", post(create_chart)),
     )
 }
 
 
 
-async fn create_plot(
+async fn create_chart(
     State(ApiState { pool, .. }): State<ApiState>,
-    Json(create_plot): Json<CreatePlot>,
-) -> ApiResult<Json<Plot>> {
+    Json(create_plot): Json<CreateChart>,
+) -> ApiResult<Json<()>> {
     todo!()
 }

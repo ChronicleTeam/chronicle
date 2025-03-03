@@ -1,6 +1,6 @@
-mod plot;
+mod chart;
 
-pub use {plot::*};
+pub use {chart::*};
 use {crate::Id, serde::{Deserialize, Serialize}};
 
 
