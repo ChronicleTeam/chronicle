@@ -4,19 +4,39 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
 pub struct ChartData {
-    dashboard: Id,
-    table_id: Id,
-    title: String,
-    x_axis: AxisData,
-    y_axis: AxisData,
-    marks: HashMap<MarkKind, AxisData>,
-    plot_kind: ChartKind,
-    created_at: DateTime<Utc>,
-    updated_at: Option<DateTime<Utc>>,
+    pub chart_id: Id,
+    pub dashboard: Id,
+    pub title: String,
+    pub x_axis: AxisData,
+    pub y_axis: AxisData,
+    pub marks: HashMap<MarkKind, AxisData>,
+    pub plot_kind: ChartKind,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(FromRow)]
+pub struct Chart {
+    pub chart_id: Id,
+    pub dashboard: Id,
+    pub title: String,
+    pub x_axis: Axis,
+    pub y_axis: Axis,
+    pub chart_kind: ChartKind,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(FromRow)]
+pub struct Mark {
+    pub chart_id: Id,
+    pub mark_kind: MarkKind,
+    pub axis: Axis,
 }
 
 #[derive(Deserialize)]
@@ -38,16 +58,16 @@ pub enum ChartKind {
 
 #[derive(Serialize)]
 pub struct AxisData {
-    data: Vec<Cell>,
-    field: Field,
-    aggregate: Option<Aggregate>,
+    pub data: Vec<Cell>,
+    pub field: Field,
+    pub aggregate: Option<Aggregate>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "axis")]
 pub struct Axis {
-    field_id: Id,
-    aggregate: Option<Aggregate>,
+    pub field_id: Id,
+    pub aggregate: Option<Aggregate>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::Type)]

@@ -36,8 +36,8 @@ CREATE TABLE chart (
 
 
 CREATE TABLE mark (
-    mark_id SERIAL PRIMARY KEY,
     chart_id INT NOT NULL REFERENCES chart(chart_id),
-    field_id INT NOT NULL REFERENCES meta_field(field_id),
     mark_kind mark_kind NOT NULL,
+    axis axis NOT NULL,
+    UNIQUE(chart_id, field_id)
 );
