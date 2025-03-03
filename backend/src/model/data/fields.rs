@@ -2,6 +2,7 @@ use crate::Id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use sqlx::{types::Json, FromRow};
 use std::collections::HashMap;
 
@@ -15,8 +16,8 @@ pub struct Field {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Clone)]
-// #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum FieldOptions {
     Text {
@@ -64,6 +65,7 @@ pub enum FieldOptions {
     Checkbox,
     Enumeration {
         is_required: bool,
+        #[serde_as(as = "HashMap<DisplayFromStr, _>")]
         values: HashMap<i64, String>,
         default_value: i64,
     },
