@@ -859,7 +859,7 @@
 
   <!-- Bottom Bar -->
   {#if originalTable !== table}
-    <div class="flex items-center justify-center gap-3">
+    <div class="flex items-center justify-center gap-3 mt-4">
       <button
         onclick={openConfirmationModal}
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
