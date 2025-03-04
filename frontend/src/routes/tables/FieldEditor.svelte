@@ -28,7 +28,7 @@
   import VariableInput from "$lib/components/VariableInput.svelte";
   import { API_URL } from "$lib/api.d.js";
 
-  let { table_prop, on_save } = $props();
+  let { table_prop, on_save, delete_table } = $props();
 
   let originalTable: DataTable = $state({
     table: table_prop,
@@ -543,8 +543,22 @@
 
   let metadataError = $state("");
 
+  let newFields = $derived(
+    table.fields.filter((f) =>
+      originalTable.fields.every((h) => f.field_id !== h.field_id),
+    ),
+  );
+  let moddedFields = $derived(
+    table.fields.filter((f) =>
+      originalTable.fields.some(
+        (h) => f.field_id === h.field_id && !recursiveCompare(f, h),
+      ),
+    ),
+  );
   const saveFields = () => {
     let promises = [];
+
+    showConfirmScreen = false;
 
     // TODO: reduce field objects to minimum required request bodies AND/OR refactor fetches into their own functions
 
@@ -579,9 +593,6 @@
     }
 
     // create new fields
-    let newFields = table.fields.filter((f) =>
-      originalTable.fields.every((h) => f.field_id !== h.field_id),
-    );
     newFields.forEach((field, i) => {
       promises.push(
         fetch(`${API_URL}/tables/${table_prop.table_id}/fields`, {
@@ -612,11 +623,6 @@
     });
 
     // modify existing fields
-    let moddedFields = table.fields.filter((f) =>
-      originalTable.fields.some(
-        (h) => f.field_id === h.field_id && !recursiveCompare(f, h),
-      ),
-    );
     moddedFields.forEach((field, i) => {
       promises.push(
         fetch(
@@ -705,6 +711,44 @@
       return a === b;
     }
   };
+
+  let showConfirmScreen = $state(false);
+  let modalNewFieldLines = $derived(
+    newFields.map((f) => `${f.name} (${f.field_kind.type})`),
+  );
+  let modalModifiedFieldLines = $derived(
+    moddedFields.map((f) => {
+      let old = originalTable.fields.find(
+        (g) => g.field_id === f.field_id,
+      ) as Field;
+      console.log($state.snapshot(f), $state.snapshot(old));
+      return {
+        nameAndType:
+          f.name !== old.name || f.field_kind.type !== old.field_kind.type
+            ? `${old.name} (${old.field_kind.type}) -> ${f.name} (${f.field_kind.type})`
+            : "",
+        kind: Object.entries(f.field_kind)
+          .map((e) => {
+            let oldEntry =
+              Object.entries(old.field_kind).find((d) => d[0] === e[0]) ?? e;
+
+            console.log(e, Object.entries(old.field_kind), oldEntry);
+            if (!recursiveCompare(e[1], oldEntry[1]) && e[0] !== "type") {
+              return `${f.name} [${oldEntry[0]}] ${oldEntry[1]} -> ${e[1]}`;
+            } else {
+              return "";
+            }
+          })
+          .filter((e) => e !== ""),
+      };
+    }),
+  );
+  let modalDeletedFieldLines = $derived(
+    removedOGFields.map((f) => `${f.name} (${f.field_kind.type})`),
+  );
+  const openConfirmationModal = () => {
+    showConfirmScreen = true;
+  };
 </script>
 
 <div class="w-full">
@@ -722,7 +766,12 @@
     class="text-lg font-bold mb-3"
   />
   {#if metadataError !== ""}
-    <p class="text-red-500">{metadataError}</p>{/if}
+    <p class="text-red-500">{metadataError}</p>
+  {/if}
+  <button
+    class="rounded-md px-2 py-1 bg-red-400 hover:bg-red-500 transition"
+    onclick={delete_table}>Delete Table</button
+  >
 
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
@@ -812,7 +861,7 @@
   {#if originalTable !== table}
     <div class="flex items-center justify-center gap-3">
       <button
-        onclick={saveFields}
+        onclick={openConfirmationModal}
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         >Save</button
       >
@@ -823,4 +872,48 @@
       >
     </div>
   {/if}
+</div>
+
+<div
+  class={[
+    "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center",
+    !showConfirmScreen && "hidden",
+  ]}
+>
+  <div class="bg-white rounded-lg p-3">
+    <h2 class="w-full font-bold text-center">Edit Summary</h2>
+    {#each modalNewFieldLines as line}
+      <p><span class="font-bold">Added Field:</span> {line}</p>
+    {/each}
+    {#each modalModifiedFieldLines as moddedField}
+      {#if moddedField.nameAndType}
+        <p>
+          <span class="font-bold">Change Field:</span>
+          {moddedField.nameAndType}
+        </p>
+      {/if}
+      {#each moddedField.kind as line}
+        <p><span class="font-bold">Change Field Property:</span> {line}</p>
+      {/each}
+    {/each}
+    {#each modalDeletedFieldLines as line}
+      <p>
+        <span class="font-bold text-red-500">[!]</span>
+        <span class="font-bold">Delete Field:</span>
+        {line}
+      </p>
+    {/each}
+    <div class="flex justify-center items-center gap-2 mt-2">
+      <button
+        class="text-center py-1 px-2 rounded bg-gray-100 hover:bg-gray-200 transition"
+        onclick={saveFields}>Confirm</button
+      >
+      <button
+        class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+        onclick={() => {
+          showConfirmScreen = false;
+        }}>Cancel</button
+      >
+    </div>
+  </div>
 </div>
