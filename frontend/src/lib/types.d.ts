@@ -19,23 +19,23 @@ export type Field = {
   user_id: number;
   field_id: number;
   name: string;
-  options: FieldOptions;
+  field_kind: FieldKind;
   updated_at?: Date;
 };
 
-export type TextOptions = {
+export type TextKind = {
   type: FieldType.Text;
   is_required: boolean;
 };
 
-export type IntegerOptions = {
+export type IntegerKind = {
   type: FieldType.Integer;
   is_required: boolean;
   range_start?: number;
   range_end?: number;
 };
 
-export type DecimalOptions = {
+export type DecimalKind = {
   type: FieldType.Decimal;
   is_required: boolean;
   range_start?: number;
@@ -45,19 +45,19 @@ export type DecimalOptions = {
   number_scale?: number;
 };
 
-export type MoneyOptions = {
+export type MoneyKind = {
   type: FieldType.Money;
   is_required: boolean;
   range_start?: Decimal;
   range_end?: Decimal;
 };
 
-export type ProgressOptions = {
+export type ProgressKind = {
   type: FieldType.Progress;
   total_steps: number;
 };
 
-export type DateTimeOptions = {
+export type DateTimeKind = {
   type: FieldType.DateTime;
   is_required: boolean;
   range_start?: Date;
@@ -65,54 +65,54 @@ export type DateTimeOptions = {
   date_time_format: string;
 };
 
-export type IntervalOptions = {
+export type IntervalKind = {
   type: FieldType.Interval;
   is_required: boolean;
 }
 
-export type WebLinkOptions = {
+export type WebLinkKind = {
   type: FieldType.WebLink;
   is_required: boolean;
 }
 
-export type EmailOptions = {
+export type EmailKind = {
   type: FieldType.Email;
   is_required: boolean;
 }
 
-export type CheckboxOptions = {
+export type CheckboxKind = {
   type: FieldType.Checkbox;
 }
-export type EnumerationOptions = {
+export type EnumerationKind = {
   type: FieldType.Enumeration;
   is_required: boolean;
   values: {[key:number]: string};
   default: number;
 };
 
-export type ImageOptions = {
+export type ImageKind = {
   type: FieldType.Image;
   is_required: boolean;
 }
-export type FileOptions = {
+export type FileKind = {
   type: FieldType.File;
   is_required: boolean;
 }
 
-export type FieldOptions =
-  | TextOptions
-  | IntegerOptions
-  | DecimalOptions
-  | MoneyOptions
-  | ProgressOptions
-  | DateTimeOptions
-  | IntervalOptions
-  | WebLinkOptions
-  | EmailOptions
-  | CheckboxOptions
-  | EnumerationOptions
-  | ImageOptions
-  | FileOptions;
+export type FieldKind =
+  | TextKind
+  | IntegerKind
+  | DecimalKind
+  | MoneyKind
+  | ProgressKind
+  | DateTimeKind
+  | IntervalKind
+  | WebLinkKind
+  | EmailKind
+  | CheckboxKind
+  | EnumerationKind
+  | ImageKind
+  | FileKind;
 
 // Data table
 export type DataTable = {
@@ -220,13 +220,13 @@ export const parseJSONTable = (jsonObj: DataTable): DataTable => {
   let outTable = jsonObj;
 
   for(let i = 0; i < outTable.fields.length; i++){
-    if(outTable.fields[i].options.type === FieldType.DateTime){
-      if(outTable.fields[i].options.range_start !== undefined){
-        (outTable.fields[i].options as DateTimeOptions).range_start = new Date((outTable.fields[i].options as DateTimeOptions).range_start)
+    if(outTable.fields[i].field_kind.type === FieldType.DateTime){
+      if(outTable.fields[i].field_kind.range_start !== undefined){
+        (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as DateTimeKind).range_start)
       }
 
-      if(outTable.fields[i].options.range_end !== undefined){
-        (outTable.fields[i].options as DateTimeOptions).range_end = new Date((outTable.fields[i].options as DateTimeOptions).range_end)
+      if(outTable.fields[i].field_kind.range_end !== undefined){
+        (outTable.fields[i].field_kind as DateTimeKind).range_end = new Date((outTable.fields[i].field_kind as DateTimeKind).range_end)
       }
 
       for(let j = 0; j < outTable.entries.length; j++){
