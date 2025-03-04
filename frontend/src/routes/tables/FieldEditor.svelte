@@ -28,7 +28,7 @@
   import VariableInput from "$lib/components/VariableInput.svelte";
   import { API_URL } from "$lib/api.d.js";
 
-  let { table_prop, on_save } = $props();
+  let { table_prop, on_save, delete_table } = $props();
 
   let originalTable: DataTable = $state({
     table: table_prop,
@@ -722,7 +722,12 @@
     class="text-lg font-bold mb-3"
   />
   {#if metadataError !== ""}
-    <p class="text-red-500">{metadataError}</p>{/if}
+    <p class="text-red-500">{metadataError}</p>
+  {/if}
+  <button
+    class="rounded-md px-2 py-1 bg-red-400 hover:bg-red-500 transition"
+    onclick={delete_table}>Delete Table</button
+  >
 
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">

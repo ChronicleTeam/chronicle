@@ -145,11 +145,6 @@
           class="px-2 bg-white hover:bg-gray-100 transition rounded"
           >Edit</button
         >
-        <button
-          onclick={deleteCurTable}
-          class="px-2 bg-red-400 hover:bg-red-500 transition rounded"
-          >Delete</button
-        >
       </div>
       <h3 class="text-lg mb-2">{curTable.description}</h3>
 
@@ -167,6 +162,7 @@
           editMode = EditMode.TABLE;
           asyncTables = loadTables();
         }}
+        delete_table={deleteCurTable}
         table_prop={curTable}
       />
     {/if}
