@@ -8,20 +8,20 @@
     type Money,
     type Integer,
     type Progress,
-    type TextOptions,
-    type MoneyOptions,
-    type IntegerOptions,
-    type ProgressOptions,
+    type TextKind,
+    type MoneyKind,
+    type IntegerKind,
+    type ProgressKind,
     FieldType,
-    type DecimalOptions,
-    type DateTimeOptions,
-    type IntervalOptions,
-    type WebLinkOptions,
-    type EmailOptions,
-    type EnumerationOptions,
-    type ImageOptions,
-    type FileOptions,
-    type FieldOptions,
+    type DecimalKind,
+    type DateTimeKind,
+    type IntervalKind,
+    type WebLinkKind,
+    type EmailKind,
+    type EnumerationKind,
+    type ImageKind,
+    type FileKind,
+    type FieldKind,
     type InputParameters,
     parseJSONTable,
   } from "$lib/types.d.js";
@@ -72,26 +72,26 @@
       optional: false,
       selectOptions: fieldTypes,
       bindGetter: () => {
-        return table.fields[i].options.type;
+        return table.fields[i].field_kind.type;
       },
       bindSetter: (val: FieldType) => {
         // swap out field option if type change
-        if (val != table.fields[i].options.type) {
+        if (val != table.fields[i].field_kind.type) {
           switch (val) {
             case FieldType.Text:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Integer:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Decimal:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
 
@@ -99,19 +99,19 @@
               };
               break;
             case FieldType.Money:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Progress:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 total_steps: 100,
               };
               break;
             case FieldType.DateTime:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
 
@@ -119,30 +119,30 @@
               };
               break;
             case FieldType.Interval:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.WebLink:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Email:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Checkbox:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
               };
               break;
             case FieldType.Enumeration:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
                 values: {} as { [key: number]: string },
@@ -150,13 +150,13 @@
               };
               break;
             case FieldType.Image:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.File:
-              table.fields[i].options = {
+              table.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
@@ -170,18 +170,18 @@
     };
   };
 
-  type RequirableOptions =
-    | TextOptions
-    | IntegerOptions
-    | DecimalOptions
-    | MoneyOptions
-    | DateTimeOptions
-    | IntervalOptions
-    | WebLinkOptions
-    | EmailOptions
-    | EnumerationOptions
-    | ImageOptions
-    | FileOptions;
+  type RequirableKind =
+    | TextKind
+    | IntegerKind
+    | DecimalKind
+    | MoneyKind
+    | DateTimeKind
+    | IntervalKind
+    | WebLinkKind
+    | EmailKind
+    | EnumerationKind
+    | ImageKind
+    | FileKind;
 
   const getRequiredOptionInput = (i: number): OptionInputParameters => {
     return {
@@ -190,17 +190,17 @@
       type: "checkbox",
       optional: false,
       bindGetter: () => {
-        return (table.fields[i].options as RequirableOptions).is_required;
+        return (table.fields[i].field_kind as RequirableKind).is_required;
       },
       bindSetter: (val: boolean) => {
-        (table.fields[i].options as RequirableOptions).is_required = val;
+        (table.fields[i].field_kind as RequirableKind).is_required = val;
       },
     };
   };
 
   const optionInputList = $derived(
     table.fields.map((f: Field, i: number): OptionInputParameters[] => {
-      switch (f.options.type) {
+      switch (f.field_kind.type) {
         case FieldType.Text:
           return [getTypeOptionInput(i), getRequiredOptionInput(i)];
         case FieldType.Integer:
@@ -214,11 +214,11 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as IntegerOptions).range_start ?? 0
+                  (table.fields[i].field_kind as IntegerKind).range_start ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as IntegerOptions).range_start = val;
+                (table.fields[i].field_kind as IntegerKind).range_start = val;
               },
             },
             {
@@ -228,11 +228,11 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as IntegerOptions).range_end ?? 100
+                  (table.fields[i].field_kind as IntegerKind).range_end ?? 100
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as IntegerOptions).range_end = val;
+                (table.fields[i].field_kind as IntegerKind).range_end = val;
               },
             },
           ];
@@ -247,11 +247,11 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as DecimalOptions).range_start ?? 0
+                  (table.fields[i].field_kind as DecimalKind).range_start ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as DecimalOptions).range_start = val;
+                (table.fields[i].field_kind as DecimalKind).range_start = val;
               },
             },
             {
@@ -261,11 +261,11 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as DecimalOptions).range_end ?? 0
+                  (table.fields[i].field_kind as DecimalKind).range_end ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as DecimalOptions).range_end = val;
+                (table.fields[i].field_kind as DecimalKind).range_end = val;
               },
             },
             {
@@ -274,12 +274,12 @@
               type: "checkbox",
               optional: false,
               bindGetter: () => {
-                return (table.fields[i].options as DecimalOptions)
+                return (table.fields[i].field_kind as DecimalKind)
                   .scientific_notation;
               },
               bindSetter: (val: boolean) => {
                 (
-                  table.fields[i].options as DecimalOptions
+                  table.fields[i].field_kind as DecimalKind
                 ).scientific_notation = val;
               },
             },
@@ -290,12 +290,12 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as DecimalOptions)
+                  (table.fields[i].field_kind as DecimalKind)
                     .number_precision ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as DecimalOptions).number_precision =
+                (table.fields[i].field_kind as DecimalKind).number_precision =
                   val;
               },
             },
@@ -306,11 +306,11 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as DecimalOptions).number_scale ?? 0
+                  (table.fields[i].field_kind as DecimalKind).number_scale ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as DecimalOptions).number_scale = val;
+                (table.fields[i].field_kind as DecimalKind).number_scale = val;
               },
             },
           ];
@@ -325,11 +325,11 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as MoneyOptions).range_start ?? 0
+                  (table.fields[i].field_kind as MoneyKind).range_start ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as MoneyOptions).range_start = val;
+                (table.fields[i].field_kind as MoneyKind).range_start = val;
               },
             },
             {
@@ -338,10 +338,10 @@
               type: "number",
               optional: true,
               bindGetter: () => {
-                return (table.fields[i].options as MoneyOptions).range_end ?? 0;
+                return (table.fields[i].field_kind as MoneyKind).range_end ?? 0;
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as MoneyOptions).range_end = val;
+                (table.fields[i].field_kind as MoneyKind).range_end = val;
               },
             },
           ];
@@ -356,11 +356,11 @@
               optional: false,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as ProgressOptions).total_steps ?? 0
+                  (table.fields[i].field_kind as ProgressKind).total_steps ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].options as ProgressOptions).total_steps = val;
+                (table.fields[i].field_kind as ProgressKind).total_steps = val;
               },
             },
           ];
@@ -375,14 +375,14 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as DateTimeOptions).range_start
+                  (table.fields[i].field_kind as DateTimeKind).range_start
                     ?.toISOString()
                     .substring(0, 19) ??
                   new Date().toISOString().substring(0, 19)
                 );
               },
               bindSetter: (val: string) => {
-                (table.fields[i].options as DateTimeOptions).range_start =
+                (table.fields[i].field_kind as DateTimeKind).range_start =
                   new Date(val);
               },
             },
@@ -393,14 +393,14 @@
               optional: true,
               bindGetter: () => {
                 return (
-                  (table.fields[i].options as DateTimeOptions).range_end
+                  (table.fields[i].field_kind as DateTimeKind).range_end
                     ?.toISOString()
                     .substring(0, 19) ??
                   new Date().toISOString().substring(0, 19)
                 );
               },
               bindSetter: (val: string) => {
-                (table.fields[i].options as DateTimeOptions).range_end =
+                (table.fields[i].field_kind as DateTimeKind).range_end =
                   new Date(val);
               },
             },
@@ -410,11 +410,11 @@
               type: "text",
               optional: false,
               bindGetter: () => {
-                return (table.fields[i].options as DateTimeOptions)
+                return (table.fields[i].field_kind as DateTimeKind)
                   .date_time_format;
               },
               bindSetter: (val: string) => {
-                (table.fields[i].options as DateTimeOptions).date_time_format =
+                (table.fields[i].field_kind as DateTimeKind).date_time_format =
                   val;
               },
             },
@@ -439,13 +439,13 @@
               optional: false,
               bindGetter: () => {
                 return Object.entries(
-                  (table.fields[i].options as EnumerationOptions).values,
+                  (table.fields[i].field_kind as EnumerationKind).values,
                 )
                   .map((entry) => entry[0].toString() + ":" + entry[1])
                   .join("\n");
               },
               bindSetter: (val: string) => {
-                (table.fields[i].options as EnumerationOptions).values =
+                (table.fields[i].field_kind as EnumerationKind).values =
                   Object.fromEntries(
                     val
                       .split("\n")
@@ -499,7 +499,7 @@
       field_id: id,
 
       name: newFieldName,
-      options: {
+      field_kind: {
         type: FieldType.Text,
         is_required: true,
       },
@@ -591,7 +591,7 @@
           },
           body: JSON.stringify({
             name: field.name,
-            options: field.options,
+            field_kind: field.field_kind,
           }),
         }).then(async (response) => {
           if (response.status === 200) {
@@ -628,7 +628,7 @@
             },
             body: JSON.stringify({
               name: field.name,
-              options: field.options,
+              field_kind: field.field_kind,
             }),
           },
         ).then(async (response) => {
@@ -755,7 +755,9 @@
                   (val) => {
                     optionalCheckboxStates[i][j] = val;
                     if (!val)
-                      delete (table.fields[i].options as any)[optionInput.name];
+                      delete (table.fields[i].field_kind as any)[
+                        optionInput.name
+                      ];
                   }}
                 />
               {/if}
@@ -792,7 +794,7 @@
       <div
         class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2"
       >
-        <p class="font-bold">{field.name} ({field.options.type})</p>
+        <p class="font-bold">{field.name} ({field.field_kind.type})</p>
         <button
           class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition"
           onclick={() => restoreField(i)}>Restore</button

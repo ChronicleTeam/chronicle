@@ -16,7 +16,7 @@
     Checkbox,
     Enumeration,
     InputParameters,
-    EnumerationOptions,
+    EnumerationKind,
   } from "$lib/types.d.js";
   import { FieldType, parseJSONTable } from "$lib/types.d.js";
   import { API_URL } from "$lib/api.d.js";
@@ -54,7 +54,7 @@
       entry_id: -1,
       cells: Object.fromEntries(
         table.fields.map((f: Field): [string, Cell] => {
-          switch (f.options.type) {
+          switch (f.field_kind.type) {
             case FieldType.Text:
               return [f.field_id.toString(), "" as Text];
             case FieldType.Integer:
@@ -147,7 +147,7 @@
   };
 
   const cellToInputParams = (entryIdx: number, f: Field) => {
-    switch (f.options.type) {
+    switch (f.field_kind.type) {
       case FieldType.Integer:
       case FieldType.Money:
       case FieldType.Decimal:
@@ -181,14 +181,14 @@
       case FieldType.Enumeration:
         return {
           type: "select",
-          selectOptions: Object.values(f.options.values),
+          selectOptions: Object.values(f.field_kind.values),
           bindGetter: () =>
-            (f.options as EnumerationOptions).values[
+            (f.field_kind as EnumerationKind).values[
               table.entries[entryIdx].cells[f.field_id] as number
             ],
           bindSetter: (val: string) => {
             table.entries[entryIdx].cells[f.field_id] = parseInt(
-              (Object.entries((f.options as EnumerationOptions).values).find(
+              (Object.entries((f.field_kind as EnumerationKind).values).find(
                 (e) => e[1] === val,
               ) ?? ["0"])[0],
             );
