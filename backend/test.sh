@@ -15,14 +15,14 @@ curl -v -X POST http://localhost:3000/api/tables/1/fields \
 
 set json '{
     "name": "Enum field",
-    "options": {
+    "field_kind": {
         "type": "Enumeration",
         "is_required": true,
-        "values": [
-            [1, "val1"],
-            [2, "val2"],
-            [3, "val3"]
-        ],
+        "values": {
+            "1": "val1",
+            "2": "val2",
+            "3": "val3"
+        },
         "default_value": 1
     }
 }'
