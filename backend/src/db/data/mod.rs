@@ -6,7 +6,7 @@ use std::iter;
 
 use crate::{
     error::{ApiError, ApiResult},
-    model::data::{TableData, Entry, Field, FieldKind, FullTable},
+    model::data::{Entry, Field, FieldKind, Table, TableData},
     Id,
 };
 use itertools::Itertools;
@@ -35,10 +35,7 @@ pub async fn get_table_data(
 ) -> sqlx::Result<TableData> {
     let mut tx = connection.begin().await?;
 
-    let FullTable {
-        table,
-        data_table_name,
-    } = sqlx::query_as(
+    let table: Table = sqlx::query_as(
         r#"
             SELECT 
                 table_id,
@@ -91,6 +88,7 @@ pub async fn get_table_data(
         .chain(["entry_id", "created_at", "updated_at"])
         .join(", ");
 
+    let data_table_name = &table.data_table_name;
     let entries = sqlx::query::<Postgres>(&format!(
         r#"
             SELECT {select_columns}

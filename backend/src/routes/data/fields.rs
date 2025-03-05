@@ -105,7 +105,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             range_end,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldKind::Decimal {
+        FieldKind::Float {
             range_start,
             range_end,
             number_precision,

@@ -1,6 +1,6 @@
 use super::Relation;
 use crate::{
-    model::data::{Cell, Entry, FieldKind},
+    model::data::{Cell, CreateEntry, Entry, FieldKind, UpdateEntry},
     Id,
 };
 use itertools::Itertools;
@@ -16,7 +16,7 @@ use tracing::debug;
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    mut entry: HashMap<Id, Option<Cell>>,
+    CreateEntry(mut entry): CreateEntry,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
@@ -79,7 +79,7 @@ pub async fn update_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     entry_id: Id,
-    mut entry: HashMap<Id, Option<Cell>>,
+    UpdateEntry(mut entry): UpdateEntry,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 

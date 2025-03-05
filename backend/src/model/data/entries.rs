@@ -16,7 +16,7 @@ pub struct Entry {
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
     // #[serde_as(as = "Vec<(_, _)>")]
-    pub cells: HashMap<Id, Option<Cell>>,
+    pub cells: CellEntry,
 }
 
 impl Entry {
@@ -46,6 +46,17 @@ impl Entry {
     }
 }
 
+// key: field_id
+#[serde_as]
+#[derive(Deserialize)]
+pub struct CreateEntry(pub CellEntry);
+
+// key: field_id
+#[derive(Deserialize)]
+pub struct UpdateEntry(pub CellEntry);
+
+pub type CellEntry = HashMap<Id, Option<Cell>>;
+
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Cell {
@@ -59,43 +70,21 @@ pub enum Cell {
 }
 
 impl Cell {
-    fn from_row(
-        row: &PgRow,
-        index: &str,
-        field_kind: &FieldKind,
-    ) -> sqlx::Result<Option<Cell>> {
+    fn from_row(row: &PgRow, index: &str, field_kind: &FieldKind) -> sqlx::Result<Option<Cell>> {
         Ok(match field_kind {
-            FieldKind::Text { .. }
-            | FieldKind::WebLink { .. }
-            | FieldKind::Email { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::String),
+            FieldKind::Text { .. } | FieldKind::WebLink { .. } | FieldKind::Email { .. } => {
+                row.try_get::<Option<_>, _>(index)?.map(Cell::String)
+            }
             FieldKind::Integer { .. }
             | FieldKind::Progress { .. }
             | FieldKind::Enumeration { .. } => {
                 row.try_get::<Option<_>, _>(index)?.map(Cell::Integer)
             }
-            FieldKind::Decimal { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
+            FieldKind::Float { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
             FieldKind::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
-            FieldKind::DateTime { .. } => {
-                row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime)
-            }
-            FieldKind::Interval { .. } => {
-                row.try_get::<Option<_>, _>(index)?.map(Cell::Interval)
-            }
+            FieldKind::DateTime { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime),
+            FieldKind::Interval { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Interval),
             FieldKind::Checkbox => row.try_get::<Option<_>, _>(index)?.map(Cell::Boolean),
         })
     }
 }
-
-// #[derive(Serialize)]
-// pub struct EntryId {
-//     pub entry_id: Id,
-// }
-
-// key: field_id
-#[serde_as]
-#[derive(Deserialize)]
-pub struct CreateEntry(pub HashMap<Id, Value>);
-
-// key: field_id
-#[derive(Deserialize)]
-pub struct UpdateEntry(pub HashMap<Id, Value>);
