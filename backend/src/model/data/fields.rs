@@ -11,7 +11,7 @@ pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
     pub name: String,
-    pub options: Json<FieldOptions>,
+    pub field_kind: Json<FieldKind>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -19,7 +19,7 @@ pub struct Field {
 #[serde_as]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
-pub enum FieldOptions {
+pub enum FieldKind {
     Text {
         is_required: bool,
     },
@@ -86,12 +86,12 @@ pub struct FullField {
 #[derive(Deserialize)]
 pub struct CreateField {
     pub name: String,
-    pub options: FieldOptions,
+    pub field_kind: FieldKind,
 }
 
 
 #[derive(Deserialize)]
 pub struct UpdateField {
     pub name: String,
-    pub options: FieldOptions,
+    pub field_kind: FieldKind,
 }

@@ -1,5 +1,6 @@
 mod data;
 mod users;
+mod viz;
 
 #[cfg(test)]
 mod tests;
@@ -11,7 +12,8 @@ use sqlx::PgPool;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tower_http::{
-    catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer
+    catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
+    timeout::TimeoutLayer, trace::TraceLayer,
 };
 use tracing::info;
 
@@ -23,7 +25,10 @@ struct ApiState {
 
 fn create_app(api_state: ApiState) -> Router {
     Router::new()
-        .nest("/api", Router::new().merge(data::router()))
+        .nest(
+            "/api",
+            Router::new().merge(data::router()).merge(viz::router()),
+        )
         // Enables logging. Use `RUST_LOG=tower_http=debug`
         .layer((
             // SetSensitiveHeadersLayer::new([AUTHORIZATION]),
