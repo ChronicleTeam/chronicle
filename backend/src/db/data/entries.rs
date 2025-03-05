@@ -1,6 +1,6 @@
 use super::Relation;
 use crate::{
-    model::data::{Cell, CreateEntry, Entry, FieldKind, UpdateEntry},
+    model::data::{Cell, CellEntry, CreateEntry, Entry, FieldKind, UpdateEntry},
     Id,
 };
 use itertools::Itertools;
@@ -16,7 +16,7 @@ use tracing::debug;
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    CreateEntry(mut entry): CreateEntry,
+    mut cell_entry: CellEntry,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
@@ -44,7 +44,7 @@ pub async fn create_entry(
 
     let (cells, data_field_names): (Vec<_>, Vec<_>) = field_data
         .iter()
-        .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
+        .filter_map(|(field_id, identifier, _)| cell_entry.remove(&field_id).zip(Some(identifier)))
         .unzip();
 
     let parameters = (1..=cells.len()).map(|i| format!("${i}")).join(", ");
@@ -79,7 +79,7 @@ pub async fn update_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     entry_id: Id,
-    UpdateEntry(mut entry): UpdateEntry,
+    mut cell_entry: CellEntry,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
@@ -107,7 +107,7 @@ pub async fn update_entry(
 
     let (cells, data_field_names): (Vec<_>, Vec<_>) = field_data
         .iter()
-        .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
+        .filter_map(|(field_id, identifier, _)| cell_entry.remove(&field_id).zip(Some(identifier)))
         .unzip();
 
     let parameters = data_field_names

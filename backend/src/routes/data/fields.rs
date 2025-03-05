@@ -38,7 +38,7 @@ async fn create_field(
 
     validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&pool, table_id, create_field.name, create_field.field_kind)
+    let field = db::create_field(&pool, table_id, create_field)
         .await
         .on_constraint("meta_field_table_id_name_key", |_| {
             ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
@@ -76,7 +76,7 @@ async fn update_field(
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field.name, update_field.field_kind).await?;
+    let field = db::update_field(&pool, field_id, update_field).await?;
 
     Ok(Json(field))
 }
@@ -105,7 +105,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             range_end,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldKind::Float {
+        FieldKind::Decimal {
             range_start,
             range_end,
             number_precision,

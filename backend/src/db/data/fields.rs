@@ -47,7 +47,7 @@ pub async fn create_field(
     let column_type = match field_kind {
         FieldKind::Text { .. } => "TEXT",
         FieldKind::Integer { .. } => "BIGINT",
-        FieldKind::Float { .. } => "DOUBLE",
+        FieldKind::Decimal { .. } => "DOUBLE",
         FieldKind::Money { .. } => "numeric_money",
         FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
         FieldKind::DateTime { .. } => "TIMESTAMPTZ",

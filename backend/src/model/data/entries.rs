@@ -49,11 +49,11 @@ impl Entry {
 // key: field_id
 #[serde_as]
 #[derive(Deserialize)]
-pub struct CreateEntry(pub CellEntry);
+pub struct CreateEntry(pub HashMap<Id, Value>);
 
 // key: field_id
 #[derive(Deserialize)]
-pub struct UpdateEntry(pub CellEntry);
+pub struct UpdateEntry(pub HashMap<Id, Value>);
 
 pub type CellEntry = HashMap<Id, Option<Cell>>;
 
@@ -80,7 +80,7 @@ impl Cell {
             | FieldKind::Enumeration { .. } => {
                 row.try_get::<Option<_>, _>(index)?.map(Cell::Integer)
             }
-            FieldKind::Float { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
+            FieldKind::Decimal { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
             FieldKind::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
             FieldKind::DateTime { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime),
             FieldKind::Interval { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Interval),

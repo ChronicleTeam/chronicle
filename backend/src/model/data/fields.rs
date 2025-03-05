@@ -29,7 +29,7 @@ pub enum FieldKind {
         range_start: Option<i64>,
         range_end: Option<i64>,
     },
-    Float {
+    Decimal {
         is_required: bool,
         range_start: Option<f64>,
         range_end: Option<f64>,

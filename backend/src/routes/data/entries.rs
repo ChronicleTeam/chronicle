@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{Cell, CellEntry, CreateEntry, Entry, Field, FieldKind, UpdateEntry},
+    model::data::{Cell, CreateEntry, Entry, Field, FieldKind, UpdateEntry},
     Id,
 };
 use axum::{
@@ -43,7 +43,7 @@ async fn create_entry(
 
     let fields = db::get_fields(&pool, table_id).await?;
 
-    let entry = validate_entry(entry, fields)?;
+    let entry = convert_entry(entry, fields)?;
 
     let entry = db::create_entry(&pool, table_id, entry).await?;
 
@@ -65,7 +65,7 @@ async fn update_entry(
 
     let fields = db::get_fields(&pool, table_id).await?;
 
-    let entry = validate_entry(entry, fields)?;
+    let entry = convert_entry(entry, fields)?;
 
     let entry = db::update_entry(&pool, table_id, entry_id, entry).await?;
 
@@ -89,28 +89,22 @@ async fn delete_entry(
     Ok(())
 }
 
-fn validate_entry(
-    mut cell_entry: CellEntry,
+fn convert_entry(
+    mut entry: HashMap<Id, Value>,
     fields: Vec<Field>,
 ) -> ApiResult<HashMap<Id, Option<Cell>>> {
     let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields
         .iter()
-        .map(
-            |Field {
-                 field_id,
-                 field_kind,
-                 ..
-             }| {
-                let value = cell_entry.remove(field_id).unwrap_or(None);
-                json_to_cell(json_value, field_kind)
-                    .map(|cell| (*field_id, cell))
-                    .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
-            },
-        )
+        .map(|Field {field_id, field_kind, ..}| {
+            let json_value = entry.remove(field_id).unwrap_or(Value::Null);
+            json_to_cell(json_value, field_kind)
+                .map(|cell| (*field_id, cell))
+                .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
+        })
         .partition_result();
 
     error_messages.extend(
-        cell_entry
+        entry
             .keys()
             .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID_MESSAGE)),
     );
@@ -122,33 +116,44 @@ fn validate_entry(
     Ok(new_entry)
 }
 
-fn json_to_cell(value: Option<Cell>, field_kind: &FieldKind) -> Result<(), &'static str> {
+fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'static str> {
     match (value, field_kind) {
         (
-            None,
+            Value::Null,
             FieldKind::Text { is_required }
             | FieldKind::Integer { is_required, .. }
-            | FieldKind::Float { is_required, .. }
+            | FieldKind::Decimal { is_required, .. }
             | FieldKind::Money { is_required, .. }
             | FieldKind::DateTime { is_required, .. }
             | FieldKind::WebLink { is_required, .. }
             | FieldKind::Email { is_required, .. }
             | FieldKind::Enumeration { is_required, .. },
-        ) if *is_required => Err(IS_REQUIRED_MESSAGE)?,
+        ) => {
+            if *is_required {
+                Err(IS_REQUIRED_MESSAGE)
+            } else {
+                Ok(None)
+            }
+        }
         (
-            Some(Cell::Integer(value)),
+            Value::Number(value),
             FieldKind::Integer {
                 range_start,
                 range_end,
                 ..
             },
         ) => {
-            check_range(&value, range_start.as_ref(), range_end.as_ref())?;
+            if let Some(value) = value.as_i64() {
+                check_range(&value, range_start.as_ref(), range_end.as_ref())?;
+                Ok(Some(Cell::Integer(value)))
+            } else {
+                Err(INVALID_TYPE_MESSAGE)
+            }
         }
 
         (
-            Some(),
-            FieldKind::Float {
+            Value::Number(value),
+            FieldKind::Decimal {
                 range_start,
                 range_end,
                 scientific_notation,
@@ -225,7 +230,6 @@ fn json_to_cell(value: Option<Cell>, field_kind: &FieldKind) -> Result<(), &'sta
         }
         _ => Err(INVALID_TYPE_MESSAGE),
     }
-    Ok(())
 }
 
 fn check_range<T>(

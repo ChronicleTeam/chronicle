@@ -29,7 +29,7 @@ async fn create_table(
 ) -> ApiResult<Json<Table>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    let table = db::create_table(&pool, user_id, create_table.name, create_table.description)
+    let table = db::create_table(&pool, user_id, create_table)
         .await
         .on_constraint("meta_table_user_id_name_key", |_| {
             ApiError::unprocessable_entity([TABLE_NAME_CONFLICT])
@@ -55,7 +55,7 @@ async fn update_table(
     db::check_table_relation(&pool, user_id, table_id).await?.to_api_result()?;
 
     let table =
-        db::update_table(&pool, table_id, update_table.name, update_table.description).await?;
+        db::update_table(&pool, table_id, update_table).await?;
 
     Ok(Json(table))
 }
