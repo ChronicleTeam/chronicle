@@ -146,7 +146,7 @@
                 type: val,
                 is_required: true,
                 values: {} as { [key: number]: string },
-                default: 0,
+                default_value: 0,
               };
               break;
             case FieldType.Image:
@@ -434,7 +434,7 @@
             getRequiredOptionInput(i),
             {
               name: "values",
-              label: "values",
+              label: "Values",
               type: "textarea",
               optional: false,
               bindGetter: () => {
@@ -468,6 +468,18 @@
                         }, // catch NaN
                       ) as [number, string][],
                   );
+              },
+            },
+            {
+              name: "default_value",
+              label: "Default value",
+              type: "number",
+              optional: false,
+              bindGetter: () =>
+                (table.fields[i].field_kind as EnumerationKind).default_value,
+              bindSetter: (val: number) => {
+                (table.fields[i].field_kind as EnumerationKind).default_value =
+                  val;
               },
             },
           ];
