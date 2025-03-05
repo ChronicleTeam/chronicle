@@ -67,14 +67,14 @@ async fn test_create_table(pool: PgPool) {
     assert_eq!(description, description_db);
 }
 
-async fn create_field(app: &mut Router, table_id: i64, name: &str, options: Value) -> i64 {
+async fn create_field(app: &mut Router, table_id: i64, name: &str, field_kind: Value) -> i64 {
     let response = post_request(
         app,
         &format!("/api/tables/{table_id}/fields"),
         json!(
             {
                 "name": name,
-                "options": options,
+                "field_kind": field_kind,
             }
         ),
     )
@@ -118,15 +118,15 @@ async fn test_create_field(pool: PgPool) {
     let (schema, data_table_name) = data_table_name.split_once(".").unwrap();
 
     let name = "Test Field";
-    let options = json!({"type": "Text", "is_required": true});
+    let field_kind = json!({"type": "Text", "is_required": true});
 
-    let field_id = create_field(&mut app, table_id, name, options.clone()).await;
+    let field_id = create_field(&mut app, table_id, name, field_kind.clone()).await;
 
     let (name_db, options_db, data_field_name): (String, Value, String) = sqlx::query_as(
         r#"
             SELECT
                 name,
-                options,
+                field_kind,
                 data_field_name
             FROM meta_field
             WHERE field_id = $1
@@ -138,7 +138,7 @@ async fn test_create_field(pool: PgPool) {
     .unwrap();
 
     assert_eq!(name, name_db);
-    assert_eq!(options, options_db);
+    assert_eq!(field_kind, options_db);
 
     let data_field_names_db: Vec<String> = sqlx::query_scalar(
         r#"
@@ -157,6 +157,4 @@ async fn test_create_field(pool: PgPool) {
         .iter()
         .find(|n| **n == data_field_name)
         .is_some());
-
-    assert!(false)
 }

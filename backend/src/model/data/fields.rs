@@ -12,6 +12,7 @@ pub struct Field {
     pub table_id: Id,
     pub name: String,
     pub field_kind: Json<FieldKind>,
+    pub data_field_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -70,19 +71,6 @@ pub enum FieldKind {
         default_value: i64,
     },
 }
-
-#[derive(FromRow)]
-pub struct FullField {
-    #[sqlx(flatten)]
-    pub field: Field,
-    pub data_field_name: String,
-}
-
-// #[derive(Serialize)]
-// pub struct FieldId {
-//     pub field_id: Id,
-// }
-
 #[derive(Deserialize)]
 pub struct CreateField {
     pub name: String,

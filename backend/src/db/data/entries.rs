@@ -1,22 +1,15 @@
-use super::Relation;
+use super::{entry_from_row, Relation};
 use crate::{
-    model::data::{Cell, Entry, FieldKind},
+    model::data::{Cell, CellEntry, Entry, Field},
     Id,
 };
 use itertools::Itertools;
-use sqlx::{
-    postgres::PgArguments,
-    query::{Query, QueryScalar},
-    types::Json,
-    Acquire, PgExecutor, Postgres,
-};
-use std::collections::HashMap;
-use tracing::debug;
+use sqlx::{postgres::PgArguments, query::Query, Acquire, PgExecutor, Postgres};
 
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    mut entry: HashMap<Id, Option<Cell>>,
+    mut cell_entry: CellEntry,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
@@ -31,9 +24,16 @@ pub async fn create_entry(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let field_data: Vec<(Id, String, Json<FieldKind>)> = sqlx::query_as(
+    let fields: Vec<Field> = sqlx::query_as(
         r#"
-            SELECT field_id, data_field_name, field_kind
+            SELECT
+                field_id,
+                table_id,
+                name,
+                field_kind,
+                data_field_name,
+                created_at,
+                updated_at
             FROM meta_field
             WHERE table_id = $1
         "#,
@@ -42,16 +42,19 @@ pub async fn create_entry(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let (cells, data_field_names): (Vec<_>, Vec<_>) = field_data
+    let (cells, data_field_names): (Vec<_>, Vec<_>) = fields
         .iter()
-        .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
+        .filter_map(|field| {
+            cell_entry
+                .remove(&field.field_id)
+                .zip(Some(field.data_field_name.as_str()))
+        })
         .unzip();
 
     let parameters = (1..=cells.len()).map(|i| format!("${i}")).join(", ");
     let insert_columns = data_field_names.iter().join(", ");
     let return_columns = data_field_names
-        .iter()
-        .map(|x| x.as_str())
+        .into_iter()
         .chain(["entry_id", "created_at", "updated_at"])
         .join(", ");
 
@@ -71,15 +74,18 @@ pub async fn create_entry(
 
     let row = insert_query.fetch_one(tx.as_mut()).await?;
 
+    let entry = entry_from_row(row, &fields).unwrap();
+
     tx.commit().await?;
-    Ok(Entry::from_row(row, &field_data).unwrap())
+
+    Ok(entry)
 }
 
 pub async fn update_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     entry_id: Id,
-    mut entry: HashMap<Id, Option<Cell>>,
+    mut cell_entry: CellEntry,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
@@ -94,9 +100,16 @@ pub async fn update_entry(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let field_data: Vec<(Id, String, Json<FieldKind>)> = sqlx::query_as(
+    let fields: Vec<Field> = sqlx::query_as(
         r#"
-            SELECT field_id, data_field_name, field_kind
+            SELECT
+                field_id,
+                table_id,
+                name,
+                field_kind,
+                data_field_name,
+                created_at,
+                updated_at
             FROM meta_field
             WHERE table_id = $1
         "#,
@@ -105,9 +118,13 @@ pub async fn update_entry(
     .fetch_all(tx.as_mut())
     .await?;
 
-    let (cells, data_field_names): (Vec<_>, Vec<_>) = field_data
+    let (cells, data_field_names): (Vec<_>, Vec<_>) = fields
         .iter()
-        .filter_map(|(field_id, identifier, _)| entry.remove(&field_id).zip(Some(identifier)))
+        .filter_map(|field| {
+            cell_entry
+                .remove(&field.field_id)
+                .zip(Some(field.data_field_name.as_str()))
+        })
         .unzip();
 
     let parameters = data_field_names
@@ -115,9 +132,9 @@ pub async fn update_entry(
         .enumerate()
         .map(|(i, column)| format!("{column} = ${}", i + 2))
         .join(", ");
+
     let return_columns = data_field_names
         .into_iter()
-        .map(String::as_str)
         .chain(["entry_id", "created_at", "updated_at"])
         .join(", ");
 
@@ -135,7 +152,7 @@ pub async fn update_entry(
         update_query = bind_cell(update_query, cell);
     }
 
-    let entry = Entry::from_row(update_query.fetch_one(tx.as_mut()).await?, &field_data).unwrap();
+    let entry = entry_from_row(update_query.fetch_one(tx.as_mut()).await?, &fields).unwrap();
 
     tx.commit().await?;
 
@@ -204,24 +221,24 @@ pub async fn check_entry_relation(
     .map_or(Relation::Absent, |_| Relation::Owned))
 }
 
-fn bind_cell_scalar<'q, O>(
-    query: QueryScalar<'q, Postgres, O, PgArguments>,
-    cell: Option<Cell>,
-) -> QueryScalar<'q, Postgres, O, PgArguments> {
-    if let Some(cell) = cell {
-        match cell {
-            Cell::Integer(v) => query.bind(v),
-            Cell::Float(v) => query.bind(v),
-            Cell::Decimal(v) => query.bind(v),
-            Cell::Boolean(v) => query.bind(v),
-            Cell::DateTime(v) => query.bind(v),
-            Cell::String(v) => query.bind(v),
-            Cell::Interval(_) => todo!(),
-        }
-    } else {
-        query.bind::<Option<bool>>(None)
-    }
-}
+// fn bind_cell_scalar<'q, O>(
+//     query: QueryScalar<'q, Postgres, O, PgArguments>,
+//     cell: Option<Cell>,
+// ) -> QueryScalar<'q, Postgres, O, PgArguments> {
+//     if let Some(cell) = cell {
+//         match cell {
+//             Cell::Integer(v) => query.bind(v),
+//             Cell::Float(v) => query.bind(v),
+//             Cell::Decimal(v) => query.bind(v),
+//             Cell::Boolean(v) => query.bind(v),
+//             Cell::DateTime(v) => query.bind(v),
+//             Cell::String(v) => query.bind(v),
+//             Cell::Interval(_) => todo!(),
+//         }
+//     } else {
+//         query.bind::<Option<bool>>(None)
+//     }
+// }
 
 fn bind_cell<'q>(
     query: Query<'q, Postgres, PgArguments>,
