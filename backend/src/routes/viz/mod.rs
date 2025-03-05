@@ -2,7 +2,7 @@ use axum::Router;
 
 use super::ApiState;
 
-mod plot;
+mod chart;
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new()
