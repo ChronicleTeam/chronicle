@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     model::{
-        data::{CellEntry, Field},
+        data::{Cell, CellEntry, Field},
         viz::{Aggregate, Axis, AxisData, Chart, ChartData, CreateChart},
     },
     Id,
@@ -92,15 +92,15 @@ pub async fn create_chart(
     axes.sort_by_key(|field| field.field_id);
     fields.sort_by_key(|field| field.field_id);
 
-    let axis_data = axes
+    let axis_data_map: HashMap<_, _> = axes
         .into_iter()
         .zip(fields)
-        .map(|(axis, field)| AxisData { axis, field })
-        .collect_vec();
+        .map(|(axis, field)| (axis.axis_id, AxisData { axis, field }))
+        .collect();
 
-    let select_columns = axis_data
+    let select_columns = axis_data_map
         .iter()
-        .map(|AxisData { axis, field }| {
+        .map(|(_, AxisData { axis, field })| {
             let identifier = if let Some(aggregate) = &axis.aggregate {
                 &format!(
                     "{}({})",
@@ -129,7 +129,7 @@ pub async fn create_chart(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let data_view_name = chart.data_view_name;
+    let data_view_name = &chart.data_view_name;
 
     sqlx::query(&format!(
         r#"
@@ -141,26 +141,38 @@ pub async fn create_chart(
     .execute(tx.as_mut())
     .await?;
 
-    todo!()
+    let cells = get_data_view(tx.as_mut(), &data_view_name, &axis_data_map).await?;
+
+    tx.commit().await?;
+
+    Ok(ChartData {
+        chart,
+        axis_data_map,
+        cells,
+    })
 }
 
 async fn get_data_view(
     executor: impl PgExecutor<'_>,
     data_view_name: &str,
-    axis_data: &[AxisData],
+    axis_data: &HashMap<Id, AxisData>,
 ) -> sqlx::Result<Vec<CellEntry>> {
     let sql = &format!(r#"SELECT * FROM {data_view_name}"#);
 
     let rows = sqlx::query(sql).fetch_all(executor).await?;
 
-    let mut axis_data = Vec::new();
+    let mut cells: Vec<CellEntry> = Vec::new();
 
     for row in rows {
-        for AxisData { axis, field } in &mut axis_data {
-
+        let mut cell_entry = CellEntry::new();
+        for AxisData { axis, field } in axis_data.values() {
+            cell_entry.insert(
+                axis.axis_id,
+                Cell::from_row(&row, &axis.data_item_name, &field.field_kind)?,
+            );
         }
-
+        cells.push(cell_entry);
     }
 
-    todo!()
+    Ok(cells)
 }

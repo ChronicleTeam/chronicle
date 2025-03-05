@@ -22,9 +22,9 @@ pub async fn create_field(
                 table_id,
                 name,
                 field_kind,
+                data_field_name,
                 created_at,
-                updated_at,
-                data_field_name
+                updated_at
         "#,
     )
     .bind(table_id)
@@ -107,6 +107,7 @@ pub async fn update_field(
                 table_id,
                 name,
                 field_kind,
+                data_field_name,
                 created_at,
                 updated_at
         "#,
@@ -174,6 +175,7 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
                 table_id,
                 name,
                 field_kind,
+                data_field_name,
                 created_at,
                 updated_at
             FROM meta_field
@@ -193,7 +195,7 @@ pub async fn check_field_relation(
     sqlx::query_scalar::<_, Id>(
         r#"
             SELECT table_id
-            FROM meta_field
+            FROM meta_fieldF
             WHERE field_id = $1
         "#,
     )

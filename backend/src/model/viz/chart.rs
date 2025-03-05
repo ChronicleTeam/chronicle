@@ -1,9 +1,8 @@
 use crate::{
-    model::data::{Cell, CellEntry, Field},
+    model::data::{CellEntry, Field},
     Id,
 };
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use std::collections::HashMap;
@@ -79,7 +78,7 @@ pub struct CreateAxis {
 #[derive(Serialize)]
 pub struct ChartData {
     pub chart: Chart,
-    pub axes: HashMap<Id, AxisData>,
+    pub axis_data_map: HashMap<Id, AxisData>,
     pub cells: Vec<CellEntry>,
 }
 
