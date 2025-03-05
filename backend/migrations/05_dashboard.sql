@@ -9,3 +9,5 @@ CREATE TABLE dashboard (
 );
 
 SELECT trigger_updated_at('dashboard');
+
+CREATE SCHEMA data_view;
