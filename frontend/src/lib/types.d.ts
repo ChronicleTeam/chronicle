@@ -87,7 +87,7 @@ export type EnumerationKind = {
   type: FieldType.Enumeration;
   is_required: boolean;
   values: {[key:number]: string};
-  default: number;
+  default_value: number;
 };
 
 export type ImageKind = {

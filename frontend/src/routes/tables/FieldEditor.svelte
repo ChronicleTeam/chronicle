@@ -146,7 +146,7 @@
                 type: val,
                 is_required: true,
                 values: {} as { [key: number]: string },
-                default: 0,
+                default_value: 0,
               };
               break;
             case FieldType.Image:
@@ -434,7 +434,7 @@
             getRequiredOptionInput(i),
             {
               name: "values",
-              label: "values",
+              label: "Values",
               type: "textarea",
               optional: false,
               bindGetter: () => {
@@ -468,6 +468,18 @@
                         }, // catch NaN
                       ) as [number, string][],
                   );
+              },
+            },
+            {
+              name: "default_value",
+              label: "Default value",
+              type: "number",
+              optional: false,
+              bindGetter: () =>
+                (table.fields[i].field_kind as EnumerationKind).default_value,
+              bindSetter: (val: number) => {
+                (table.fields[i].field_kind as EnumerationKind).default_value =
+                  val;
               },
             },
           ];
@@ -859,7 +871,7 @@
 
   <!-- Bottom Bar -->
   {#if originalTable !== table}
-    <div class="flex items-center justify-center gap-3">
+    <div class="flex items-center justify-center gap-3 mt-4">
       <button
         onclick={openConfirmationModal}
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
