@@ -18,7 +18,7 @@ $$
 DECLARE
     field_count INTEGER;
 BEGIN
-    NEW.data_field_name := '_' || NEW.field_id;
+    NEW.data_field_name := 'f' || NEW.field_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

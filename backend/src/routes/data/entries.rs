@@ -23,12 +23,12 @@ const INVALID_TYPE_MESSAGE: &str = "Value is not the correct type";
 const INVALID_FIELD_ID_MESSAGE: &str = "Field ID key is invalid";
 
 pub(crate) fn router() -> Router<ApiState> {
-    Router::new().nest(
-        "/tables/{table_id}/entries",
-        Router::new()
-            .route("/", post(create_entry))
-            .route("/{entry_id}", put(update_entry).delete(delete_entry)),
-    )
+    Router::new()
+        .route("/tables/{table_id}/entries", post(create_entry))
+        .route(
+            "/tables/{table_id}/entries/{entry_id}",
+            put(update_entry).delete(delete_entry),
+        )
 }
 
 async fn create_entry(
@@ -95,12 +95,18 @@ fn convert_entry(
 ) -> ApiResult<HashMap<Id, Option<Cell>>> {
     let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields
         .iter()
-        .map(|Field {field_id, field_kind, ..}| {
-            let json_value = entry.remove(field_id).unwrap_or(Value::Null);
-            json_to_cell(json_value, field_kind)
-                .map(|cell| (*field_id, cell))
-                .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
-        })
+        .map(
+            |Field {
+                 field_id,
+                 field_kind,
+                 ..
+             }| {
+                let json_value = entry.remove(field_id).unwrap_or(Value::Null);
+                json_to_cell(json_value, field_kind)
+                    .map(|cell| (*field_id, cell))
+                    .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
+            },
+        )
         .partition_result();
 
     error_messages.extend(

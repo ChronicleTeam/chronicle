@@ -18,12 +18,15 @@ const FIELD_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Field name already used for this table");
 
 pub(crate) fn router() -> Router<ApiState> {
-    Router::new().nest(
-        "/tables/{table_id}/fields",
-        Router::new()
-            .route("/", post(create_field).get(get_fields))
-            .route("/{field_id}", put(update_field).delete(delete_field)),
-    )
+    Router::new()
+        .route(
+            "/tables/{table_id}/fields",
+            post(create_field).get(get_fields),
+        )
+        .route(
+            "/tables/{table_id}/fields/{field_id}",
+            put(update_field).delete(delete_field),
+        )
 }
 
 async fn create_field(
