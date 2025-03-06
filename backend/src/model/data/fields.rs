@@ -71,6 +71,25 @@ pub enum FieldKind {
         default_value: i64,
     },
 }
+
+impl FieldKind {
+    pub fn get_sql_type(&self) -> &'static str {
+        match self {
+            FieldKind::Text { .. } => "TEXT",
+            FieldKind::Integer { .. } => "BIGINT",
+            FieldKind::Decimal { .. } => "DOUBLE",
+            FieldKind::Money { .. } => "numeric_money",
+            FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
+            FieldKind::DateTime { .. } => "TIMESTAMPTZ",
+            FieldKind::Interval { .. } => "INTERVAL",
+            FieldKind::WebLink { .. } => "COLLATE case_insensitive TEXT",
+            FieldKind::Email { .. } => "COLLATE case_insensitive TEXT",
+            FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
+            FieldKind::Enumeration { .. } => "BIGINT",
+        }
+    }
+}
+
 #[derive(Deserialize)]
 pub struct CreateField {
     pub name: String,

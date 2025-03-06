@@ -35,7 +35,7 @@ CREATE OR REPLACE FUNCTION set_data_view_name()
 RETURNS TRIGGER AS
 $$
 BEGIN
-    NEW.data_view_name := 'data_view._' || NEW.chart_id;
+    NEW.data_view_name := 'data_view.c' || NEW.chart_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -63,7 +63,7 @@ CREATE OR REPLACE FUNCTION set_data_item_name()
 RETURNS TRIGGER AS
 $$
 BEGIN
-    NEW.data_item_name := '_' + NEW.axis_id;
+    NEW.data_item_name := 'i' || NEW.axis_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

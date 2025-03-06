@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION set_data_table_name()
 RETURNS TRIGGER AS
 $$
 BEGIN
-    NEW.data_table_name := 'data_table._' || NEW.table_id;
+    NEW.data_table_name := 'data_table.t' || NEW.table_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
