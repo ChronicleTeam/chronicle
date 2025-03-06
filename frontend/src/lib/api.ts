@@ -1,4 +1,4 @@
-import type { Table } from "./types.d.js";
+import { type Table, type DataTable, type Field, type DateTimeKind, FieldType } from "./types.d.js";
 
 export const API_URL = "http://localhost:3000/api";
 
@@ -18,7 +18,7 @@ const httpStatus = {
 // types
 export type APIError = {
   status: number;
-  message?: string
+  message: string
   details?: {
     [key: string]: string;
   };
@@ -63,13 +63,39 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   } else {
     throw {
       status: response.status,
-      message: response.statusText,
-      details: response.status === httpStatus.Unprocessable ? await response.json() : undefined
+      message: await response.text().catch(() => response.statusText),
+      details: response.status === httpStatus.Unprocessable ? await response.json().catch(() => undefined) : undefined
     } as APIError
   }
 };
 
-// Table functions
+type JSONDateTimeKind = DateTimeKind & {
+  range_start: string;
+  range_end: string;
+}
+
+export const hydrateJSONDataTable = (jsonObj: DataTable): DataTable => {
+  let outTable = jsonObj;
+
+  for (let i = 0; i < outTable.fields.length; i++) {
+    if (outTable.fields[i].field_kind.type === FieldType.DateTime) {
+      if ((outTable.fields[i].field_kind as DateTimeKind).range_start !== undefined) {
+        (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as JSONDateTimeKind).range_start)
+      }
+
+      if ((outTable.fields[i].field_kind as DateTimeKind).range_end !== undefined) {
+        (outTable.fields[i].field_kind as DateTimeKind).range_end = new Date((outTable.fields[i].field_kind as JSONDateTimeKind).range_end)
+      }
+
+      for (let j = 0; j < outTable.entries.length; j++) {
+        outTable.entries[j].cells[outTable.fields[i].field_id] = new Date(outTable.entries[j].cells[outTable.fields[i].field_id] as string)
+      }
+    }
+  }
+
+  return outTable;
+}
+// Table methods
 export const getTables = async (): Promise<Table[]> => GET<Table[]>("/tables");
 
 export const postTable = async (name: string): Promise<Table> => POST<Table>("/tables", {
@@ -83,3 +109,18 @@ export const putTable = async (table: Table): Promise<Table> => PUT<Table>(`/tab
 });
 
 export const deleteTable = async (table: Table): Promise<void> => DELETE(`/tables/${table.table_id}`);
+
+// Field methods
+export const getFields = async (table: Table): Promise<Field[]> => GET<Field[]>(`/tables/${table.table_id}/fields`).then(json => hydrateJSONDataTable({ table: { table_id: -1, name: "", user_id: -1, description: "", created_at: new Date() }, fields: json, entries: [] }).fields)
+
+export const postField = async (field: Field): Promise<Field> => POST<Field>(`/tables/${field.table_id}/fields`, {
+  name: field.name,
+  field_kind: field.field_kind
+});
+
+export const putField = async (field: Field): Promise<Field> => PUT<Field>(`/tables/${field.table_id}/fields/${field.field_id}`, {
+  name: field.name,
+  field_kind: field.field_kind
+});
+
+export const deleteField = async (field: Field): Promise<void> => DELETE(`/tables/${field.table_id}/fields/${field.field_id}`);

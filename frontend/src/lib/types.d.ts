@@ -224,24 +224,3 @@ export type InputParameters =
     bindGetter: () => string
   };
 
-export const parseJSONTable = (jsonObj: DataTable): DataTable => {
-  let outTable = jsonObj;
-
-  for (let i = 0; i < outTable.fields.length; i++) {
-    if (outTable.fields[i].field_kind.type === FieldType.DateTime) {
-      if (outTable.fields[i].field_kind.range_start !== undefined) {
-        (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as DateTimeKind).range_start)
-      }
-
-      if (outTable.fields[i].field_kind.range_end !== undefined) {
-        (outTable.fields[i].field_kind as DateTimeKind).range_end = new Date((outTable.fields[i].field_kind as DateTimeKind).range_end)
-      }
-
-      for (let j = 0; j < outTable.entries.length; j++) {
-        outTable.entries[j].cells[outTable.fields[i].field_id] = new Date(outTable.entries[j].cells[outTable.fields[i].field_id] as string)
-      }
-    }
-  }
-
-  return outTable;
-}

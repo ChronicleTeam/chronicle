@@ -18,7 +18,7 @@
     InputParameters,
     EnumerationKind,
   } from "$lib/types.d.js";
-  import { FieldType, parseJSONTable } from "$lib/types.d.js";
+  import { FieldType } from "$lib/types.d.js";
   import { API_URL } from "$lib/api.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
   let { table_prop } = $props();
@@ -29,7 +29,7 @@
     fetch(`${API_URL}/tables/${table_prop.table_id}/data`)
       .then((response) => response.json())
       .then((json) => {
-        table = parseJSONTable(json);
+        table = json;
       });
   };
 
