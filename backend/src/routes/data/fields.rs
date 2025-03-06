@@ -17,7 +17,7 @@ const INVALID_RANGE: ErrorMessage =
 const FIELD_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Field name already used for this table");
 
-pub(crate) fn router() -> Router<ApiState> {
+pub fn router() -> Router<ApiState> {
     Router::new()
         .route(
             "/tables/{table_id}/fields",
@@ -108,7 +108,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             range_end,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldKind::Decimal {
+        FieldKind::Float {
             range_start,
             range_end,
             number_precision,

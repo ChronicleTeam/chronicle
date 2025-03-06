@@ -1,8 +1,9 @@
-use axum::Router;
+mod chart;
+mod dashboard;
+mod axis;
 
 use super::ApiState;
-
-mod chart;
+use axum::Router;
 
 pub(crate) fn router() -> Router<ApiState> {
     Router::new().merge(chart::router())

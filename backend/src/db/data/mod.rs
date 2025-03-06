@@ -4,7 +4,7 @@ mod tables;
 
 use crate::{
     error::{ApiError, ApiResult},
-    model::data::{Cell, Entry, Field, Table, TableData},
+    model::{data::{Entry, Field, Table, TableData}, Cell},
     Id,
 };
 use itertools::Itertools;
@@ -104,7 +104,7 @@ fn entry_from_row(row: PgRow, fields: &[Field]) -> sqlx::Result<Entry> {
         cells: fields
             .iter()
             .map(|field| {
-                Cell::from_row(&row, &field.data_field_name, &field.field_kind.0)
+                Cell::from_field_row(&row, &field.data_field_name, &field.field_kind.0)
                     .or_else(|e| {
                         if matches!(e, sqlx::Error::ColumnNotFound(_)) {
                             Ok(None)

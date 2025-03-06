@@ -9,7 +9,7 @@ use axum::{
     Json, Router,
 };
 
-pub(crate) fn router() -> Router<ApiState> {
+pub fn router() -> Router<ApiState> {
     Router::new()
         .merge(tables::router())
         .merge(fields::router())
