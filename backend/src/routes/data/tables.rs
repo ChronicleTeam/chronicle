@@ -15,12 +15,9 @@ const TABLE_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Table name already used");
 
 pub(crate) fn router() -> Router<ApiState> {
-    Router::new().nest(
-        "/tables",
-        Router::new()
-            .route("/", post(create_table).get(get_tables))
-            .route("/{table_id}", put(update_table).delete(delete_table)),
-    )
+    Router::new()
+        .route("/tables", post(create_table).get(get_tables))
+        .route("/tables/{table_id}", put(update_table).delete(delete_table))
 }
 
 async fn create_table(
@@ -52,10 +49,11 @@ async fn update_table(
 ) -> ApiResult<Json<Table>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    db::check_table_relation(&pool, user_id, table_id).await?.to_api_result()?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
 
-    let table =
-        db::update_table(&pool, table_id, update_table).await?;
+    let table = db::update_table(&pool, table_id, update_table).await?;
 
     Ok(Json(table))
 }
@@ -65,7 +63,9 @@ async fn delete_table(
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
     let user_id = db::debug_get_user_id(&pool).await?;
-    db::check_table_relation(&pool, user_id, table_id).await?.to_api_result()?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
 
     db::delete_table(&pool, table_id).await?;
 

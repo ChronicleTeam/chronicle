@@ -44,19 +44,7 @@ pub async fn create_field(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let column_type = match field_kind {
-        FieldKind::Text { .. } => "TEXT",
-        FieldKind::Integer { .. } => "BIGINT",
-        FieldKind::Decimal { .. } => "DOUBLE",
-        FieldKind::Money { .. } => "numeric_money",
-        FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
-        FieldKind::DateTime { .. } => "TIMESTAMPTZ",
-        FieldKind::Interval { .. } => "INTERVAL",
-        FieldKind::WebLink { .. } => "COLLATE case_insensitive TEXT",
-        FieldKind::Email { .. } => "COLLATE case_insensitive TEXT",
-        FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
-        FieldKind::Enumeration { .. } => "BIGINT",
-    };
+    let column_type = field_kind.get_sql_type();
 
     let data_field_name = &field.data_field_name;
 
