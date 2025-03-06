@@ -20,7 +20,6 @@
   } from "$lib/types.d.js";
   import { FieldType } from "$lib/types.d.js";
   import {
-    API_URL,
     getDataTable,
     postEntry,
     putEntry,

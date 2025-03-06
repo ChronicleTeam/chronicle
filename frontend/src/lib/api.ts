@@ -1,9 +1,9 @@
 import { type Table, type DataTable, type Field, type Entry, type DateTimeKind, FieldType } from "./types.d.js";
 
-export const API_URL = "http://localhost:3000/api";
+const API_URL = "http://localhost:3000/api";
 
 //
-// API functions
+// General resources
 //
 
 // Constants
@@ -94,6 +94,10 @@ export const hydrateJSONDataTable = (jsonObj: DataTable): DataTable => {
 
   return outTable;
 }
+
+//
+// Data Management
+//
 
 // Table methods
 export const getTables = async (): Promise<Table[]> => GET<Table[]>("/tables");
