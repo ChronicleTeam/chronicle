@@ -1,5 +1,5 @@
 use crate::{
-    model::data::{Cell, Field},
+    model::data::{CellEntry, Field},
     Id,
 };
 use chrono::{DateTime, Utc};
@@ -14,6 +14,8 @@ pub struct Chart {
     pub table_id: Id,
     pub title: String,
     pub chart_kind: ChartKind,
+    #[serde(skip)]
+    pub data_view_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -25,13 +27,6 @@ pub enum ChartKind {
     Line,
 }
 
-#[derive(FromRow)]
-pub struct FullChart {
-    #[sqlx(flatten)]
-    pub chart: Chart,
-    pub data_view_name: String,
-}
-
 #[derive(Deserialize)]
 pub struct CreateChart {
     pub table_id: Id,
@@ -40,14 +35,15 @@ pub struct CreateChart {
     pub axes: Vec<CreateAxis>,
 }
 
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, FromRow)]
 pub struct Axis {
     pub axis_id: Id,
     pub chart_id: Id,
     pub field_id: Id,
     pub axis_kind: AxisKind,
     pub aggregate: Option<Aggregate>,
+    #[serde(skip)]
+    pub data_item_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -72,7 +68,6 @@ pub enum Aggregate {
     Count,
 }
 
-
 #[derive(Deserialize)]
 pub struct CreateAxis {
     pub field_id: Id,
@@ -80,15 +75,15 @@ pub struct CreateAxis {
     pub aggregate: Option<Aggregate>,
 }
 
-
 #[derive(Serialize)]
 pub struct ChartData {
     pub chart: Chart,
-    pub axes_data: Vec<(Axis, Vec<Cell>)>
+    pub axis_data_map: HashMap<Id, AxisData>,
+    pub cells: Vec<CellEntry>,
 }
 
-
+#[derive(Serialize)]
 pub struct AxisData {
     pub axis: Axis,
-    pub data: Vec<Cell>
+    pub field: Field,
 }

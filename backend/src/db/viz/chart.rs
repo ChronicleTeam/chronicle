@@ -1,14 +1,14 @@
+use std::collections::HashMap;
+
 use crate::{
     model::{
-        data::{Field, FullField},
-        viz::{
-            Aggregate, Axis, Chart, ChartData, ChartKind, CreateChart, FullChart
-        },
+        data::{Cell, CellEntry, Field},
+        viz::{Aggregate, Axis, AxisData, Chart, ChartData, CreateChart},
     },
     Id,
 };
 use itertools::Itertools;
-use sqlx::{Acquire, PgExecutor, Postgres};
+use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
 pub async fn create_chart(
     connection: impl Acquire<'_, Database = Postgres>,
@@ -17,79 +17,106 @@ pub async fn create_chart(
         table_id,
         title,
         chart_kind,
-        axes
+        axes,
     }: CreateChart,
 ) -> sqlx::Result<ChartData> {
     let mut tx = connection.begin().await?;
 
-    
-
-    let FullChart {
-        chart,
-        data_view_name,
-    } = sqlx::query_as(
+    let chart: Chart = sqlx::query_as(
         r#"
-            INSERT INTO chart (dashboard_id, title, chart_kind, x_axis, y_axis)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO chart (dashboard_id, table_id, title, chart_kind)
+            VALUES ($1. $2, $3, $4)
             RETURNING
                 chart_id,
                 dashboard_id,
+                table_id,
                 title,
                 chart_kind,
-                x_axis,
-                y_axis,
+                data_view_name,
                 created_at,
                 updated_at
         "#,
     )
     .bind(dashboard_id)
+    .bind(table_id)
     .bind(title)
     .bind(chart_kind)
-    .bind(x_axis)
-    .bind(y_axis)
     .fetch_one(tx.as_mut())
     .await?;
 
-    let (mark_kinds, mark_axes): (Vec<_>, Vec<_>) = marks.into_iter().unzip();
+    let mut axes: Vec<Axis> =
+        QueryBuilder::new(r#"INSERT INTO axis (chart_id, field_id, axis_kind, aggregate)"#)
+            .push_values(axes, |mut b, axis| {
+                b.push_bind(chart.chart_id)
+                    .push_bind(axis.field_id)
+                    .push_bind(axis.axis_kind)
+                    .push_bind(axis.aggregate);
+            })
+            .push(
+                r#"
+                    RETURNING
+                        axis_id,
+                        chart_id,
+                        field_id,
+                        axis_kind,
+                        aggregate,
+                        data_item_name,
+                        created_at,
+                        updated_at
+                "#,
+            )
+            .build_query_as()
+            .fetch_all(tx.as_mut())
+            .await?;
 
-    let marks: Vec<Mark> = sqlx::query_as(
+    let mut fields: Vec<Field> = sqlx::query_as(
         r#"
-            INSERT INTO mark (chart_id, field_id, mark_kind)
-            SELECT $1, unnest($2::mark_kind[]), unnest($3::axis[])
-            RETURNING mark_id, chart_id, mark_kind, axis
+            SELECT
+                field_id,
+                table_id,
+                name,
+                field_kind,
+                data_field_name,
+                created_at,
+                updated_at
+            FROM axis AS a
+            JOIN meta_field AS f
+            ON a.field_id = f.field_id
+            WHERE chart_id = $1
         "#,
     )
     .bind(chart.chart_id)
-    .bind(mark_kinds)
-    .bind(mark_axes.clone())
     .fetch_all(tx.as_mut())
     .await?;
 
-    let (x_field, x_identifier) =
-        get_field_axis(tx.as_mut(), chart.x_axis.field_id, chart.x_axis.aggregate).await?;
-    let (y_field, y_identifier) =
-        get_field_axis(tx.as_mut(), chart.y_axis.field_id, chart.y_axis.aggregate).await?;
+    axes.sort_by_key(|field| field.field_id);
+    fields.sort_by_key(|field| field.field_id);
 
-    let (mut mark_fields, mut mark_identifiers) = (Vec::new(), Vec::new());
-    for Mark { axis, .. } in &marks {
-        let (field, identifier) =
-            get_field_axis(tx.as_mut(), axis.field_id, axis.aggregate.clone()).await?;
-        mark_fields.push(field);
-        mark_identifiers.push(identifier);
-    }
+    let axis_data_map: HashMap<_, _> = axes
+        .into_iter()
+        .zip(fields)
+        .map(|(axis, field)| (axis.axis_id, AxisData { axis, field }))
+        .collect();
 
-    let select_columns = [
-        format!("{x_identifier} AS x"),
-        format!("{y_identifier} AS y"),
-    ]
-    .into_iter()
-    .chain(
-        mark_identifiers
-            .into_iter()
-            .zip(marks)
-            .map(|(ident, Mark { mark_id, .. })| format!("{ident} AS _{mark_id}")),
-    )
-    .join(", ");
+    let select_columns = axis_data_map
+        .iter()
+        .map(|(_, AxisData { axis, field })| {
+            let identifier = if let Some(aggregate) = &axis.aggregate {
+                &format!(
+                    "{}({})",
+                    match aggregate {
+                        Aggregate::Sum => "SUM",
+                        Aggregate::Average => "AVG",
+                        Aggregate::Count => "COUNT",
+                    },
+                    field.data_field_name
+                )
+            } else {
+                &field.data_field_name
+            };
+            format!("{identifier} AS {}", axis.data_item_name)
+        })
+        .join(", ");
 
     let data_table_name: String = sqlx::query_scalar(
         r#"
@@ -102,10 +129,7 @@ pub async fn create_chart(
     .fetch_one(tx.as_mut())
     .await?;
 
-    assert!([x_field.table_id, y_field.table_id]
-        .into_iter()
-        .chain(mark_fields.iter().map(|f| f.table_id))
-        .all(|id| id == table_id));
+    let data_view_name = &chart.data_view_name;
 
     sqlx::query(&format!(
         r#"
@@ -117,47 +141,38 @@ pub async fn create_chart(
     .execute(tx.as_mut())
     .await?;
 
-    todo!()
+    let cells = get_data_view(tx.as_mut(), &data_view_name, &axis_data_map).await?;
+
+    tx.commit().await?;
+
+    Ok(ChartData {
+        chart,
+        axis_data_map,
+        cells,
+    })
 }
 
-async fn get_field_axis(
+async fn get_data_view(
     executor: impl PgExecutor<'_>,
-    field_id: Id,
-    aggregate: Option<Aggregate>,
-) -> sqlx::Result<(Field, String)> {
-    let FullField {
-        field,
-        data_field_name,
-    } = sqlx::query_as(
-        r#"
-            SELECT
-                field_id,
-                table_id,
-                name,
-                field_kind,
-                created_at,
-                updated_at,
-                data_field_name
-            FROM meta_field
-            WHERE field_id = $1
-        "#,
-    )
-    .bind(field_id)
-    .fetch_one(executor)
-    .await?;
+    data_view_name: &str,
+    axis_data: &HashMap<Id, AxisData>,
+) -> sqlx::Result<Vec<CellEntry>> {
+    let sql = &format!(r#"SELECT * FROM {data_view_name}"#);
 
-    let identifier = if let Some(aggregate) = aggregate {
-        format!(
-            "{}({data_field_name})",
-            match aggregate {
-                Aggregate::Sum => "SUM",
-                Aggregate::Average => "AVG",
-                Aggregate::Count => "COUNT",
-            }
-        )
-    } else {
-        data_field_name
-    };
+    let rows = sqlx::query(sql).fetch_all(executor).await?;
 
-    Ok((field, identifier))
+    let mut cells: Vec<CellEntry> = Vec::new();
+
+    for row in rows {
+        let mut cell_entry = CellEntry::new();
+        for AxisData { axis, field } in axis_data.values() {
+            cell_entry.insert(
+                axis.axis_id,
+                Cell::from_row(&row, &axis.data_item_name, &field.field_kind)?,
+            );
+        }
+        cells.push(cell_entry);
+    }
+
+    Ok(cells)
 }
