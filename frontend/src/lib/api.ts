@@ -18,8 +18,7 @@ const httpStatus = {
 // types
 export type APIError = {
   status: number;
-  message: string
-  details?: {
+  body: string | {
     [key: string]: string;
   };
 };
@@ -63,8 +62,8 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   } else {
     throw {
       status: response.status,
-      message: await response.text().catch(() => response.statusText),
-      details: response.status === httpStatus.Unprocessable ? await response.json().catch(() => undefined) : undefined
+      body: await (response.headers.get("Content-Type") === "application/json" ? response.json() : response.text())
+        .catch((e) => response.statusText),
     } as APIError
   }
 };

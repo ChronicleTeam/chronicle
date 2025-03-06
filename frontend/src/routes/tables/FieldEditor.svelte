@@ -605,7 +605,7 @@
             return { ok: true };
           })
           .catch((e: APIError) => {
-            let text = e.message;
+            let text = e.body as string;
             fieldErrors[field.field_id] = text;
 
             return { ok: false };
@@ -627,7 +627,7 @@
             return { ok: true };
           })
           .catch((e: APIError) => {
-            let text = e.message;
+            let text = e.body as string;
             fieldErrors[field.field_id] = text;
             return { ok: false };
           }),
