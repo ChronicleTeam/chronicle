@@ -19,7 +19,7 @@
     EnumerationKind,
   } from "$lib/types.d.js";
   import { FieldType, parseJSONTable } from "$lib/types.d.js";
-  import { API_URL } from "$lib/api.d.js";
+  import { API_URL } from "$lib/api.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
   let { table_prop } = $props();
 

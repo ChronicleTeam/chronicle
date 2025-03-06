@@ -23,10 +23,11 @@
     type FileKind,
     type FieldKind,
     type InputParameters,
+    type Table,
     parseJSONTable,
   } from "$lib/types.d.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
-  import { API_URL } from "$lib/api.d.js";
+  import { API_URL, putTable } from "$lib/api.js";
 
   let { table_prop, on_save, delete_table } = $props();
 
@@ -580,27 +581,14 @@
       table.table.description !== originalTable.table.description
     ) {
       promises.push(
-        fetch(`${API_URL}/tables/${table_prop.table_id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: table.table.name,
-            description: table.table.description,
-          }),
-        }).then(async (response) => {
-          if (response.status === 200) {
-            let metadata = await response.json();
-            originalTable.table.name = metadata.name;
-            originalTable.table.description = metadata.description;
+        putTable(table.table)
+          .then((response: Table) => {
+            originalTable.table.name = response.name;
+            originalTable.table.description = response.description;
             metadataError = "";
             return { ok: true };
-          } else if (response.status === 422) {
-            metadataError = await response.text();
-          }
-          return { ok: false };
-        }),
+          })
+          .catch(() => ({ ok: false })),
       );
     }
 
