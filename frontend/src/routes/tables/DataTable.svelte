@@ -97,7 +97,7 @@
   };
 
   const saveEntry = () => {
-    postEntry(table.table, table.entries[table.entries.length - 1])
+    postEntry(table.table, table.entries[editableEntry])
       .then(() => {
         cancelEntry();
         loadTable();
