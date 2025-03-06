@@ -1,4 +1,4 @@
-import { type Table, type DataTable, type Field, type DateTimeKind, FieldType } from "./types.d.js";
+import { type Table, type DataTable, type Field, type Entry, type DateTimeKind, FieldType } from "./types.d.js";
 
 export const API_URL = "http://localhost:3000/api";
 
@@ -94,6 +94,7 @@ export const hydrateJSONDataTable = (jsonObj: DataTable): DataTable => {
 
   return outTable;
 }
+
 // Table methods
 export const getTables = async (): Promise<Table[]> => GET<Table[]>("/tables");
 
@@ -110,7 +111,8 @@ export const putTable = async (table: Table): Promise<Table> => PUT<Table>(`/tab
 export const deleteTable = async (table: Table): Promise<void> => DELETE(`/tables/${table.table_id}`);
 
 // Field methods
-export const getFields = async (table: Table): Promise<Field[]> => GET<Field[]>(`/tables/${table.table_id}/fields`).then(json => hydrateJSONDataTable({ table: { table_id: -1, name: "", user_id: -1, description: "", created_at: new Date() }, fields: json, entries: [] }).fields)
+export const getFields = async (table: Table): Promise<Field[]> => GET<Field[]>(`/tables/${table.table_id}/fields`)
+  .then(json => hydrateJSONDataTable({ table: { table_id: -1, name: "", user_id: -1, description: "", created_at: new Date() }, fields: json, entries: [] }).fields)
 
 export const postField = async (field: Field): Promise<Field> => POST<Field>(`/tables/${field.table_id}/fields`, {
   name: field.name,
@@ -123,3 +125,13 @@ export const putField = async (field: Field): Promise<Field> => PUT<Field>(`/tab
 });
 
 export const deleteField = async (field: Field): Promise<void> => DELETE(`/tables/${field.table_id}/fields/${field.field_id}`);
+
+// Entry methods
+export const getDataTable = async (table: Table): Promise<DataTable> => GET<DataTable>(`/tables/${table.table_id}/data`).then(hydrateJSONDataTable);
+
+export const postEntry = async (table: Table, entry: Entry): Promise<Entry> => POST<Entry>(`/tables/${table.table_id}/entries`, entry.cells);
+
+export const putEntry = async (table: Table, entry: Entry): Promise<Entry> => PUT<Entry>(`/tables/${table.table_id}/entries/${entry.entry_id}`, entry.cells);
+
+export const deleteEntry = async (table: Table, entry: Entry): Promise<void> => DELETE(`/tables/${table.table_id}/entries/${entry.entry_id}`);
+
