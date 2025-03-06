@@ -21,9 +21,9 @@ pub async fn create_table(
                 user_id,
                 name,
                 description,
+                data_table_name,
                 created_at,
-                updated_at,
-                data_table_name
+                updated_at
         "#,
     )
     .bind(user_id)
@@ -72,6 +72,7 @@ pub async fn update_table(
                 user_id,
                 name,
                 description,
+                data_table_name,
                 created_at,
                 updated_at
         "#,
@@ -117,6 +118,7 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
                 user_id,
                 name,
                 description,
+                data_table_name,
                 created_at,
                 updated_at
             FROM meta_table
