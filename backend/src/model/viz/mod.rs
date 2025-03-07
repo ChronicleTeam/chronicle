@@ -1,6 +1,6 @@
-mod chart;
-mod axis;
+mod charts;
+mod axes;
 
-pub use {chart::*, axis::*};
+pub use {charts::*, axes::*};
 
 

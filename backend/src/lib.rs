@@ -8,6 +8,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 type Id = i32;
 
+
+/// Sets up tracing for debuging and monitoring.
+/// Does nothing if called more than once.
 pub fn setup_tracing() {
     static INIT: std::sync::Once = std::sync::Once::new();
 
@@ -24,8 +27,5 @@ pub fn setup_tracing() {
             )
             .with(tracing_subscriber::fmt::layer())
             .init();
-
-        // tracing::subscriber::set_global_default(subscriber)
-        //     .expect("Failed to set global default tracing subscriber");
     });
 }

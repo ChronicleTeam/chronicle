@@ -1,4 +1,6 @@
--- Active: 1738002585894@@127.0.0.1@5432@user
+/*
+A field in a user table. Contains JSON options under field_kind. See src/model/data/field.rs
+*/
 CREATE TABLE meta_field (
     field_id SERIAL PRIMARY KEY,
     table_id INT NOT NULL REFERENCES meta_table(table_id) ON DELETE CASCADE,
@@ -12,6 +14,11 @@ CREATE TABLE meta_field (
 
 SELECT trigger_updated_at('meta_field');
 
+/*
+data_field_name is the name of the actual column name in postgres 
+and it is set dynamically to prevent injection.
+This should never be sent to the front-end.
+*/
 CREATE OR REPLACE FUNCTION set_data_field_name()
 RETURNS TRIGGER AS
 $$

@@ -9,8 +9,10 @@ static MIGRATOR: Migrator = sqlx::migrate!(); // Points to the migrations folder
 async fn main() -> anyhow::Result<()> {
     setup_tracing();
 
+    // Load database URL from .env for development
     dotenvy::dotenv().ok();
 
+    // Parse configs from environment variables
     let config = Config::try_parse()?;
 
     let pool = PgPoolOptions::new()
