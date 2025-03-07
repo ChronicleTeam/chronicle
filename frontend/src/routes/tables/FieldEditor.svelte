@@ -572,8 +572,6 @@
 
     showConfirmScreen = false;
 
-    // TODO: reduce field objects to minimum required request bodies AND/OR refactor fetches into their own functions
-
     // modify table name/description
     if (
       table.table.name !== originalTable.table.name ||
