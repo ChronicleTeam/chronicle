@@ -18,7 +18,7 @@
         addTableField = "";
       })
       .catch((e: APIError) => {
-        addTableError = ("Error: " + e.body) as string;
+        addTableError = "Error: " + (e.body as { [key: string]: string }).name;
       });
 
   let asyncTables: Promise<Table[]> = $state(getTables());
