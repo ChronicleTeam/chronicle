@@ -86,11 +86,22 @@
       {#if addTableMode}
         <p class="text-center">New Table</p>
         <input bind:value={addTableField} id="table-name-input" />
-        <button
-          onclick={() => addTable(addTableField)}
-          class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
-          >Create</button
-        >
+
+        <div class="flex gap-3">
+          <button
+            onclick={() => addTable(addTableField)}
+            class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
+            >Create</button
+          >
+
+          <button
+            onclick={() => {
+              addTableMode = false;
+            }}
+            class="px-2 py-1 rounded-lg border-2 border-red-400 hover:bg-red-400 transition"
+            >Cancel</button
+          >
+        </div>
       {:else}
         <button
           onclick={() => {
