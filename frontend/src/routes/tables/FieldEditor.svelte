@@ -349,7 +349,6 @@
         case FieldType.Progress:
           return [
             getTypeOptionInput(i),
-            getRequiredOptionInput(i),
             {
               name: "total_steps",
               label: "Total steps",
