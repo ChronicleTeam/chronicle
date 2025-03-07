@@ -23,6 +23,7 @@ pub struct Chart {
 #[derive(Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "chart_kind")]
 pub enum ChartKind {
+    Table,
     Bar,
     Line,
 }
@@ -65,6 +66,8 @@ pub enum AxisKind {
 pub enum Aggregate {
     Sum,
     Average,
+    Min,
+    Max,
     Count,
 }
 
