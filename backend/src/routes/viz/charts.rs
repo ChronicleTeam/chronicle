@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::axis::validate_axes;
+use super::axes::validate_axes;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},

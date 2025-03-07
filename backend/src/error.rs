@@ -9,14 +9,22 @@ use axum::{
 use sqlx::error::DatabaseError;
 use std::{borrow::Cow, collections::HashMap};
 
+
+/// Main return type for the API.
+/// See [`ApiError`] for details on usage.
 pub type ApiResult<T> = std::result::Result<T, ApiError>;
 
+
+/// A message returned as JSON for [`ApiError::UnprocessableEntity`].
+/// The `key` should refer to the offending JSON key and the `message`
+/// explains the cause of the error.
 pub struct ErrorMessage {
     pub key: Cow<'static, str>,
     pub message: Cow<'static, str>,
 }
 
 impl ErrorMessage {
+    /// Constructor for const declarations.
     pub const fn new_static(key: &'static str, message: &'static str) -> Self {
         ErrorMessage {
             key: Cow::Borrowed(key),
@@ -36,40 +44,51 @@ impl ErrorMessage {
     }
 }
 
+/// Custom `Error` type for use by route handlers.
+/// Errors should be meaningful are parsable by the front-end.
+/// However, errors caused by problems with the back-end or database
+/// should not eplain the actual cause to the front-end.
+/// 
+/// `anyhow::Error` and `sqlx::Error` types can be coerced into `ApiError` by using
+/// the `?` operator or `Into::into`
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {
-    // Return `401 Unauthorized`
+    // Returns `401 Unauthorized`
     #[error("authentication required")]
     Unauthorized,
 
-    /// Return `403 Forbidden`
+    /// Returns `403 Forbidden`
     #[error("user may not perform that action")]
     Forbidden,
 
-    /// Return `404 Not Found`
+    /// Returns `404 Not Found`
     #[error("request path not found")]
     NotFound,
 
-    /// Return `422 Unprocessable Entity`
+    /// Returns `422 Unprocessable Entity`
     #[error("error in the request body")]
     UnprocessableEntity(HashMap<Cow<'static, str>, Cow<'static, str>>),
 
-    /// Automatically return `500 Internal Server Error` on a `sqlx::Error`.
+    /// Automatically returns `500 Internal Server Error` on a `sqlx::Error`.
     #[error("an error occurred with the database")]
     Sqlx(#[from] sqlx::Error),
 
-    /// Return `500 Internal Server Error` on a `anyhow::Error`.
+    /// Returns `500 Internal Server Error` on a `anyhow::Error`.
     #[error("an internal server error occurred")]
     Anyhow(#[from] anyhow::Error),
 }
 
 impl ApiError {
+    /// Create an `ApiError::UnprocessableEntity` from a collection of [`ErrorMessage`]
+    /// 
+    /// This is a convience to manually creating the error.
     pub fn unprocessable_entity(errors: impl IntoIterator<Item = ErrorMessage>) -> Self {
         Self::UnprocessableEntity(HashMap::from_iter(
             errors.into_iter().map(|msg| (msg.key, msg.message)),
         ))
     }
 
+    /// Maps `ApiError` variants to `StatusCode`s
     fn status_code(&self) -> StatusCode {
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
@@ -115,6 +134,7 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Custom trait to map a database constraint `sqlx::Error` to an ApiError
 pub trait OnConstraint<T> {
     fn on_constraint(
         self,
@@ -127,6 +147,9 @@ impl<T, E> OnConstraint<T> for Result<T, E>
 where
     E: Into<ApiError>,
 {
+    /// Maps a database contraint `sqlx::Error` to an ApiError.
+    /// 
+    /// This is useful for checking expected database contrainst errors and returning an appropriate response.
     fn on_constraint(
         self,
         name: &str,

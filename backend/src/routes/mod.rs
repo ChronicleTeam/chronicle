@@ -17,12 +17,19 @@ use tower_http::{
 };
 use tracing::info;
 
+/// Global state for the API.
+///
+/// Contains the configuration ([`Config`]) and the
+/// shared database connection ([`PgPool`]).
 #[derive(Clone)]
 struct ApiState {
     config: Arc<Config>,
     pool: PgPool,
 }
 
+/// Create the application [`Router`].
+/// It puts all routes under the `/api` path, it sets important
+/// middleware layers for the back-end, and it attaches the [`ApiState`]
 fn create_app(api_state: ApiState) -> Router {
     Router::new()
         .nest(
@@ -41,6 +48,8 @@ fn create_app(api_state: ApiState) -> Router {
         .with_state(api_state)
 }
 
+
+/// Creates the application [`Router`] and serves it on the specified IP address and port.
 pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
     let api_state = ApiState {
         config: Arc::new(config),

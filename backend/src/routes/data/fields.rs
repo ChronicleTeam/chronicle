@@ -29,6 +29,16 @@ pub fn router() -> Router<ApiState> {
         )
 }
 
+/// Create a field in a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table or field
+/// - [`ApiError::NotFound`]: Table or field not found
+/// - [`ApiError::UnprocessableEntity`]:
+///     - [`INVALID_RANGE`]
+///     - [`FIELD_NAME_CONFLICT`]
+/// 
 async fn create_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -50,6 +60,14 @@ async fn create_field(
     Ok(Json(field))
 }
 
+
+/// Get all fields in a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table
+/// - [`ApiError::NotFound`]: Table not found
+/// 
 async fn get_fields(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -64,6 +82,16 @@ async fn get_fields(
     Ok(Json(fields))
 }
 
+/// Update a field in a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table or field
+/// - [`ApiError::NotFound`]: Table or field not found
+/// - [`ApiError::UnprocessableEntity`]:
+///     - [`INVALID_RANGE`]
+///     - [`FIELD_NAME_CONFLICT`]
+/// 
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
@@ -84,6 +112,13 @@ async fn update_field(
     Ok(Json(field))
 }
 
+/// Delete a field and all cells in its respective column in the table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table or field
+/// - [`ApiError::NotFound`]: Table or field not found
+/// 
 async fn delete_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
@@ -101,6 +136,7 @@ async fn delete_field(
     Ok(())
 }
 
+/// Validates [`FieldKind`] from requests.
 fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     match field_kind {
         FieldKind::Integer {
@@ -150,6 +186,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     Ok(())
 }
 
+/// Validates a range definition for validating fields.
 fn validate_range<T>(range_start: Option<T>, range_end: Option<T>) -> ApiResult<()>
 where
     T: PartialOrd,
