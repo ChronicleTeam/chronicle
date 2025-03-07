@@ -715,6 +715,8 @@
   const openConfirmationModal = () => {
     showConfirmScreen = true;
   };
+
+  let deleteTableConfirmation = $state(false);
 </script>
 
 <div class="w-full">
@@ -735,8 +737,19 @@
     <p class="text-red-500">{metadataError}</p>
   {/if}
   <button
-    class="rounded-md px-2 py-1 bg-red-400 hover:bg-red-500 transition"
-    onclick={delete_table}>Delete Table</button
+    class={[
+      "rounded-md px-2 py-1 transition",
+      !deleteTableConfirmation && "bg-white hover:bg-gray-100",
+      deleteTableConfirmation && "bg-red-400 hover:bg-red-500 ",
+    ]}
+    onclick={deleteTableConfirmation
+      ? delete_table
+      : () => {
+          deleteTableConfirmation = true;
+        }}
+    onfocusout={() => {
+      deleteTableConfirmation = false;
+    }}>{deleteTableConfirmation ? "Confirm delete" : "Delete Table"}</button
   >
 
   <!-- Fields  -->
