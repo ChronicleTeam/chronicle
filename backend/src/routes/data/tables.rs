@@ -14,21 +14,19 @@ use axum::{
 const TABLE_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Table name already used");
 
-
 pub fn router() -> Router<ApiState> {
     Router::new()
         .route("/tables", post(create_table).get(get_tables))
         .route("/tables/{table_id}", put(update_table).delete(delete_table))
 }
 
-
 /// Create an empty user table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`TABLE_NAME_CONFLICT`]
-/// 
+///
 async fn create_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_table): Json<CreateTable>,
@@ -44,14 +42,13 @@ async fn create_table(
     Ok(Json(table))
 }
 
-
 /// Update a table's meta data.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::Forbidden`]: User does not have access to that table
 /// - [`ApiError::NotFound`]: Table not found
-/// 
+///
 async fn update_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -63,18 +60,22 @@ async fn update_table(
         .await?
         .to_api_result()?;
 
-    let table = db::update_table(&pool, table_id, update_table).await?;
+    let table = db::update_table(&pool, table_id, update_table)
+        .await
+        .on_constraint("meta_table_user_id_name_key", |_| {
+            ApiError::unprocessable_entity([TABLE_NAME_CONFLICT])
+        })?;
 
     Ok(Json(table))
 }
 
 /// Delete a table, including all fields and entries.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::Forbidden`]: User does not have access to that table
 /// - [`ApiError::NotFound`]: Table not found
-/// 
+///
 async fn delete_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -89,12 +90,11 @@ async fn delete_table(
     Ok(())
 }
 
-
 /// Get all tables belonging to the user.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// 
+///
 async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<Json<Vec<Table>>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 

@@ -40,9 +40,9 @@ pub async fn update_dashboard(
         r#"
             UPDATE dashboard
             SET name = $1, description = $2
-            WHERE table_id = $3
+            WHERE dashboard_id = $3
             RETURNING
-                table_id,
+                dashboard_id,
                 user_id,
                 name,
                 description,
@@ -50,9 +50,9 @@ pub async fn update_dashboard(
                 updated_at
         "#,
     )
-    .bind(dashboard_id)
     .bind(name)
     .bind(description)
+    .bind(dashboard_id)
     .fetch_one(executor)
     .await
 }
@@ -102,7 +102,7 @@ pub async fn get_dashboards(
     sqlx::query_as(
         r#"
             SELECT
-                table_id,
+                dashboard_id,
                 user_id,
                 name,
                 description,
