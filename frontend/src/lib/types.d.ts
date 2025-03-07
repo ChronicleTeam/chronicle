@@ -203,6 +203,27 @@ export type InputParameters =
     type: InputType;
     bindSetter: (val: any) => void;
     bindGetter: () => string | boolean | number;
+    min?: undefined;
+    max?: undefined;
+    step?: undefined;
+  }
+  | {
+    label: string;
+    type: "number" | "range";
+    bindSetter: (val: any) => void;
+    bindGetter: () => string | boolean | number;
+    min?: number;
+    max?: number;
+    step?: number;
+  }
+  | {
+    label: string;
+    type: "date" | "datetime-local";
+    bindSetter: (val: any) => void;
+    bindGetter: () => string | boolean | number;
+    min?: Date;
+    max?: Date;
+    step?: Date;
   }
   | {
     label: string;
@@ -210,17 +231,26 @@ export type InputParameters =
     selectOptions: string[];
     bindSetter: (val: any) => void;
     bindGetter: () => string | boolean | number;
+    min?: undefined;
+    max?: undefined;
+    step?: undefined;
   }
   | {
     label: string;
     type: "checkbox";
     bindSetter: (val: any) => void;
     bindGetter: () => boolean;
+    min?: undefined;
+    max?: undefined;
+    step?: undefined;
   }
   | {
     label: string;
     type: "textarea";
     bindSetter: (val: string) => void,
     bindGetter: () => string
+    min?: undefined;
+    max?: undefined;
+    step?: undefined;
   };
 

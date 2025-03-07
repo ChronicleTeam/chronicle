@@ -78,11 +78,11 @@ export const hydrateJSONDataTable = (jsonObj: DataTable): DataTable => {
 
   for (let i = 0; i < outTable.fields.length; i++) {
     if (outTable.fields[i].field_kind.type === FieldType.DateTime) {
-      if ((outTable.fields[i].field_kind as DateTimeKind).range_start !== undefined) {
+      if ((outTable.fields[i].field_kind as DateTimeKind).range_start !== null && (outTable.fields[i].field_kind as DateTimeKind).range_start !== undefined) {
         (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as JSONDateTimeKind).range_start)
       }
 
-      if ((outTable.fields[i].field_kind as DateTimeKind).range_end !== undefined) {
+      if ((outTable.fields[i].field_kind as DateTimeKind).range_end !== null && (outTable.fields[i].field_kind as DateTimeKind).range_end !== undefined) {
         (outTable.fields[i].field_kind as DateTimeKind).range_end = new Date((outTable.fields[i].field_kind as JSONDateTimeKind).range_end)
       }
 

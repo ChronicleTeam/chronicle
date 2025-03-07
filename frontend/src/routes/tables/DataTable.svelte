@@ -17,6 +17,9 @@
     Enumeration,
     InputParameters,
     EnumerationKind,
+    IntegerKind,
+    MoneyKind,
+    DecimalKind,
   } from "$lib/types.d.js";
   import { FieldType } from "$lib/types.d.js";
   import {
@@ -144,6 +147,26 @@
       case FieldType.Integer:
       case FieldType.Money:
       case FieldType.Decimal:
+        return {
+          type: "number",
+          bindGetter: () => table.entries[entryIdx].cells[f.field_id],
+          bindSetter: (val: number) => {
+            table.entries[entryIdx].cells[f.field_id] = val;
+          },
+          min: (f.field_kind as IntegerKind | MoneyKind | DecimalKind)
+            .range_start,
+          max: (f.field_kind as IntegerKind | MoneyKind | DecimalKind)
+            .range_end,
+          step:
+            f.field_kind.type === FieldType.Integer
+              ? 1
+              : f.field_kind.type === FieldType.Money
+                ? 0.01
+                : Math.pow(
+                    10,
+                    -((f.field_kind as DecimalKind).number_scale ?? 10),
+                  ),
+        } as InputParameters;
       case FieldType.Progress:
         return {
           type: "number",
@@ -151,6 +174,9 @@
           bindSetter: (val: number) => {
             table.entries[entryIdx].cells[f.field_id] = val;
           },
+          min: 0,
+          max: f.field_kind.total_steps,
+          step: 1,
         } as InputParameters;
       case FieldType.DateTime:
         return {
@@ -162,6 +188,8 @@
           bindSetter: (val: string) => {
             table.entries[entryIdx].cells[f.field_id] = new Date(val);
           },
+          min: f.field_kind.range_start,
+          max: f.field_kind.range_end,
         } as InputParameters;
       case FieldType.Checkbox:
         return {
@@ -277,21 +305,21 @@
         >Cancel</button
       >
       {#if entryMode === EntryMode.EDIT}
-        {#if deleteConfirmation}
-          <button
-            onclick={removeEntry}
-            class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-            >Confirm delete</button
-          >
-        {:else}
-          <button
-            onclick={() => {
-              deleteConfirmation = true;
-            }}
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-            >Delete Entry</button
-          >
-        {/if}
+        <button
+          onclick={deleteConfirmation
+            ? removeEntry
+            : () => {
+                deleteConfirmation = true;
+              }}
+          onfocusout={() => {
+            deleteConfirmation = false;
+          }}
+          class={[
+            "text-center py-1 px-2 rounded transition",
+            !deleteConfirmation && "bg-white hover:bg-gray-100 ",
+            deleteConfirmation && "bg-red-400 hover:bg-red-500 ",
+          ]}>{deleteConfirmation ? "Confirm Delete" : "Delete Entry"}</button
+        >
       {/if}
     </div>
   {:else if entryMode === EntryMode.DISPLAY && table.fields.length > 0}

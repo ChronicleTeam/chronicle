@@ -254,6 +254,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as DecimalKind).range_start = val;
               },
+              step: Math.pow(10, -(f.field_kind.number_scale ?? 10)),
             },
             {
               name: "range_end",
@@ -268,6 +269,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as DecimalKind).range_end = val;
               },
+              step: Math.pow(10, -(f.field_kind.number_scale ?? 10)),
             },
             {
               name: "scientific_notation",
@@ -332,6 +334,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as MoneyKind).range_start = val;
               },
+              step: 0.01,
             },
             {
               name: "range_end",
@@ -344,12 +347,12 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as MoneyKind).range_end = val;
               },
+              step: 0.01,
             },
           ];
         case FieldType.Progress:
           return [
             getTypeOptionInput(i),
-            getRequiredOptionInput(i),
             {
               name: "total_steps",
               label: "Total steps",
@@ -656,13 +659,7 @@
     Promise.allSettled(promises).then((results) => {
       if (results.every((r) => r.status == "fulfilled" && r.value.ok)) {
         on_save();
-      } /* else {
-        originalTable.fields = parseJSONTable({
-          table: {},
-          fields: $state.snapshot(originalTable).fields,
-          entries: [],
-        }).fields;
-      }*/
+      }
     });
   };
 
@@ -722,6 +719,8 @@
   const openConfirmationModal = () => {
     showConfirmScreen = true;
   };
+
+  let deleteTableConfirmation = $state(false);
 </script>
 
 <div class="w-full">
@@ -742,8 +741,19 @@
     <p class="text-red-500">{metadataError}</p>
   {/if}
   <button
-    class="rounded-md px-2 py-1 bg-red-400 hover:bg-red-500 transition"
-    onclick={delete_table}>Delete Table</button
+    class={[
+      "rounded-md px-2 py-1 transition",
+      !deleteTableConfirmation && "bg-white hover:bg-gray-100",
+      deleteTableConfirmation && "bg-red-400 hover:bg-red-500 ",
+    ]}
+    onclick={deleteTableConfirmation
+      ? delete_table
+      : () => {
+          deleteTableConfirmation = true;
+        }}
+    onfocusout={() => {
+      deleteTableConfirmation = false;
+    }}>{deleteTableConfirmation ? "Confirm Delete" : "Delete Table"}</button
   >
 
   <!-- Fields  -->
@@ -855,6 +865,18 @@
 >
   <div class="bg-white rounded-lg p-3">
     <h2 class="w-full font-bold text-center">Edit Summary</h2>
+    {#if table.table.name !== originalTable.table.name}
+      <p>
+        <span class="font-bold">Changed Title:</span> "{originalTable.table
+          .name}" -&gt "{table.table.name}"
+      </p>
+    {/if}
+    {#if table.table.description !== originalTable.table.description}
+      <p>
+        <span class="font-bold">Changed Description:</span> "{originalTable
+          .table.description}" -&gt "{table.table.description}"
+      </p>
+    {/if}
     {#each modalNewFieldLines as line}
       <p><span class="font-bold">Added Field:</span> {line}</p>
     {/each}
