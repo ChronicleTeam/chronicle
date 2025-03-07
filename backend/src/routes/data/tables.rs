@@ -14,7 +14,7 @@ use axum::{
 const TABLE_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Table name already used");
 
-pub(crate) fn router() -> Router<ApiState> {
+pub fn router() -> Router<ApiState> {
     Router::new()
         .route("/tables", post(create_table).get(get_tables))
         .route("/tables/{table_id}", put(update_table).delete(delete_table))

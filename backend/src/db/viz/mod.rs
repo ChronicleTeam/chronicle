@@ -1,3 +1,5 @@
+mod axis;
 mod chart;
+mod dashboard;
 
-pub use chart::*;
+pub use {axis::*, chart::*, dashboard::*};
