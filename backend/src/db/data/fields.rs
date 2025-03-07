@@ -183,7 +183,7 @@ pub async fn check_field_relation(
     sqlx::query_scalar::<_, Id>(
         r#"
             SELECT table_id
-            FROM meta_fieldF
+            FROM meta_field
             WHERE field_id = $1
         "#,
     )

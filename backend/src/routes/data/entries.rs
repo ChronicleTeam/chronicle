@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{Cell, CreateEntry, Entry, Field, FieldKind, UpdateEntry},
+    model::{data::{CreateEntry, Entry, Field, FieldKind, UpdateEntry}, Cell},
     Id,
 };
 use axum::{
@@ -22,7 +22,7 @@ const ENUMERATION_VALUE_MISSING_MESSAGE: &str = "Enumeration value is does not e
 const INVALID_TYPE_MESSAGE: &str = "Value is not the correct type";
 const INVALID_FIELD_ID_MESSAGE: &str = "Field ID key is invalid";
 
-pub(crate) fn router() -> Router<ApiState> {
+pub fn router() -> Router<ApiState> {
     Router::new()
         .route("/tables/{table_id}/entries", post(create_entry))
         .route(
@@ -128,7 +128,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
             Value::Null,
             FieldKind::Text { is_required }
             | FieldKind::Integer { is_required, .. }
-            | FieldKind::Decimal { is_required, .. }
+            | FieldKind::Float { is_required, .. }
             | FieldKind::Money { is_required, .. }
             | FieldKind::DateTime { is_required, .. }
             | FieldKind::WebLink { is_required, .. }
@@ -159,7 +159,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
 
         (
             Value::Number(value),
-            FieldKind::Decimal {
+            FieldKind::Float {
                 range_start,
                 range_end,
                 scientific_notation,

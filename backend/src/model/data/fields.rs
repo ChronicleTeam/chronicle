@@ -29,7 +29,7 @@ pub enum FieldKind {
         range_start: Option<i64>,
         range_end: Option<i64>,
     },
-    Decimal {
+    Float {
         is_required: bool,
         range_start: Option<f64>,
         range_end: Option<f64>,
@@ -77,7 +77,7 @@ impl FieldKind {
         match self {
             FieldKind::Text { .. } => "TEXT",
             FieldKind::Integer { .. } => "BIGINT",
-            FieldKind::Decimal { .. } => "DOUBLE",
+            FieldKind::Float { .. } => "DOUBLE",
             FieldKind::Money { .. } => "numeric_money",
             FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",

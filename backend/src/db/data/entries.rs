@@ -1,6 +1,6 @@
 use super::{entry_from_row, Relation};
 use crate::{
-    model::data::{Cell, CellEntry, Entry, Field},
+    model::{data::{Entry, Field}, Cell, CellMap},
     Id,
 };
 use itertools::Itertools;
@@ -9,7 +9,7 @@ use sqlx::{postgres::PgArguments, query::Query, Acquire, PgExecutor, Postgres};
 pub async fn create_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    mut cell_entry: CellEntry,
+    mut cell_entry: CellMap,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 
@@ -85,7 +85,7 @@ pub async fn update_entry(
     connection: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     entry_id: Id,
-    mut cell_entry: CellEntry,
+    mut cell_entry: CellMap,
 ) -> sqlx::Result<Entry> {
     let mut tx = connection.begin().await?;
 

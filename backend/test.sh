@@ -107,3 +107,12 @@ curl -X POST $ADDR/tables/1/entries \
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
     -d '{"1": "c2", "2": 20}'
+
+
+curl -X POST $ADDR/tables/1/entries \
+    -H "Content-Type: application/json" \
+    -d '{"1": "c3", "2": 123}'
+
+curl -X POST $ADDR/tables/1/entries \
+    -H "Content-Type: application/json" \
+    -d '{"1": "c3", "2": 321}'
