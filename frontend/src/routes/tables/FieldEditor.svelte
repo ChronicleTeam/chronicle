@@ -783,7 +783,7 @@
                 />
               {/if}
               <VariableInput
-                innerClass={[
+                class={[
                   "w-24",
                   !optionalCheckboxStates && "text-gray-300 border-gray-300",
                 ]}

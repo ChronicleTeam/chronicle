@@ -278,7 +278,7 @@
               {/if}
               <VariableInput
                 disabled={i !== editableEntry}
-                innerClass={[
+                class={[
                   "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
                   editableEntry === i && "bg-blue-200",
                   editableEntry !== i && "bg-white",
