@@ -32,6 +32,6 @@ pub async fn validate_axes(pool: &PgPool, table_id: Id, axes: &[CreateAxis]) -> 
 
 fn validate_axis(axis_kind: &AxisKind, aggregate: &Option<Aggregate>, field_kind: &FieldKind) -> ApiResult<()> {
     
-
+    
     todo!()
 }

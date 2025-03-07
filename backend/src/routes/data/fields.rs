@@ -60,28 +60,6 @@ async fn create_field(
     Ok(Json(field))
 }
 
-
-/// Get all fields in a table.
-/// 
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table not found
-/// 
-async fn get_fields(
-    State(ApiState { pool, .. }): State<ApiState>,
-    Path(table_id): Path<Id>,
-) -> ApiResult<Json<Vec<Field>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
-    db::check_table_relation(&pool, user_id, table_id)
-        .await?
-        .to_api_result()?;
-
-    let fields = db::get_fields(&pool, table_id).await?;
-
-    Ok(Json(fields))
-}
-
 /// Update a field in a table.
 /// 
 /// # Errors
@@ -135,6 +113,28 @@ async fn delete_field(
 
     Ok(())
 }
+
+/// Get all fields in a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table
+/// - [`ApiError::NotFound`]: Table not found
+/// 
+async fn get_fields(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<Json<Vec<Field>>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let fields = db::get_fields(&pool, table_id).await?;
+
+    Ok(Json(fields))
+}
+
 
 /// Validates [`FieldKind`] from requests.
 fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {

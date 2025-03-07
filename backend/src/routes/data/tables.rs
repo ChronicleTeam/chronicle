@@ -44,17 +44,6 @@ async fn create_table(
     Ok(Json(table))
 }
 
-/// Get all tables belonging to the user.
-/// 
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// 
-async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<Json<Vec<Table>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
-
-    let tables = db::get_tables(&pool, user_id).await?;
-    Ok(Json(tables))
-}
 
 /// Update a table's meta data.
 /// 
@@ -98,4 +87,17 @@ async fn delete_table(
     db::delete_table(&pool, table_id).await?;
 
     Ok(())
+}
+
+
+/// Get all tables belonging to the user.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// 
+async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<Json<Vec<Table>>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+
+    let tables = db::get_tables(&pool, user_id).await?;
+    Ok(Json(tables))
 }
