@@ -193,9 +193,9 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
         (Value::Number(value), FieldKind::Progress { total_steps }) => {
             if let Some(value) = value.as_i64() {
                 if value > *total_steps as i64 || value < 0 {
-                    Ok(Some(Cell::Integer(value)))
-                } else {
                     Err(OUT_OF_RANGE_MESSAGE)
+                } else {
+                    Ok(Some(Cell::Integer(value)))
                 }
             } else {
                 Err(INVALID_TYPE_MESSAGE)
