@@ -30,6 +30,7 @@
     type APIError,
   } from "$lib/api.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
+  import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   let { table_prop } = $props();
 
   let err = $state();
@@ -122,11 +123,9 @@
   };
 
   let editableEntry = $state(-1);
-  let deleteConfirmation = $state(false);
   const editEntry = (i: number) => {
     entryMode = EntryMode.EDIT;
     editableEntry = i;
-    deleteConfirmation = false;
   };
   let fieldErrors = $state({} as { [key: number]: string });
   const updateEntry = () => {
@@ -305,21 +304,11 @@
         >Cancel</button
       >
       {#if entryMode === EntryMode.EDIT}
-        <button
-          onclick={deleteConfirmation
-            ? removeEntry
-            : () => {
-                deleteConfirmation = true;
-              }}
-          onfocusout={() => {
-            deleteConfirmation = false;
-          }}
-          class={[
-            "text-center py-1 px-2 rounded transition",
-            !deleteConfirmation && "bg-white hover:bg-gray-100 ",
-            deleteConfirmation && "bg-red-400 hover:bg-red-500 ",
-          ]}>{deleteConfirmation ? "Confirm Delete" : "Delete Entry"}</button
-        >
+        <ConfirmButton
+          initText="Delete Entry"
+          confirmText="Confirm Delete"
+          onconfirm={removeEntry}
+        />
       {/if}
     </div>
   {:else if entryMode === EntryMode.DISPLAY && table.fields.length > 0}

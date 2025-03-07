@@ -26,6 +26,7 @@
     type Table,
   } from "$lib/types.d.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
+  import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
     putTable,
     getFields,
@@ -719,8 +720,6 @@
   const openConfirmationModal = () => {
     showConfirmScreen = true;
   };
-
-  let deleteTableConfirmation = $state(false);
 </script>
 
 <div class="w-full">
@@ -740,22 +739,12 @@
   {#if metadataError !== ""}
     <p class="text-red-500">{metadataError}</p>
   {/if}
-  <button
-    class={[
-      "rounded-md px-2 py-1 transition",
-      !deleteTableConfirmation && "bg-white hover:bg-gray-100",
-      deleteTableConfirmation && "bg-red-400 hover:bg-red-500 ",
-    ]}
-    onclick={deleteTableConfirmation
-      ? delete_table
-      : () => {
-          deleteTableConfirmation = true;
-        }}
-    onfocusout={() => {
-      deleteTableConfirmation = false;
-    }}>{deleteTableConfirmation ? "Confirm Delete" : "Delete Table"}</button
-  >
 
+  <ConfirmButton
+    initText="Delete Table"
+    confirmText="Confirm Delete"
+    onconfirm={delete_table}
+  />
   <!-- Fields  -->
   <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
     {#if table.fields.length === 0}
