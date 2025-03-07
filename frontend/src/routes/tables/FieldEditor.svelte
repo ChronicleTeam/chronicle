@@ -46,13 +46,26 @@
 
   let table = $state($state.snapshot(originalTable));
 
+  const updateOptionalCheckbox = (i: number) => {
+    optionalCheckboxStates[i] = optionInputList[i].map(
+      (v) =>
+        !v.optional ||
+        ((table.fields[i].field_kind as any)[v.name] !== null &&
+          (table.fields[i].field_kind as any)[v.name] !== undefined),
+    );
+  };
+
+  const updateAllOptionalCheckboxes = () => {
+    optionInputList.forEach((val, i) => {
+      updateOptionalCheckbox(i);
+    });
+  };
+
   const loadFields = () => {
     getFields(table_prop).then((fields) => {
       originalTable.fields = fields;
       table = $state.snapshot(originalTable);
-      optionalCheckboxStates = optionInputList.map((val) =>
-        val.map((v) => !v.optional),
-      );
+      updateAllOptionalCheckboxes();
       table.fields.forEach((f) => {
         fieldErrors[f.field_id] = "";
       });
@@ -164,9 +177,7 @@
               };
               break;
           }
-          optionalCheckboxStates[i] = optionInputList[i].map(
-            (v) => !v.optional,
-          );
+          updateOptionalCheckbox(i);
         }
       },
     };
@@ -547,9 +558,7 @@
   };
 
   let optionalCheckboxStates = $state([] as boolean[][]);
-  optionalCheckboxStates = optionInputList.map((val) =>
-    val.map((v) => !v.optional),
-  );
+  updateAllOptionalCheckboxes();
   $inspect(optionalCheckboxStates);
 
   let fieldErrors = $state([] as string[]);
@@ -667,8 +676,8 @@
   const recursiveCompare = (a: any, b: any): boolean => {
     if (typeof a !== typeof b) return false;
 
-    if (a === null) {
-      return b === null;
+    if (a === null || b === null) {
+      return a === null && b === null;
     } else if (Array.isArray(a)) {
       // compare every element
       return a.every((obj, i) => recursiveCompare(obj, b[i]));
@@ -720,6 +729,8 @@
   const openConfirmationModal = () => {
     showConfirmScreen = true;
   };
+
+  $inspect(table, originalTable);
 </script>
 
 <div class="w-full">
