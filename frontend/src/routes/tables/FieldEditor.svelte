@@ -655,13 +655,7 @@
     Promise.allSettled(promises).then((results) => {
       if (results.every((r) => r.status == "fulfilled" && r.value.ok)) {
         on_save();
-      } /* else {
-        originalTable.fields = parseJSONTable({
-          table: {},
-          fields: $state.snapshot(originalTable).fields,
-          entries: [],
-        }).fields;
-      }*/
+      }
     });
   };
 
