@@ -848,6 +848,18 @@
 >
   <div class="bg-white rounded-lg p-3">
     <h2 class="w-full font-bold text-center">Edit Summary</h2>
+    {#if table.table.name !== originalTable.table.name}
+      <p>
+        <span class="font-bold">Changed Title:</span> "{originalTable.table
+          .name}" -&gt "{table.table.name}"
+      </p>
+    {/if}
+    {#if table.table.description !== originalTable.table.description}
+      <p>
+        <span class="font-bold">Changed Description:</span> "{originalTable
+          .table.description}" -&gt "{table.table.description}"
+      </p>
+    {/if}
     {#each modalNewFieldLines as line}
       <p><span class="font-bold">Added Field:</span> {line}</p>
     {/each}
