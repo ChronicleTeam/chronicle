@@ -254,6 +254,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as DecimalKind).range_start = val;
               },
+              step: Math.pow(10, -(f.field_kind.number_scale ?? 10)),
             },
             {
               name: "range_end",
@@ -268,6 +269,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as DecimalKind).range_end = val;
               },
+              step: Math.pow(10, -(f.field_kind.number_scale ?? 10)),
             },
             {
               name: "scientific_notation",
@@ -332,6 +334,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as MoneyKind).range_start = val;
               },
+              step: 0.01,
             },
             {
               name: "range_end",
@@ -344,6 +347,7 @@
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as MoneyKind).range_end = val;
               },
+              step: 0.01,
             },
           ];
         case FieldType.Progress:
