@@ -15,6 +15,7 @@
         addTableMode = false;
         asyncTables = getTables();
         addTableError = "";
+        addTableField = "";
       })
       .catch((e: APIError) => {
         addTableError = ("Error: " + e.body) as string;
