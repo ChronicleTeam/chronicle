@@ -86,7 +86,7 @@ export type CheckboxKind = {
 export type EnumerationKind = {
   type: FieldType.Enumeration;
   is_required: boolean;
-  values: {[key:number]: string};
+  values: { [key: number]: string };
   default_value: number;
 };
 
@@ -115,6 +115,14 @@ export type FieldKind =
   | FileKind;
 
 // Data table
+export type Table = {
+  table_id: Id;
+  user_id: Id;
+  name: string;
+  description: string;
+  created_at: Date;
+  updated_at?: Date;
+};
 export type DataTable = {
   table: Table;
   fields: Field[];
@@ -189,51 +197,30 @@ export type InputType =
   | "url"
   | "week";
 
-export type InputParameters = 
-    | {
-        label: string;
-        type: InputType;
-        bindSetter: (val: any) => void;
-        bindGetter: () => string | boolean | number;
-      }
-    | {
-        label: string;
-        type: "select";
-        selectOptions: string[];
-        bindSetter: (val: any) => void;
-        bindGetter: () => string | boolean | number;
-      }
+export type InputParameters =
   | {
-      label:string;
-      type: "checkbox";
-      bindSetter: (val: any) => void;
-      bindGetter: () => boolean;
-    }
-  | {
-      label: string;
-      type: "textarea";
-      bindSetter: (val: string) => void,
-      bindGetter: () => string
-};
-
-export const parseJSONTable = (jsonObj: DataTable): DataTable => {
-  let outTable = jsonObj;
-
-  for(let i = 0; i < outTable.fields.length; i++){
-    if(outTable.fields[i].field_kind.type === FieldType.DateTime){
-      if(outTable.fields[i].field_kind.range_start !== undefined){
-        (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as DateTimeKind).range_start)
-      }
-
-      if(outTable.fields[i].field_kind.range_end !== undefined){
-        (outTable.fields[i].field_kind as DateTimeKind).range_end = new Date((outTable.fields[i].field_kind as DateTimeKind).range_end)
-      }
-
-      for(let j = 0; j < outTable.entries.length; j++){
-        outTable.entries[j].cells[outTable.fields[i].field_id] = new Date(outTable.entries[j].cells[outTable.fields[i].field_id] as string)
-      }
-    }
+    label: string;
+    type: InputType;
+    bindSetter: (val: any) => void;
+    bindGetter: () => string | boolean | number;
   }
+  | {
+    label: string;
+    type: "select";
+    selectOptions: string[];
+    bindSetter: (val: any) => void;
+    bindGetter: () => string | boolean | number;
+  }
+  | {
+    label: string;
+    type: "checkbox";
+    bindSetter: (val: any) => void;
+    bindGetter: () => boolean;
+  }
+  | {
+    label: string;
+    type: "textarea";
+    bindSetter: (val: string) => void,
+    bindGetter: () => string
+  };
 
-  return outTable;
-}

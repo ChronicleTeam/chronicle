@@ -1,49 +1,26 @@
 <script lang="ts">
-  import type { PageProps } from "./$types";
+  import type { Table } from "$lib/types.d.js";
   import DataTable from "./DataTable.svelte";
   import FieldEditor from "./FieldEditor.svelte";
-  import { API_URL } from "$lib/api.d.js";
-  type Id = number;
+  import {
+    getTables,
+    postTable,
+    deleteTable,
+    type APIError,
+  } from "$lib/api.js";
 
-  type Table = {
-    table_id: Id;
-    user_id: Id;
-    name: string;
-    description: string;
-    created_at: Date;
-    updated_at?: Date;
-  };
-
-  const loadTables: () => Promise<Table[]> = () =>
-    fetch(`${API_URL}/tables`).then((response) => response.json());
-
-  const addTable = (name: string) => {
-    fetch(API_URL + "/tables", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        description: "",
-      }),
-    }).then((r) => {
-      if (r.ok) {
+  const addTable = (name: string) =>
+    postTable(name)
+      .then(() => {
         addTableMode = false;
-        asyncTables = loadTables();
+        asyncTables = getTables();
         addTableError = "";
-      } else {
-        if (r.headers.get("content-type") === "application/json") {
-          r.json().then((j) => {
-            addTableError = "Error: " + j.name;
-          });
-        }
-        addTableError = r.statusText;
-      }
-    });
-  };
+      })
+      .catch((e: APIError) => {
+        addTableError = ("Error: " + e.body) as string;
+      });
 
-  let asyncTables: Promise<Table[]> = $state(loadTables());
+  let asyncTables: Promise<Table[]> = $state(getTables());
 
   let curTable: Table | null = $state(null as unknown as Table);
 
@@ -64,18 +41,16 @@
       return;
     }
 
-    fetch(`${API_URL}/tables/${curTable.table_id}`, {
-      method: "DELETE",
-    }).then((r) => {
-      if (r.ok) {
+    deleteTable(curTable)
+      .then(() => {
         curTable = null;
-        asyncTables = loadTables();
+        asyncTables = getTables();
         deleteTableError = "";
         editMode = EditMode.NONE;
-      } else {
+      })
+      .catch(() => {
         deleteTableError = "An error occured.";
-      }
-    });
+      });
   };
 
   let deleteTableError = $state("");
@@ -160,7 +135,7 @@
       <FieldEditor
         on_save={() => {
           editMode = EditMode.TABLE;
-          asyncTables = loadTables();
+          asyncTables = getTables();
         }}
         delete_table={deleteCurTable}
         table_prop={curTable}

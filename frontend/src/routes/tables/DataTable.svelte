@@ -18,19 +18,23 @@
     InputParameters,
     EnumerationKind,
   } from "$lib/types.d.js";
-  import { FieldType, parseJSONTable } from "$lib/types.d.js";
-  import { API_URL } from "$lib/api.d.js";
+  import { FieldType } from "$lib/types.d.js";
+  import {
+    getDataTable,
+    postEntry,
+    putEntry,
+    deleteEntry,
+    type APIError,
+  } from "$lib/api.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
   let { table_prop } = $props();
 
   let err = $state();
 
   const loadTable = () => {
-    fetch(`${API_URL}/tables/${table_prop.table_id}/data`)
-      .then((response) => response.json())
-      .then((json) => {
-        table = parseJSONTable(json);
-      });
+    getDataTable(table_prop).then((response: DataTable) => {
+      table = response;
+    });
   };
 
   const EntryMode = {
@@ -92,20 +96,16 @@
   };
 
   const saveEntry = () => {
-    fetch(`${API_URL}/tables/${table_prop.table_id}/entries`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(table.entries[table.entries.length - 1].cells),
-    }).then(async (response) => {
-      if (response.status === 200) {
+    postEntry(table.table, table.entries[editableEntry])
+      .then(() => {
         cancelEntry();
         loadTable();
-      } else if (response.status === 422) {
-        fieldErrors = await response.json();
-      }
-    });
+      })
+      .catch((e: APIError) => {
+        if (e.status === 422) {
+          fieldErrors = e.body;
+        }
+      });
   };
 
   const cancelEntry = () => {
@@ -127,23 +127,16 @@
   };
   let fieldErrors = $state({} as { [key: number]: string });
   const updateEntry = () => {
-    fetch(
-      `${API_URL}/tables/${table_prop.table_id}/entries/${table.entries[editableEntry].entry_id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(table.entries[editableEntry].cells),
-      },
-    ).then(async (response) => {
-      if (response.status === 200) {
+    putEntry(table.table, table.entries[editableEntry])
+      .then(() => {
         cancelEntry();
         loadTable();
-      } else if (response.status === 422) {
-        fieldErrors = await response.json();
-      }
-    });
+      })
+      .catch((e: APIError) => {
+        if (e.status === 422) {
+          fieldErrors = e.body;
+        }
+      });
   };
 
   const cellToInputParams = (entryIdx: number, f: Field) => {
@@ -208,15 +201,10 @@
     }
   };
 
-  const deleteEntry = () => {
+  const removeEntry = () => {
     if (editableEntry === -1) return;
 
-    fetch(
-      `${API_URL}/tables/${table_prop.table_id}/entries/${table.entries[editableEntry].entry_id}`,
-      {
-        method: "DELETE",
-      },
-    )
+    deleteEntry(table.table, table.entries[editableEntry])
       .then(cancelEntry)
       .then(loadTable);
   };
@@ -291,7 +279,7 @@
       {#if entryMode === EntryMode.EDIT}
         {#if deleteConfirmation}
           <button
-            onclick={deleteEntry}
+            onclick={removeEntry}
             class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
             >Confirm delete</button
           >

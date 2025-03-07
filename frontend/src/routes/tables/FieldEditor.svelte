@@ -23,10 +23,17 @@
     type FileKind,
     type FieldKind,
     type InputParameters,
-    parseJSONTable,
+    type Table,
   } from "$lib/types.d.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
-  import { API_URL } from "$lib/api.d.js";
+  import {
+    putTable,
+    getFields,
+    postField,
+    putField,
+    deleteField,
+    type APIError,
+  } from "$lib/api.js";
 
   let { table_prop, on_save, delete_table } = $props();
 
@@ -39,22 +46,16 @@
   let table = $state($state.snapshot(originalTable));
 
   const loadFields = () => {
-    fetch(`${API_URL}/tables/${table_prop.table_id}/fields`)
-      .then((r) => r.json())
-      .then((j) => {
-        originalTable.fields = parseJSONTable({
-          table: {},
-          fields: j,
-          entries: [],
-        }).fields;
-        table = $state.snapshot(originalTable);
-        optionalCheckboxStates = optionInputList.map((val) =>
-          val.map((v) => !v.optional),
-        );
-        table.fields.forEach((f) => {
-          fieldErrors[f.field_id] = "";
-        });
+    getFields(table_prop).then((fields) => {
+      originalTable.fields = fields;
+      table = $state.snapshot(originalTable);
+      optionalCheckboxStates = optionInputList.map((val) =>
+        val.map((v) => !v.optional),
+      );
+      table.fields.forEach((f) => {
+        fieldErrors[f.field_id] = "";
       });
+    });
   };
   loadFields();
   const fieldTypes = Object.values(FieldType);
@@ -505,10 +506,9 @@
       id--;
     }
     let newField: Field = {
-      // These first three fields should be set upon creation by the backend and are merely defined here to satisfy Typescript
-      table_id: -1,
+      table_id: table.table.table_id,
       user_id: -1,
-      field_id: id,
+      field_id: id, // temporary id, will be replaced when created
 
       name: newFieldName,
       field_kind: {
@@ -572,111 +572,71 @@
 
     showConfirmScreen = false;
 
-    // TODO: reduce field objects to minimum required request bodies AND/OR refactor fetches into their own functions
-
     // modify table name/description
     if (
       table.table.name !== originalTable.table.name ||
       table.table.description !== originalTable.table.description
     ) {
       promises.push(
-        fetch(`${API_URL}/tables/${table_prop.table_id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: table.table.name,
-            description: table.table.description,
-          }),
-        }).then(async (response) => {
-          if (response.status === 200) {
-            let metadata = await response.json();
-            originalTable.table.name = metadata.name;
-            originalTable.table.description = metadata.description;
+        putTable(table.table)
+          .then((response: Table) => {
+            originalTable.table.name = response.name;
+            originalTable.table.description = response.description;
             metadataError = "";
             return { ok: true };
-          } else if (response.status === 422) {
-            metadataError = await response.text();
-          }
-          return { ok: false };
-        }),
+          })
+          .catch(() => ({ ok: false })),
       );
     }
 
     // create new fields
-    newFields.forEach((field, i) => {
+    newFields.forEach((field) => {
       promises.push(
-        fetch(`${API_URL}/tables/${table_prop.table_id}/fields`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: field.name,
-            field_kind: field.field_kind,
-          }),
-        }).then(async (response) => {
-          if (response.status === 200) {
-            let newField = await response.json();
+        postField(field)
+          .then((response: Field) => {
+            let newField = response;
             originalTable.fields.push(newField);
             table.fields[
               table.fields.findIndex((f) => f.field_id === field.field_id)
             ].field_id = newField.field_id;
             fieldErrors[field.field_id] = "";
             return { ok: true };
-          } else if (response.status === 422) {
-            let text = await response.text();
+          })
+          .catch((e: APIError) => {
+            let text = e.body as string;
             fieldErrors[field.field_id] = text;
-          }
-          return { ok: false };
-        }),
+
+            return { ok: false };
+          }),
       );
     });
 
     // modify existing fields
-    moddedFields.forEach((field, i) => {
+    moddedFields.forEach((field) => {
       promises.push(
-        fetch(
-          `${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: field.name,
-              field_kind: field.field_kind,
-            }),
-          },
-        ).then(async (response) => {
-          if (response.status === 200) {
+        putField(field)
+          .then((response: Field) => {
             originalTable.fields[
               originalTable.fields.findIndex(
                 (f) => f.field_id === field.field_id,
               )
-            ] = await response.json();
+            ] = response;
             fieldErrors[field.field_id] = "";
             return { ok: true };
-          } else if (response.status === 422) {
-            let text = await response.text();
+          })
+          .catch((e: APIError) => {
+            let text = e.body as string;
             fieldErrors[field.field_id] = text;
-          }
-          return { ok: false };
-        }),
+            return { ok: false };
+          }),
       );
     });
 
     // delete fields
     for (const field of removedOGFields) {
       promises.push(
-        fetch(
-          `${API_URL}/tables/${table_prop.table_id}/fields/${field.field_id}`,
-          {
-            method: "DELETE",
-          },
-        ).then(async (response) => {
-          if (response.status === 200) {
+        deleteField(field)
+          .then(() => {
             originalTable.fields.splice(
               originalTable.fields.findIndex(
                 (f) => f.field_id === field.field_id,
@@ -684,10 +644,11 @@
               1,
             );
             return { ok: true };
-          }
-          fieldErrors[field.field_id] = "Could not delete";
-          return { ok: false };
-        }),
+          })
+          .catch(() => {
+            fieldErrors[field.field_id] = "Could not delete";
+            return { ok: false };
+          }),
       );
     }
 
@@ -695,13 +656,13 @@
     Promise.allSettled(promises).then((results) => {
       if (results.every((r) => r.status == "fulfilled" && r.value.ok)) {
         on_save();
-      } else {
+      } /* else {
         originalTable.fields = parseJSONTable({
           table: {},
           fields: $state.snapshot(originalTable).fields,
           entries: [],
         }).fields;
-      }
+      }*/
     });
   };
 
