@@ -277,21 +277,21 @@
         >Cancel</button
       >
       {#if entryMode === EntryMode.EDIT}
-        {#if deleteConfirmation}
-          <button
-            onclick={removeEntry}
-            class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-            >Confirm delete</button
-          >
-        {:else}
-          <button
-            onclick={() => {
-              deleteConfirmation = true;
-            }}
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-            >Delete Entry</button
-          >
-        {/if}
+        <button
+          onclick={deleteConfirmation
+            ? removeEntry
+            : () => {
+                deleteConfirmation = true;
+              }}
+          onfocusout={() => {
+            deleteConfirmation = false;
+          }}
+          class={[
+            "text-center py-1 px-2 rounded transition",
+            !deleteConfirmation && "bg-white hover:bg-gray-100 ",
+            deleteConfirmation && "bg-red-400 hover:bg-red-500 ",
+          ]}>{deleteConfirmation ? "Confirm Delete" : "Delete Entry"}</button
+        >
       {/if}
     </div>
   {:else if entryMode === EntryMode.DISPLAY && table.fields.length > 0}
