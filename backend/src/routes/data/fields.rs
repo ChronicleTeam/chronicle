@@ -30,7 +30,7 @@ pub fn router() -> Router<ApiState> {
 }
 
 /// Create a field in a table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::Forbidden`]: User does not have access to that table or field
@@ -38,7 +38,7 @@ pub fn router() -> Router<ApiState> {
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
 ///     - [`FIELD_NAME_CONFLICT`]
-/// 
+///
 async fn create_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -60,30 +60,8 @@ async fn create_field(
     Ok(Json(field))
 }
 
-
-/// Get all fields in a table.
-/// 
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table not found
-/// 
-async fn get_fields(
-    State(ApiState { pool, .. }): State<ApiState>,
-    Path(table_id): Path<Id>,
-) -> ApiResult<Json<Vec<Field>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
-    db::check_table_relation(&pool, user_id, table_id)
-        .await?
-        .to_api_result()?;
-
-    let fields = db::get_fields(&pool, table_id).await?;
-
-    Ok(Json(fields))
-}
-
 /// Update a field in a table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::Forbidden`]: User does not have access to that table or field
@@ -91,7 +69,7 @@ async fn get_fields(
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
 ///     - [`FIELD_NAME_CONFLICT`]
-/// 
+///
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
@@ -107,18 +85,22 @@ async fn update_field(
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field).await?;
+    let field = db::update_field(&pool, field_id, update_field)
+        .await
+        .on_constraint("meta_field_table_id_name_key", |_| {
+            ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
+        })?;
 
     Ok(Json(field))
 }
 
 /// Delete a field and all cells in its respective column in the table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::Forbidden`]: User does not have access to that table or field
 /// - [`ApiError::NotFound`]: Table or field not found
-/// 
+///
 async fn delete_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
@@ -134,6 +116,27 @@ async fn delete_field(
     db::delete_field(&pool, field_id).await?;
 
     Ok(())
+}
+
+/// Get all fields in a table.
+///
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table
+/// - [`ApiError::NotFound`]: Table not found
+///
+async fn get_fields(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<Json<Vec<Field>>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let fields = db::get_fields(&pool, table_id).await?;
+
+    Ok(Json(fields))
 }
 
 /// Validates [`FieldKind`] from requests.
