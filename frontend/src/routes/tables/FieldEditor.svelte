@@ -749,7 +749,7 @@
         }}
     onfocusout={() => {
       deleteTableConfirmation = false;
-    }}>{deleteTableConfirmation ? "Confirm delete" : "Delete Table"}</button
+    }}>{deleteTableConfirmation ? "Confirm Delete" : "Delete Table"}</button
   >
 
   <!-- Fields  -->
