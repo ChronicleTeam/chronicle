@@ -112,6 +112,8 @@
 
           <button
             onclick={() => {
+              addTableError = "";
+              addTableField = "";
               addTableMode = false;
             }}
             class="px-2 py-1 rounded-lg border-2 border-red-400 hover:bg-red-400 transition"
@@ -126,10 +128,10 @@
           class="text-center w-full">Add Table</button
         >
       {/if}
+      {#if addTableError !== ""}
+        <p class="text-red-500">{addTableError}</p>
+      {/if}
     </div>
-    {#if addTableError !== ""}
-      <p class="text-red-500">{addTableError}</p>
-    {/if}
   </div>
   <!-- Main editor -->
   <div
