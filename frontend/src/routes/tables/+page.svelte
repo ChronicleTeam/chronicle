@@ -86,7 +86,7 @@
               curTable = t;
               editMode = EditMode.TABLE;
             }}
-            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-md p-2"
+            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-xl p-2 mb-2"
             >{t.name}</button
           >
         {/each}
