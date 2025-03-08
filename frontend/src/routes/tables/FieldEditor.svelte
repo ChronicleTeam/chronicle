@@ -350,14 +350,16 @@
               label: "Range start",
               type: "number",
               optional: true,
-              default: 0,
+              default: "0.00",
               bindGetter: () => {
-                return (
-                  (table.fields[i].field_kind as MoneyKind).range_start ?? 0
+                return parseFloat(
+                  (table.fields[i].field_kind as MoneyKind).range_start ??
+                    "0.00",
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as MoneyKind).range_start = val;
+                (table.fields[i].field_kind as MoneyKind).range_start =
+                  val.toFixed(2);
               },
               step: 0.01,
             },
@@ -366,14 +368,16 @@
               label: "Range end",
               type: "number",
               optional: true,
-              default: 100,
+              default: "100.00",
               bindGetter: () => {
-                return (
-                  (table.fields[i].field_kind as MoneyKind).range_end ?? 100
+                return parseFloat(
+                  (table.fields[i].field_kind as MoneyKind).range_end ??
+                    "100.00",
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as MoneyKind).range_end = val;
+                (table.fields[i].field_kind as MoneyKind).range_end =
+                  val.toFixed(2);
               },
               step: 0.01,
             },

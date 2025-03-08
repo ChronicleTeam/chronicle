@@ -144,7 +144,6 @@
   const cellToInputParams = (entryIdx: number, f: Field) => {
     switch (f.field_kind.type) {
       case FieldType.Integer:
-      case FieldType.Money:
       case FieldType.Decimal:
         return {
           type: "number",
@@ -159,12 +158,28 @@
           step:
             f.field_kind.type === FieldType.Integer
               ? 1
-              : f.field_kind.type === FieldType.Money
-                ? 0.01
-                : Math.pow(
-                    10,
-                    -((f.field_kind as DecimalKind).number_scale ?? 10),
-                  ),
+              : Math.pow(
+                  10,
+                  -((f.field_kind as DecimalKind).number_scale ?? 10),
+                ),
+        } as InputParameters;
+      case FieldType.Money:
+        return {
+          type: "number",
+          bindGetter: () =>
+            parseFloat(table.entries[entryIdx].cells[f.field_id] as string),
+          bindSetter: (val: number) => {
+            table.entries[entryIdx].cells[f.field_id] = val.toFixed(2);
+          },
+          min:
+            (f.field_kind as MoneyKind).range_start != null
+              ? parseFloat((f.field_kind as MoneyKind).range_start as string)
+              : undefined,
+          max:
+            (f.field_kind as MoneyKind).range_end != null
+              ? parseFloat((f.field_kind as MoneyKind).range_end as string)
+              : undefined,
+          step: 0.01,
         } as InputParameters;
       case FieldType.Progress:
         return {

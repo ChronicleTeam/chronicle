@@ -48,8 +48,8 @@ export type DecimalKind = {
 export type MoneyKind = {
   type: FieldType.Money;
   is_required: boolean;
-  range_start?: Decimal;
-  range_end?: Decimal;
+  range_start?: string;
+  range_end?: string;
 };
 
 export type ProgressKind = {
@@ -146,7 +146,7 @@ export type Cells = {
 export type Text = string;
 export type Integer = number;
 export type Decimal = number;
-export type Money = Decimal;
+export type Money = string;
 export type Progress = number;
 export type DateTime = Date;
 export type Interval = null;
