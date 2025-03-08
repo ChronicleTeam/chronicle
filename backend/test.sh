@@ -29,6 +29,19 @@ set json '{
     }
 }'
 
+set json '{
+  "name": "Field 13233333",
+  "field_kind": {
+    "type": "Float",
+    "is_required": true,
+    "range_start": 10,
+    "range_end": 100,
+    "scientific_notation": false,
+    "number_scale": 2,
+    "number_precision": 6
+  }
+}'
+
 curl -X POST $ADDR/tables/1/fields \
     -H "Content-Type: application/json" \
     -d "$json"
