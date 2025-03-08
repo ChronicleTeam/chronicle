@@ -33,30 +33,60 @@
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   let { table_prop } = $props();
 
-  let err = $state();
+  //
+  // Constants
+  //
 
-  const loadTable = () => {
-    getDataTable(table_prop).then((response: DataTable) => {
-      table = response;
-    });
-  };
-
-  const EntryMode = {
+  const TableMode = {
     DISPLAY: 0,
     INSERT: 1,
     EDIT: 2,
   };
 
+  //
+  // State
+  //
+
+  // the DataTable object being displayed
   let table = $state({
     table: table_prop,
     fields: [],
     entries: [],
   } as DataTable);
 
-  loadTable();
+  // the index of the entry being edited (-1 if no entry is being edited)
+  let editableEntry = $state(-1);
 
-  let entryMode = $state(EntryMode.DISPLAY);
+  // determines the state of the table, whether it is read-only, in the process of adding an entry, or in the process of editing an entry
+  let tableMode = $state(TableMode.DISPLAY);
 
+  // these are used to change the table state to DISPLAY, INSERT, and EDIT respectively
+  const cancelEntry = () => {
+    if (tableMode === TableMode.INSERT) {
+      table.entries.pop();
+    }
+
+    tableMode = TableMode.DISPLAY;
+    editableEntry = -1;
+    fieldErrors = {};
+  };
+
+  const insertEntry = () => {
+    tableMode = TableMode.INSERT;
+    table.entries.push(getNewEntry());
+    editableEntry = table.entries.length - 1;
+  };
+
+  const editEntry = (i: number) => {
+    tableMode = TableMode.EDIT;
+    editableEntry = i;
+  };
+
+  //
+  // Helper methods
+  //
+
+  // generates a new entry object with default values
   const getNewEntry = (): Entry => {
     return {
       entry_id: -1,
@@ -70,7 +100,7 @@
             case FieldType.Decimal:
               return [f.field_id.toString(), 0 as Decimal];
             case FieldType.Money:
-              return [f.field_id.toString(), 0 as Money];
+              return [f.field_id.toString(), "0.00" as Money];
             case FieldType.Progress:
               return [f.field_id.toString(), 0 as Progress];
             case FieldType.DateTime:
@@ -93,54 +123,7 @@
     };
   };
 
-  const insertEntry = () => {
-    entryMode = EntryMode.INSERT;
-    table.entries.push(getNewEntry());
-    editableEntry = table.entries.length - 1;
-  };
-
-  const saveEntry = () => {
-    postEntry(table.table, table.entries[editableEntry])
-      .then(() => {
-        cancelEntry();
-        loadTable();
-      })
-      .catch((e: APIError) => {
-        if (e.status === 422) {
-          fieldErrors = e.body;
-        }
-      });
-  };
-
-  const cancelEntry = () => {
-    if (entryMode === EntryMode.INSERT) {
-      table.entries.pop();
-    }
-
-    entryMode = EntryMode.DISPLAY;
-    editableEntry = -1;
-    fieldErrors = {};
-  };
-
-  let editableEntry = $state(-1);
-  const editEntry = (i: number) => {
-    entryMode = EntryMode.EDIT;
-    editableEntry = i;
-  };
-  let fieldErrors = $state({} as { [key: number]: string });
-  const updateEntry = () => {
-    putEntry(table.table, table.entries[editableEntry])
-      .then(() => {
-        cancelEntry();
-        loadTable();
-      })
-      .catch((e: APIError) => {
-        if (e.status === 422) {
-          fieldErrors = e.body;
-        }
-      });
-  };
-
+  // generates InputParams to feed into the VariableInput, for use in editing and creating entreis
   const cellToInputParams = (entryIdx: number, f: Field) => {
     switch (f.field_kind.type) {
       case FieldType.Integer:
@@ -243,6 +226,43 @@
     }
   };
 
+  //
+  // API Calls
+  //
+
+  const loadTable = () => {
+    getDataTable(table_prop).then((response: DataTable) => {
+      table = response;
+    });
+  };
+
+  let fieldErrors = $state({} as { [key: number]: string });
+  const createEntry = () => {
+    postEntry(table.table, table.entries[editableEntry])
+      .then(() => {
+        cancelEntry();
+        loadTable();
+      })
+      .catch((e: APIError) => {
+        if (e.status === 422) {
+          fieldErrors = e.body;
+        }
+      });
+  };
+
+  const updateEntry = () => {
+    putEntry(table.table, table.entries[editableEntry])
+      .then(() => {
+        cancelEntry();
+        loadTable();
+      })
+      .catch((e: APIError) => {
+        if (e.status === 422) {
+          fieldErrors = e.body;
+        }
+      });
+  };
+
   const removeEntry = () => {
     if (editableEntry === -1) return;
 
@@ -251,10 +271,15 @@
       .then(loadTable);
   };
 
-  $inspect(table, entryMode, editableEntry);
+  //
+  // Startup
+  //
+
+  loadTable();
 </script>
 
 <div class="flex flex-col items-center justify-center gap-3">
+  <!-- Main table -->
   <table class=" border border-gray-400 bg-white text-black w-full">
     <thead>
       <tr>
@@ -270,13 +295,13 @@
             <td
               class={[
                 "relative text-black border-2 border-gray-400 size-min",
-                editableEntry === i && "bg-blue-200",
-                editableEntry !== i && "bg-white",
+                editableEntry === i ? "bg-blue-200" : "bg-white",
               ]}
               onclick={() => {
-                if (entryMode === EntryMode.DISPLAY) editEntry(i);
+                if (tableMode === TableMode.DISPLAY) editEntry(i);
               }}
             >
+              <!-- Floating error bubble -->
               {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
                 <div
                   class="absolute bottom-full inset-x-0 flex flex-col items-center"
@@ -291,12 +316,13 @@
                   </svg>
                 </div>
               {/if}
+
+              <!-- Table cell -->
               <VariableInput
                 disabled={i !== editableEntry}
                 class={[
                   "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
-                  editableEntry === i && "bg-blue-200",
-                  editableEntry !== i && "bg-white",
+                  editableEntry === i ? "bg-blue-200" : "bg-white",
                 ]}
                 params={cellToInputParams(i, field)}
               />
@@ -306,10 +332,11 @@
       {/each}
     </tbody>
   </table>
-  {#if entryMode === EntryMode.INSERT || entryMode === EntryMode.EDIT}
+  <!-- Button cluster to confirm/cancel editing/creating entries -->
+  {#if tableMode === TableMode.INSERT || tableMode === TableMode.EDIT}
     <div class="flex justify-center gap-3">
       <button
-        onclick={entryMode === EntryMode.INSERT ? saveEntry : updateEntry}
+        onclick={tableMode === TableMode.INSERT ? createEntry : updateEntry}
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         >Save</button
       >
@@ -318,7 +345,7 @@
         class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
         >Cancel</button
       >
-      {#if entryMode === EntryMode.EDIT}
+      {#if tableMode === TableMode.EDIT}
         <ConfirmButton
           initText="Delete Entry"
           confirmText="Confirm Delete"
@@ -326,12 +353,13 @@
         />
       {/if}
     </div>
-  {:else if entryMode === EntryMode.DISPLAY && table.fields.length > 0}
+
+    <!-- Add row button -->
+  {:else if tableMode === TableMode.DISPLAY && table.fields.length > 0}
     <button
       onclick={insertEntry}
       class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
       >+ Add Row</button
     >
   {/if}
-  {err}
 </div>
