@@ -18,6 +18,7 @@
     type FileKind,
     type InputParameters,
     type Table,
+    typeToStr,
   } from "$lib/types.d.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
@@ -417,7 +418,7 @@
   let showConfirmScreen = $state(false);
 
   let modalNewFieldLines = $derived(
-    newFields.map((f) => `${f.name} (${f.field_kind.type})`),
+    newFields.map((f) => `${f.name} (${typeToStr(f.field_kind.type)})`),
   );
 
   let modalModifiedFieldLines = $derived(
@@ -453,7 +454,7 @@
       return {
         nameAndType:
           f.name !== old.name || f.field_kind.type !== old.field_kind.type
-            ? `${old.name} (${old.field_kind.type}) -> ${f.name} (${f.field_kind.type})`
+            ? `${old.name} (${typeToStr(old.field_kind.type)}) -> ${f.name} (${typeToStr(f.field_kind.type)})`
             : "",
         kind: entries
           .filter((e) => e[0] !== "type")
@@ -468,7 +469,7 @@
   );
 
   let modalDeletedFieldLines = $derived(
-    removedOGFields.map((f) => `${f.name} (${f.field_kind.type})`),
+    removedOGFields.map((f) => `${f.name} (${typeToStr(f.field_kind.type)})`),
   );
 
   //
@@ -576,7 +577,9 @@
       label: "Type",
       type: "select",
       optional: false,
-      selectOptions: fieldTypes,
+      selectOptions: Object.fromEntries(
+        fieldTypes.map((t) => [t, typeToStr(t)]),
+      ),
       bindGetter: () => {
         return table.fields[i].field_kind.type;
       },
@@ -932,7 +935,9 @@
       <div
         class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2"
       >
-        <p class="font-bold">{field.name} ({field.field_kind.type})</p>
+        <p class="font-bold">
+          {field.name} ({typeToStr(field.field_kind.type)})
+        </p>
         <button
           class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition"
           onclick={() => restoreField(i)}>Restore</button

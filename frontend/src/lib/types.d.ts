@@ -2,7 +2,7 @@
 export enum FieldType {
   Text = "Text",
   Integer = "Integer",
-  Decimal = "Decimal",
+  Decimal = "Float",
   Money = "Money",
   Progress = "Progress",
   DateTime = "DateTime",
@@ -113,6 +113,17 @@ export type FieldKind =
   | EnumerationKind
   | ImageKind
   | FileKind;
+
+export const typeToStr = (t: FieldType): string => {
+  switch(t){
+    case FieldType.Decimal:
+      return "Decimal";
+    case FieldType.DateTime:
+      return "Date Time";
+    default:
+      return t;
+  }
+}
 
 // Data table
 export type Table = {
@@ -228,7 +239,7 @@ export type InputParameters =
   | {
     label: string;
     type: "select";
-    selectOptions: string[];
+    selectOptions: string[] | {[key: string | number]: string};
     bindSetter: (val: any) => void;
     bindGetter: () => string | boolean | number;
     min?: undefined;
