@@ -1,30 +1,27 @@
-use super::FieldKind;
-use crate::{model::{viz::Aggregate, CellMap}, Id};
+use crate::{model::CellMap, Id};
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::serde_as;
-use sqlx::{postgres::PgRow, Row};
 use std::collections::HashMap;
 
+/// Table entry response. 
 #[serde_as]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct Entry {
     pub entry_id: Id,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
-    // #[serde_as(as = "Vec<(_, _)>")]
+
+    /// Keys map to field IDs.
     pub cells: CellMap,
 }
 
-// key: field_id
+/// Create entry request. Keys map to field IDs.
 #[serde_as]
 #[derive(Deserialize)]
 pub struct CreateEntry(pub HashMap<Id, Value>);
 
-// key: field_id
+/// Update entry request. Keys map to field IDs.
 #[derive(Deserialize)]
 pub struct UpdateEntry(pub HashMap<Id, Value>);
-
-
