@@ -74,10 +74,16 @@
   loadFields();
   const fieldTypes = Object.values(FieldType);
 
-  type OptionInputParameters = InputParameters & {
-    optional: boolean;
-    name: string;
-  };
+  type OptionInputParameters =
+    | (InputParameters & {
+        optional: false;
+        name: string;
+      })
+    | (InputParameters & {
+        optional: true;
+        name: string;
+        default: Cell;
+      });
 
   const getTypeOptionInput = (i: number): OptionInputParameters => {
     return {
@@ -225,6 +231,7 @@
               label: "Range start",
               type: "number",
               optional: true,
+              default: 0,
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as IntegerKind).range_start ?? 0
@@ -239,6 +246,7 @@
               label: "Range end",
               type: "number",
               optional: true,
+              default: 100,
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as IntegerKind).range_end ?? 100
@@ -258,6 +266,7 @@
               label: "Range start",
               type: "number",
               optional: true,
+              default: 0,
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as DecimalKind).range_start ?? 0
@@ -273,9 +282,10 @@
               label: "Range end",
               type: "number",
               optional: true,
+              default: 100,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DecimalKind).range_end ?? 0
+                  (table.fields[i].field_kind as DecimalKind).range_end ?? 100
                 );
               },
               bindSetter: (val: number) => {
@@ -303,10 +313,11 @@
               label: "Number Precision",
               type: "number",
               optional: true,
+              default: 20,
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as DecimalKind)
-                    .number_precision ?? 0
+                    .number_precision ?? 20
                 );
               },
               bindSetter: (val: number) => {
@@ -319,9 +330,10 @@
               label: "Number Scale",
               type: "number",
               optional: true,
+              default: 10,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DecimalKind).number_scale ?? 0
+                  (table.fields[i].field_kind as DecimalKind).number_scale ?? 10
                 );
               },
               bindSetter: (val: number) => {
@@ -338,6 +350,7 @@
               label: "Range start",
               type: "number",
               optional: true,
+              default: 0,
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as MoneyKind).range_start ?? 0
@@ -353,8 +366,11 @@
               label: "Range end",
               type: "number",
               optional: true,
+              default: 100,
               bindGetter: () => {
-                return (table.fields[i].field_kind as MoneyKind).range_end ?? 0;
+                return (
+                  (table.fields[i].field_kind as MoneyKind).range_end ?? 100
+                );
               },
               bindSetter: (val: number) => {
                 (table.fields[i].field_kind as MoneyKind).range_end = val;
@@ -389,6 +405,7 @@
               label: "Range start",
               type: "datetime-local",
               optional: true,
+              default: new Date(),
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as DateTimeKind).range_start
@@ -407,6 +424,7 @@
               label: "Range end",
               type: "datetime-local",
               optional: true,
+              default: new Date(),
               bindGetter: () => {
                 return (
                   (table.fields[i].field_kind as DateTimeKind).range_end
@@ -675,12 +693,14 @@
 
   const recursiveCompare = (a: any, b: any): boolean => {
     if (typeof a !== typeof b) return false;
-
+    console.log(a, b);
     if (a === null || b === null) {
       return a === null && b === null;
     } else if (Array.isArray(a)) {
       // compare every element
       return a.every((obj, i) => recursiveCompare(obj, b[i]));
+    } else if (a instanceof Date) {
+      return b instanceof Date && a.getTime() === b.getTime();
     } else if (typeof a === "object") {
       // Check if keys match and if they do, check if objects match
       return (
@@ -701,25 +721,46 @@
       let old = originalTable.fields.find(
         (g) => g.field_id === f.field_id,
       ) as Field;
-      console.log($state.snapshot(f), $state.snapshot(old));
+
+      // get all entries from old field kind
+      let oldEntries = Object.entries(old.field_kind);
+
+      // setup comparisons between old and new field to check for changes
+      let entries = Object.entries(f.field_kind).map((entry) => {
+        return [
+          entry[0],
+          [
+            (oldEntries.find((o) => o[0] === entry[0]) ?? [
+              undefined,
+              undefined,
+            ])[1],
+            entry[1],
+          ],
+        ];
+      });
+
+      // add keys from old field not in new field
+      entries.push(
+        ...oldEntries
+          .filter((o) => entries.findIndex((e) => e[0] === o[0]) === -1)
+          .map((o) => [o[0], [o[1], undefined]]),
+      );
+
+      entries = entries.filter((e) => e[0] !== "type");
+
       return {
         nameAndType:
           f.name !== old.name || f.field_kind.type !== old.field_kind.type
             ? `${old.name} (${old.field_kind.type}) -> ${f.name} (${f.field_kind.type})`
             : "",
-        kind: Object.entries(f.field_kind)
-          .map((e) => {
-            let oldEntry =
-              Object.entries(old.field_kind).find((d) => d[0] === e[0]) ?? e;
-
-            console.log(e, Object.entries(old.field_kind), oldEntry);
-            if (!recursiveCompare(e[1], oldEntry[1]) && e[0] !== "type") {
-              return `${f.name} [${oldEntry[0]}] ${oldEntry[1]} -> ${e[1]}`;
-            } else {
-              return "";
-            }
-          })
-          .filter((e) => e !== ""),
+        kind: entries
+          .filter((e) => e[0] !== "type")
+          .filter((e) => !recursiveCompare(e[1][0], e[1][1]))
+          .filter((e) => !(e[1][0] == null && e[1][1] == null)) // check if both nullish
+          .map(
+            (e) =>
+              `${f.name} [${e[0]}] ${e[1][0] ?? "[Empty]"} -> ${e[1][1] ?? "[Empty]"}`,
+          ),
       };
     }),
   );
@@ -730,7 +771,7 @@
     showConfirmScreen = true;
   };
 
-  $inspect(table, originalTable);
+  $inspect(table, originalTable, moddedFields);
 </script>
 
 <div class="w-full">
@@ -786,10 +827,14 @@
                   bind:checked={() => optionalCheckboxStates[i][j],
                   (val) => {
                     optionalCheckboxStates[i][j] = val;
-                    if (!val)
+                    if (val) {
+                      (table.fields[i].field_kind as any)[optionInput.name] =
+                        optionInput.default;
+                    } else {
                       delete (table.fields[i].field_kind as any)[
                         optionInput.name
                       ];
+                    }
                   }}
                 />
               {/if}
