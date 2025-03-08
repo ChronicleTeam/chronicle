@@ -50,8 +50,8 @@ const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL + endpoi
   } else {
     throw {
       status: response.status,
-      message: response.statusText
-    }
+      body: response.statusText
+    } as APIError
   }
 });
 
@@ -60,11 +60,14 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (response.ok) {
     return await response.json();
   } else {
-    throw {
+    let err = {
       status: response.status,
       body: await (response.headers.get("Content-Type") === "application/json" ? response.json() : response.text())
         .catch((e) => response.statusText),
     } as APIError
+
+    if(typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
+    throw err
   }
 };
 

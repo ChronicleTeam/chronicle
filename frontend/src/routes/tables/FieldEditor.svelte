@@ -730,7 +730,7 @@
     if (
       table.table.name !== originalTable.table.name ||
       table.table.description !== originalTable.table.description
-    ) {
+    )
       promises.push(
         putTable(table.table)
           .then((response: Table) => {
@@ -739,9 +739,11 @@
             metadataError = "";
             return { ok: true };
           })
-          .catch(() => ({ ok: false })),
+          .catch((e: APIError) => {
+            metadataError = e.body.toString();
+            return { ok: false };
+          }),
       );
-    }
 
     // create new fields
     newFields.forEach((field) => {
@@ -757,7 +759,7 @@
             return { ok: true };
           })
           .catch((e: APIError) => {
-            let text = e.body as string;
+            let text = e.body.toString();
             fieldErrors[field.field_id] = text;
 
             return { ok: false };
@@ -779,7 +781,7 @@
             return { ok: true };
           })
           .catch((e: APIError) => {
-            let text = e.body as string;
+            let text = e.body.toString();
             fieldErrors[field.field_id] = text;
             return { ok: false };
           }),
