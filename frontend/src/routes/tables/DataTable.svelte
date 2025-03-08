@@ -30,6 +30,7 @@
     type APIError,
   } from "$lib/api.js";
   import VariableInput from "$lib/components/VariableInput.svelte";
+  import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   let { table_prop } = $props();
 
   let err = $state();
@@ -122,11 +123,9 @@
   };
 
   let editableEntry = $state(-1);
-  let deleteConfirmation = $state(false);
   const editEntry = (i: number) => {
     entryMode = EntryMode.EDIT;
     editableEntry = i;
-    deleteConfirmation = false;
   };
   let fieldErrors = $state({} as { [key: number]: string });
   const updateEntry = () => {
@@ -145,7 +144,6 @@
   const cellToInputParams = (entryIdx: number, f: Field) => {
     switch (f.field_kind.type) {
       case FieldType.Integer:
-      case FieldType.Money:
       case FieldType.Decimal:
         return {
           type: "number",
@@ -160,12 +158,28 @@
           step:
             f.field_kind.type === FieldType.Integer
               ? 1
-              : f.field_kind.type === FieldType.Money
-                ? 0.01
-                : Math.pow(
-                    10,
-                    -((f.field_kind as DecimalKind).number_scale ?? 10),
-                  ),
+              : Math.pow(
+                  10,
+                  -((f.field_kind as DecimalKind).number_scale ?? 10),
+                ),
+        } as InputParameters;
+      case FieldType.Money:
+        return {
+          type: "number",
+          bindGetter: () =>
+            parseFloat(table.entries[entryIdx].cells[f.field_id] as string),
+          bindSetter: (val: number) => {
+            table.entries[entryIdx].cells[f.field_id] = val.toFixed(2);
+          },
+          min:
+            (f.field_kind as MoneyKind).range_start != null
+              ? parseFloat((f.field_kind as MoneyKind).range_start as string)
+              : undefined,
+          max:
+            (f.field_kind as MoneyKind).range_end != null
+              ? parseFloat((f.field_kind as MoneyKind).range_end as string)
+              : undefined,
+          step: 0.01,
         } as InputParameters;
       case FieldType.Progress:
         return {
@@ -279,7 +293,7 @@
               {/if}
               <VariableInput
                 disabled={i !== editableEntry}
-                innerClass={[
+                class={[
                   "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
                   editableEntry === i && "bg-blue-200",
                   editableEntry !== i && "bg-white",
@@ -305,21 +319,11 @@
         >Cancel</button
       >
       {#if entryMode === EntryMode.EDIT}
-        <button
-          onclick={deleteConfirmation
-            ? removeEntry
-            : () => {
-                deleteConfirmation = true;
-              }}
-          onfocusout={() => {
-            deleteConfirmation = false;
-          }}
-          class={[
-            "text-center py-1 px-2 rounded transition",
-            !deleteConfirmation && "bg-white hover:bg-gray-100 ",
-            deleteConfirmation && "bg-red-400 hover:bg-red-500 ",
-          ]}>{deleteConfirmation ? "Confirm Delete" : "Delete Entry"}</button
-        >
+        <ConfirmButton
+          initText="Delete Entry"
+          confirmText="Confirm Delete"
+          onconfirm={removeEntry}
+        />
       {/if}
     </div>
   {:else if entryMode === EntryMode.DISPLAY && table.fields.length > 0}

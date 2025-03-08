@@ -1,17 +1,18 @@
 <script lang="ts">
   import { type InputParameters } from "$lib/types.d.js";
+  import type { ClassValue } from "svelte/elements";
 
   let {
     params,
     disabled = false,
     id,
-    innerClass = "",
+    class: innerClass = "",
     onclick,
   }: {
     params: InputParameters;
     disabled?: boolean;
     id?: string;
-    innerClass?: any;
+    class?: ClassValue;
     onclick?: () => void;
   } = $props();
 </script>

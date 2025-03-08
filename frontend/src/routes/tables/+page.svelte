@@ -9,20 +9,9 @@
     type APIError,
   } from "$lib/api.js";
 
-  const addTable = (name: string) =>
-    postTable(name)
-      .then(() => {
-        addTableMode = false;
-        asyncTables = getTables();
-        addTableError = "";
-      })
-      .catch((e: APIError) => {
-        addTableError = ("Error: " + e.body) as string;
-      });
-
-  let asyncTables: Promise<Table[]> = $state(getTables());
-
-  let curTable: Table | null = $state(null as unknown as Table);
+  //
+  // Constants
+  //
 
   const EditMode = {
     NONE: 0,
@@ -30,12 +19,40 @@
     FIELDS: 2,
   };
 
+  //
+  // State
+  //
+
+  // currently selected table
+  let curTable: Table | null = $state(null as unknown as Table);
+
+  // current editing mode: whether for the datatable or the fields (or neither, if no table is selected)
   let editMode = $state(EditMode.NONE);
 
+  // for the table creation input
   let addTableMode = $state(false);
   let addTableField = $state("");
-  let addTableError = $state("");
 
+  //
+  // API Calls
+  //
+
+  let asyncTables: Promise<Table[]> = $state(getTables());
+
+  let addTableError = $state("");
+  const addTable = (name: string) =>
+    postTable(name)
+      .then(() => {
+        addTableMode = false;
+        asyncTables = getTables();
+        addTableError = "";
+        addTableField = "";
+      })
+      .catch((e: APIError) => {
+        addTableError = "Error: " + (e.body as { [key: string]: string }).name;
+      });
+
+  let deleteTableError = $state("");
   const deleteCurTable = () => {
     if (curTable === null) {
       return;
@@ -52,13 +69,12 @@
         deleteTableError = "An error occured.";
       });
   };
-
-  let deleteTableError = $state("");
 </script>
 
 <div class="flex flex-wrap gap-4 p-4 size-full items-stretch">
   <!-- Sidebar -->
   <div class="basis-[12rem] grow bg-gray-200 rounded-lg p-3">
+    <!-- Table list -->
     <h2>Tables</h2>
     <div class="flex flex-col">
       {#await asyncTables}
@@ -76,6 +92,7 @@
         {/each}
       {/await}
     </div>
+    <!-- Table creation input -->
     <div
       class={[
         "rounded-xl py-2 border-2 border-dashed border-gray-400 flex flex-col items-center transition gap-3",
@@ -85,11 +102,24 @@
       {#if addTableMode}
         <p class="text-center">New Table</p>
         <input bind:value={addTableField} id="table-name-input" />
-        <button
-          onclick={() => addTable(addTableField)}
-          class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
-          >Create</button
-        >
+
+        <div class="flex gap-3">
+          <button
+            onclick={() => addTable(addTableField)}
+            class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
+            >Create</button
+          >
+
+          <button
+            onclick={() => {
+              addTableError = "";
+              addTableField = "";
+              addTableMode = false;
+            }}
+            class="px-2 py-1 rounded-lg border-2 border-red-400 hover:bg-red-400 transition"
+            >Cancel</button
+          >
+        </div>
       {:else}
         <button
           onclick={() => {
@@ -98,19 +128,19 @@
           class="text-center w-full">Add Table</button
         >
       {/if}
+      {#if addTableError !== ""}
+        <p class="text-red-500">{addTableError}</p>
+      {/if}
     </div>
-    {#if addTableError !== ""}
-      <p class="text-red-500">{addTableError}</p>
-    {/if}
   </div>
-  <!-- Main Editor -->
+  <!-- Main editor -->
   <div
     class="bg-gray-200 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
   >
     {#if editMode === EditMode.NONE || curTable === null}
       <h2 class="text-lg font-bold">Select a Table</h2>
     {:else if editMode === EditMode.TABLE && curTable !== null}
-      <!-- Top Bar -->
+      <!-- Top bar -->
       <div class="flex items-center gap-2">
         <h2 class="text-lg font-bold">{curTable.name}</h2>
         <button
@@ -132,6 +162,7 @@
         <p class="text-red-500">{deleteTableError}</p>
       {/if}
     {:else if editMode === EditMode.FIELDS && curTable !== null}
+      <!-- Field editor -->
       <FieldEditor
         on_save={() => {
           editMode = EditMode.TABLE;
