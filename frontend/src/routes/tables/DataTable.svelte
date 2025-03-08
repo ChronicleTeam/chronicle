@@ -70,7 +70,7 @@
             case FieldType.Decimal:
               return [f.field_id.toString(), 0 as Decimal];
             case FieldType.Money:
-              return [f.field_id.toString(), 0 as Money];
+              return [f.field_id.toString(), "0.00" as Money];
             case FieldType.Progress:
               return [f.field_id.toString(), 0 as Progress];
             case FieldType.DateTime:
