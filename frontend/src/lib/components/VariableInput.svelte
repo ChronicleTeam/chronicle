@@ -3,11 +3,11 @@
   import type { ClassValue } from "svelte/elements";
 
   let {
-    params,
-    disabled = false,
-    id,
-    class: innerClass = "",
-    onclick,
+    params, // Controls input type, certain attributes, and behaviour
+    disabled = false, // maps to input disabled attribute
+    id, // maps to id attribute
+    class: innerClass = "", // maps to class attribute
+    onclick, // maps to onclick attribute
   }: {
     params: InputParameters;
     disabled?: boolean;
