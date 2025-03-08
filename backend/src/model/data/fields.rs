@@ -84,7 +84,7 @@ impl FieldKind {
         match self {
             FieldKind::Text { .. } => "TEXT",
             FieldKind::Integer { .. } => "BIGINT",
-            FieldKind::Float { .. } => "DOUBLE",
+            FieldKind::Float { .. } => "DOUBLE PRECISION",
             FieldKind::Money { .. } => "numeric_money",
             FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",
