@@ -116,3 +116,7 @@ curl -X POST $ADDR/tables/1/entries \
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
     -d '{"1": "c3", "2": 321}'
+
+curl -X POST $ADDR/dashboards \
+    -H "Content-Type: application/json" \
+    -d '{"name": "Test dashboard", "description": "Some description"}'

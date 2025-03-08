@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::{data::{CreateEntry, Entry, Field, FieldKind, UpdateEntry}, Cell},
+    model::{data::{CreateEntry, Entry, Field, FieldKind, UpdateEntry}, Cell, CellMap},
     Id,
 };
 use axum::{
@@ -16,11 +16,11 @@ use rust_decimal::Decimal;
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
 
-const IS_REQUIRED_MESSAGE: &str = "A value is required";
-const OUT_OF_RANGE_MESSAGE: &str = "Value is out of range";
-const ENUMERATION_VALUE_MISSING_MESSAGE: &str = "Enumeration value is does not exist";
-const INVALID_TYPE_MESSAGE: &str = "Value is not the correct type";
-const INVALID_FIELD_ID_MESSAGE: &str = "Field ID key is invalid";
+const IS_REQUIRED: &str = "A value is required";
+const OUT_OF_RANGE: &str = "Value is out of range";
+const ENUMERATION_VALUE_MISSING: &str = "Enumeration value is does not exist";
+const INVALID_TYPE: &str = "Value is not the correct type";
+const INVALID_FIELD_ID: &str = "Field ID key is invalid";
 
 pub fn router() -> Router<ApiState> {
     Router::new()
@@ -31,6 +31,18 @@ pub fn router() -> Router<ApiState> {
         )
 }
 
+/// Create an entry in a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table 
+/// - [`ApiError::NotFound`]: Table not found
+/// - [`ApiError::UnprocessableEntity`]:
+///     - [`IS_REQUIRED`]
+///     - [`INVALID_TYPE`]
+///     - [`ENUMERATION_VALUE_MISSING`]
+///     - [`INVALID_FIELD_ID`]
+/// 
 async fn create_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -50,6 +62,18 @@ async fn create_entry(
     Ok(Json(entry))
 }
 
+/// Update an entry in a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table 
+/// - [`ApiError::NotFound`]: Table or entry not found
+/// - [`ApiError::UnprocessableEntity`]:
+///     - [`IS_REQUIRED`]
+///     - [`INVALID_TYPE`]
+///     - [`ENUMERATION_VALUE_MISSING`]
+///     - [`INVALID_FIELD_ID`]
+/// 
 async fn update_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
@@ -72,6 +96,14 @@ async fn update_entry(
     Ok(Json(entry))
 }
 
+
+/// Delete an entry from a table.
+/// 
+/// # Errors
+/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [`ApiError::Forbidden`]: User does not have access to that table 
+/// - [`ApiError::NotFound`]: Table or entry not found
+/// 
 async fn delete_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
@@ -89,10 +121,12 @@ async fn delete_entry(
     Ok(())
 }
 
+/// Convert an input entry from a request to a [`CellMap`] and
+/// performs validation on each value in the entry.
 fn convert_entry(
     mut entry: HashMap<Id, Value>,
     fields: Vec<Field>,
-) -> ApiResult<HashMap<Id, Option<Cell>>> {
+) -> ApiResult<CellMap> {
     let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields
         .iter()
         .map(
@@ -112,7 +146,7 @@ fn convert_entry(
     error_messages.extend(
         entry
             .keys()
-            .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID_MESSAGE)),
+            .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID)),
     );
 
     if error_messages.len() > 0 {
@@ -122,6 +156,9 @@ fn convert_entry(
     Ok(new_entry)
 }
 
+
+/// Converts a JSON value to a [`Cell`] and returns the 
+/// correct error message on failure.
 fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'static str> {
     match (value, field_kind) {
         (
@@ -136,7 +173,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
             | FieldKind::Enumeration { is_required, .. },
         ) => {
             if *is_required {
-                Err(IS_REQUIRED_MESSAGE)
+                Err(IS_REQUIRED)
             } else {
                 Ok(None)
             }
@@ -153,7 +190,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
                 Ok(Some(Cell::Integer(value)))
             } else {
-                Err(INVALID_TYPE_MESSAGE)
+                Err(INVALID_TYPE)
             }
         }
 
@@ -172,7 +209,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
                 Ok(Some(Cell::Float(value)))
             } else {
-                Err(INVALID_TYPE_MESSAGE)
+                Err(INVALID_TYPE)
             }
         }
         (
@@ -187,18 +224,18 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
                 Ok(Some(Cell::Decimal(value)))
             } else {
-                Err(INVALID_TYPE_MESSAGE)
+                Err(INVALID_TYPE)
             }
         }
         (Value::Number(value), FieldKind::Progress { total_steps }) => {
             if let Some(value) = value.as_i64() {
                 if value > *total_steps as i64 || value < 0 {
-                    Err(OUT_OF_RANGE_MESSAGE)
+                    Err(OUT_OF_RANGE)
                 } else {
                     Ok(Some(Cell::Integer(value)))
                 }
             } else {
-                Err(INVALID_TYPE_MESSAGE)
+                Err(INVALID_TYPE)
             }
         }
         (
@@ -214,7 +251,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
                 Ok(Some(Cell::DateTime(value)))
             } else {
-                Err(INVALID_TYPE_MESSAGE)
+                Err(INVALID_TYPE)
             }
         }
         (_, FieldKind::Interval { .. }) => todo!(),
@@ -228,16 +265,17 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 if values.contains_key(&value) {
                     Ok(Some(Cell::Integer(value)))
                 } else {
-                    Err(ENUMERATION_VALUE_MISSING_MESSAGE)
+                    Err(ENUMERATION_VALUE_MISSING)
                 }
             } else {
-                Err(INVALID_TYPE_MESSAGE)
+                Err(INVALID_TYPE)
             }
         }
-        _ => Err(INVALID_TYPE_MESSAGE),
+        _ => Err(INVALID_TYPE),
     }
 }
 
+/// Check that a value is within the range for validating entries.
 fn check_range<T>(
     value: &T,
     range_start: Option<&T>,
@@ -249,7 +287,7 @@ where
     if range_start.map_or(false, |start| value < start)
         || range_end.map_or(false, |end| value > end)
     {
-        Err(OUT_OF_RANGE_MESSAGE)
+        Err(OUT_OF_RANGE)
     } else {
         Ok(())
     }

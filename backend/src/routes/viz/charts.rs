@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
-use super::axis::validate_axes;
+use super::axes::validate_axes;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::viz::{ChartData, CreateAxis, CreateChart},
+    model::viz::{ChartData, CreateChart},
     routes::ApiState,
     Id,
 };
@@ -28,11 +26,11 @@ async fn create_chart(
 ) -> ApiResult<Json<ChartData>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    db::check_dashboard_relation(&pool, user_id, create_chart.table_id)
+    db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
         .to_api_result()?;
 
-    db::check_chart_relation(&pool, user_id, create_chart.table_id)
+    db::check_chart_relation(&pool, dashboard_id, create_chart.table_id)
         .await?
         .to_api_result()?;
 

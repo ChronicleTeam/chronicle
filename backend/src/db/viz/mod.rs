@@ -1,5 +1,5 @@
-mod axis;
-mod chart;
-mod dashboard;
+mod axes;
+mod charts;
+mod dashboards;
 
-pub use {axis::*, chart::*, dashboard::*};
+pub use {axes::*, charts::*, dashboards::*};
