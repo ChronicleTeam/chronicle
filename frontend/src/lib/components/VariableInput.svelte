@@ -23,14 +23,17 @@
   >
 {/if}
 {#if params.type === "select"}
+  {@const opts = Array.isArray(params.selectOptions)
+    ? params.selectOptions.map((o) => [o, o])
+    : Object.entries(params.selectOptions)}
   <select
     {disabled}
     {id}
     bind:value={params.bindGetter, params.bindSetter}
     {onclick}
   >
-    {#each params.selectOptions as opt}
-      <option>{opt}</option>
+    {#each opts as opt}
+      <option value={opt[0]}>{opt[1]}</option>
     {/each}
   </select>
 {:else if params.type === "textarea"}
