@@ -1,3 +1,5 @@
+//! Route handlers for the Data Management feature.
+
 mod entries;
 mod fields;
 mod tables;
