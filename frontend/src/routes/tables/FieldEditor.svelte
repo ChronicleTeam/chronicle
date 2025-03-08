@@ -697,7 +697,6 @@
 
   const recursiveCompare = (a: any, b: any): boolean => {
     if (typeof a !== typeof b) return false;
-    console.log(a, b);
     if (a === null || b === null) {
       return a === null && b === null;
     } else if (Array.isArray(a)) {
