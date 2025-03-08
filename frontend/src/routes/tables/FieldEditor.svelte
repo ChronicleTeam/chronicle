@@ -953,6 +953,7 @@
 
   <!-- Bottom Bar -->
   {#if originalTable !== table}
+    <!-- TODO: actually have the condition check for modifications -->
     <div class="flex items-center justify-center gap-3 mt-4">
       <button
         onclick={openConfirmationModal}
