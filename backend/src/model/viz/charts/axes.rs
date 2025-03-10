@@ -69,8 +69,15 @@ pub struct CreateAxis {
     pub aggregate: Option<Aggregate>,
 }
 
+#[derive(Deserialize)]
+pub struct SetAxes {
+    pub table_id: Id,
+    pub axes: Vec<CreateAxis>
+}
+
 #[derive(Serialize)]
 pub struct AxisData {
     pub axis: Axis,
     pub field: Field,
 }
+

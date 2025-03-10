@@ -57,11 +57,6 @@ pub enum FieldKind {
         range_end: Option<DateTime<Utc>>,
         date_time_format: String,
     },
-    Interval {
-        is_required: bool,
-        // range_start: Option<PgInterval>,
-        // range_end: Option<PgInterval>,
-    },
     WebLink {
         is_required: bool,
     },
@@ -88,7 +83,6 @@ impl FieldKind {
             FieldKind::Money { .. } => "numeric_money",
             FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",
-            FieldKind::Interval { .. } => "INTERVAL",
             FieldKind::WebLink { .. } => "COLLATE case_insensitive TEXT",
             FieldKind::Email { .. } => "COLLATE case_insensitive TEXT",
             FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",

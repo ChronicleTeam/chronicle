@@ -57,7 +57,6 @@ impl Cell {
             FieldKind::Float { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
             FieldKind::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
             FieldKind::DateTime { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime),
-            FieldKind::Interval { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Interval),
             FieldKind::Checkbox => row.try_get::<Option<_>, _>(index)?.map(Cell::Boolean),
         })
     }

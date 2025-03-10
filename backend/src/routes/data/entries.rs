@@ -254,7 +254,6 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 Err(INVALID_TYPE)
             }
         }
-        (_, FieldKind::Interval { .. }) => todo!(),
         (
             Value::String(value),
             FieldKind::Text { .. } | FieldKind::WebLink { .. } | FieldKind::Email { .. },

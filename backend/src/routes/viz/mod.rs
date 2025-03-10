@@ -1,6 +1,5 @@
 mod charts;
 mod dashboards;
-mod axes;
 
 use super::ApiState;
 use axum::Router;
