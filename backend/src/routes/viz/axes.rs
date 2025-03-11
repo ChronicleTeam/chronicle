@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
     model::{
         data::FieldKind,
-        viz::{Aggregate, Axis, AxisKind, CreateAxis, SetAxes},
+        viz::{Aggregate, Axis, SetAxes},
     },
     routes::ApiState,
     Id,
@@ -15,6 +14,7 @@ use axum::{
     routing::put,
     Json, Router,
 };
+use itertools::Itertools;
 
 const FIELD_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("field_id", "Field not found");
 
@@ -42,20 +42,23 @@ async fn set_axes(
         .await?
         .to_api_result()?;
 
+    // let chart = db::get_chart(&pool, )
+
     let fields: HashMap<_, _> = db::get_fields(&pool, set_axes.table_id)
         .await?
         .into_iter()
         .map(|field| (field.field_id, field))
         .collect();
 
-    for axis in &set_axes.axes {
+    let axes_and_fields = set_axes.axes.into_iter().map(|axis| {
+        let field = fields
+            .remove(&axis.field_id)
+            .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?;
+
         if let Some(aggregate) = &axis.aggregate {
             validate_axis(
                 &aggregate,
-                &fields
-                    .get(&axis.field_id)
-                    .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?
-                    .field_kind,
+                &field.field_kind,
             )
             .map_err(|message| {
                 ApiError::unprocessable_entity([ErrorMessage::new(
@@ -64,11 +67,14 @@ async fn set_axes(
                 )])
             })?;
         }
-    }
+        
+        Ok((axis, field))
+    
+    }).try_collect()?;
 
-    db::set_axes(&pool, chart, table, fields, set_axes)
+    let axes = db::set_axes(&pool, chart, table, axes_and_fields).await?;
 
-    todo!()
+    Ok(Json(axes))
 }
 
 fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'static str> {

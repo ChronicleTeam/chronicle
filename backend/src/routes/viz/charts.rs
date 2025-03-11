@@ -1,5 +1,3 @@
-mod axes;
-
 use crate::{
     db,
     error::{ApiResult, ErrorMessage},
@@ -12,13 +10,11 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use axum_macros::debug_handler;
 
 const TABLE_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("table_id", "Table not found");
 
 pub fn router() -> Router<ApiState> {
     Router::new()
-        .merge(axes::router())
         .route("/dashboards/{dashboard-id}/charts", post(create_chart))
 }
 

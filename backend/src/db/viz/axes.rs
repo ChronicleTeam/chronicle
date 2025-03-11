@@ -1,6 +1,6 @@
 use crate::model::{
     data::{Field, Table},
-    viz::{Axis, Chart, SetAxes},
+    viz::{Axis, Chart, CreateAxis},
 };
 use sqlx::{Acquire, Postgres, QueryBuilder};
 
@@ -8,22 +8,23 @@ pub async fn set_axes(
     connection: impl Acquire<'_, Database = Postgres> + Clone,
     chart: Chart,
     table: Table,
-    mut fields: Vec<Field>,
-    SetAxes { axes, .. }: SetAxes,
+    axes_and_fields: Vec<(CreateAxis, Field)>,
 ) -> sqlx::Result<Vec<Axis>> {
     let mut tx = connection.clone().begin().await?;
 
+    let (axes, fields): (Vec<_>, Vec<_>) = axes_and_fields.into_iter().unzip();
+
     _ = sqlx::query(
         r#"
-        DELETE FROM axis
-        WHERE chart_id = $1
-    "#,
+            DELETE FROM axis
+            WHERE chart_id = $1
+        "#,
     )
     .bind(chart.chart_id)
     .execute(tx.as_mut())
     .await?;
 
-    let mut axes: Vec<Axis> =
+    let axes: Vec<Axis> =
         QueryBuilder::new(r#"INSERT INTO axis (chart_id, field_id, axis_kind, aggregate)"#)
             .push_values(axes, |mut b, axis| {
                 b.push_bind(chart.chart_id)
@@ -49,9 +50,6 @@ pub async fn set_axes(
             .await?;
 
     let data_table_name = table.data_table_name;
-
-    axes.sort_by_key(|axis| axis.field_id);
-    fields.sort_by_key(|field| field.field_id);
 
     let mut group_by_columns = Vec::new();
     let mut select_columns = Vec::new();

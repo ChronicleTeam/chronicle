@@ -1,7 +1,3 @@
-mod axes;
-
-pub use axes::*;
-
 use crate::{model::CellMap, Id};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -34,9 +30,9 @@ pub struct CreateChart {
     pub chart_kind: ChartKind,
 }
 
-#[derive(Serialize)]
-pub struct ChartData {
-    pub chart: Chart,
-    pub axis_data_map: HashMap<Id, AxisData>,
-    pub cells: Vec<CellMap>,
-}
+// #[derive(Serialize)]
+// pub struct ChartData {
+//     pub chart: Chart,
+//     pub axis_data_map: HashMap<Id, AxisData>,
+//     pub cells: Vec<CellMap>,
+// }

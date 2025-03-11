@@ -5,6 +5,10 @@ use crate::{
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
+pub fn db_table_identifier(table_id: Id) {
+    
+}
+
 pub async fn create_table(
     connection: impl Acquire<'_, Database = Postgres>,
     user_id: Id,

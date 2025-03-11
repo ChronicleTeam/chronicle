@@ -1,7 +1,3 @@
-mod axes;
-
-pub use axes::*;
-
 use crate::{
     db::Relation,
     model::{

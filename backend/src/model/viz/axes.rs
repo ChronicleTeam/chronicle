@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use crate::{model::data::{Field, FieldKind}, Id};
+use crate::{
+    model::data::{Field, FieldKind},
+    Id,
+};
 
 #[derive(Serialize, Deserialize, FromRow)]
 pub struct Axis {
@@ -26,7 +29,7 @@ pub enum AxisKind {
     Size,
     Tooltip,
     Label,
-    Detail
+    Detail,
 }
 
 #[derive(Serialize, Deserialize, sqlx::Type, Clone)]
@@ -53,7 +56,7 @@ impl Aggregate {
     pub fn get_sql_type(&self, field_kind: &FieldKind) -> &'static str {
         match self {
             Aggregate::Sum | Aggregate::Average => match field_kind {
-                FieldKind::Float { .. } => "DOUBLE",
+                FieldKind::Float { .. } => "DOUBLE PRECISION",
                 _ => "NUMERIC",
             },
             Aggregate::Min | Aggregate::Max => field_kind.get_sql_type(),
@@ -72,12 +75,6 @@ pub struct CreateAxis {
 #[derive(Deserialize)]
 pub struct SetAxes {
     pub table_id: Id,
-    pub axes: Vec<CreateAxis>
-}
-
-#[derive(Serialize)]
-pub struct AxisData {
-    pub axis: Axis,
-    pub field: Field,
+    pub axes: Vec<CreateAxis>,
 }
 
