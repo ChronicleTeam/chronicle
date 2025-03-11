@@ -66,7 +66,7 @@
   };
 </script>
 
-<div class="flex flex-wrap gap-4 p-4 size-full items-stretch">
+<div class="flex flex-wrap gap-4 size-full items-stretch">
   <!-- Sidebar -->
   <div class="basis-[12rem] grow bg-gray-200 rounded-lg p-3">
     <!-- Table list -->
