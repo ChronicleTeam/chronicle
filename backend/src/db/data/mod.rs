@@ -59,6 +59,7 @@ pub async fn get_table_data(
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
                 created_at,
                 updated_at
