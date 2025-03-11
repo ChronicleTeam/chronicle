@@ -99,7 +99,7 @@ pub struct CreateField {
 #[derive(Deserialize)]
 pub struct UpdateField {
     pub name: String,
-    pub ordering: i32
+    pub ordering: i32,
     pub field_kind: FieldKind,
 }
 

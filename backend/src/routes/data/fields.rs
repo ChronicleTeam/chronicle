@@ -11,17 +11,19 @@ use axum::{
     routing::{post, put},
     Json, Router,
 };
+use itertools::Itertools;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
 const FIELD_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Field name already used for this table");
+const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 
 pub fn router() -> Router<ApiState> {
     Router::new()
         .route(
             "/tables/{table_id}/fields",
-            post(create_field).get(get_fields).patch(set_fields_ordering),
+            post(create_field).get(get_fields).patch(set_field_ordering),
         )
         .route(
             "/tables/{table_id}/fields/{field_id}",
@@ -137,6 +139,39 @@ async fn get_fields(
     let fields = db::get_fields(&pool, table_id).await?;
 
     Ok(Json(fields))
+}
+
+async fn set_field_ordering(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+    SetFieldOrdering { order }: SetFieldOrdering,
+) -> ApiResult<()> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let field_ids = db::get_field_ids(&pool, table_id).await?;
+
+    let error_messages = field_ids
+        .into_iter()
+        .filter_map(|field_id| {
+            if order.get(&field_id) == None {
+                Some(ErrorMessage::new(field_id.to_string(), FIELD_ID_NOT_FOUND))
+            } else {
+                None
+            }
+        })
+        .collect_vec();
+
+    if error_messages.len() > 0 {
+        return Err(ApiError::unprocessable_entity(error_messages));
+    }
+
+    db::set_field_ordering(&pool, table_id)
+
+    todo!()
 }
 
 /// Validates [`FieldKind`] from requests.

@@ -1,8 +1,12 @@
 use super::Relation;
 use crate::{
-    model::data::{CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier, UpdateField},
+    model::data::{
+        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, SetFieldOrdering,
+        TableIdentifier, UpdateField,
+    },
     Id,
 };
+use itertools::Itertools;
 use sqlx::{types::Json, Acquire, PgExecutor, Postgres};
 use std::mem::discriminant;
 
@@ -54,7 +58,11 @@ pub async fn create_field(
 pub async fn update_field(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
-    UpdateField { name, ordering, field_kind }: UpdateField,
+    UpdateField {
+        name,
+        ordering,
+        field_kind,
+    }: UpdateField,
 ) -> sqlx::Result<Field> {
     let mut tx = conn.begin().await?;
 
@@ -153,7 +161,51 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
     .await
 }
 
-pub async fn get_fields_metadata(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<FieldMetadata>> {
+pub async fn get_field_ids(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<Id>> {
+    sqlx::query_scalar(
+        r#"
+            SELECT field_id
+            FROM meta_field
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await
+}
+
+pub async fn set_field_ordering(
+    conn: impl Acquire<'_, Database = Postgres>,
+    SetFieldOrdering { order }: SetFieldOrdering,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    sqlx::query(
+        r#"
+            UPDATE meta_field AS f
+            SET ordering = n.ordering
+            FROM (
+                SELECT
+                    unnest($1::int[]) AS field_id,
+                    unnest($2::int[]) AS ordering
+            ) AS n
+            WHERE f.field_id = n.field_id
+        "#,
+    )
+    .bind(order.keys().collect_vec())
+    .bind(order.values().collect_vec())
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn get_fields_metadata(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<Vec<FieldMetadata>> {
     sqlx::query_as(
         r#"
             SELECT
