@@ -1,11 +1,11 @@
-use crate::{model::CellMap, Id};
+use crate::{model::Cell, Id};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::serde_as;
 use std::collections::HashMap;
 
-/// Table entry response. 
+/// Table entry response.
 #[serde_as]
 #[derive(Serialize)]
 pub struct Entry {
@@ -14,7 +14,7 @@ pub struct Entry {
     pub updated_at: Option<DateTime<Utc>>,
 
     /// Keys map to field IDs.
-    pub cells: CellMap,
+    pub cells: HashMap<Id, Option<Cell>>,
 }
 
 /// Create entry request. Keys map to field IDs.

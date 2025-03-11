@@ -18,10 +18,7 @@ use data::FieldKind;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use sqlx::{postgres::PgRow, Row};
-use std::collections::HashMap;
 use viz::Aggregate;
-
-use crate::Id;
 
 /// This represents all the data types in user entries and charts.
 #[derive(Serialize)]
@@ -57,7 +54,6 @@ impl Cell {
             FieldKind::Float { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Float),
             FieldKind::Money { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Decimal),
             FieldKind::DateTime { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::DateTime),
-            FieldKind::Interval { .. } => row.try_get::<Option<_>, _>(index)?.map(Cell::Interval),
             FieldKind::Checkbox => row.try_get::<Option<_>, _>(index)?.map(Cell::Boolean),
         })
     }
@@ -81,6 +77,3 @@ impl Cell {
         })
     }
 }
-
-/// A hash map representing a row of cells in an table or chart.
-pub type CellMap = HashMap<Id, Option<Cell>>;

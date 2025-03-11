@@ -6,11 +6,14 @@ mod tables;
 
 use crate::{
     error::{ApiError, ApiResult},
-    model::{data::{Entry, Field, Table, TableData}, Cell},
+    model::{
+        data::{Entry, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier},
+        Cell,
+    },
     Id,
 };
 use itertools::Itertools;
-use sqlx::{postgres::PgRow, Acquire, Postgres, Row};
+use sqlx::{postgres::PgRow, PgExecutor, Postgres, Row};
 pub use {entries::*, fields::*, tables::*};
 
 pub enum Relation {
@@ -30,11 +33,9 @@ impl Relation {
 }
 
 pub async fn get_table_data(
-    connection: impl Acquire<'_, Database = Postgres>,
+    executor: impl PgExecutor<'_> + Copy,
     table_id: Id,
 ) -> sqlx::Result<TableData> {
-    let mut tx = connection.begin().await?;
-
     let table: Table = sqlx::query_as(
         r#"
             SELECT 
@@ -43,14 +44,13 @@ pub async fn get_table_data(
                 name,
                 description,
                 created_at,
-                updated_at,
-                data_table_name
+                updated_at
             FROM meta_table
             WHERE table_id = $1
         "#,
     )
     .bind(table_id)
-    .fetch_one(tx.as_mut())
+    .fetch_one(executor)
     .await?;
 
     let fields: Vec<Field> = sqlx::query_as(
@@ -60,7 +60,6 @@ pub async fn get_table_data(
                 table_id,
                 name,
                 field_kind,
-                data_field_name,
                 created_at,
                 updated_at
             FROM meta_field
@@ -69,27 +68,45 @@ pub async fn get_table_data(
         "#,
     )
     .bind(table_id)
-    .fetch_all(tx.as_mut())
+    .fetch_all(executor)
     .await?;
 
-    let select_columns = fields
+    let field_idents = fields
         .iter()
-        .map(|field| field.data_field_name.as_str())
-        .chain(["entry_id", "created_at", "updated_at"])
-        .join(", ");
+        .map(|field| FieldIdentifier::new(field.field_id))
+        .collect_vec();
 
-    let data_table_name = &table.data_table_name;
+    let select_columns = field_columns(&field_idents).join(", ");
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
     let entries = sqlx::query::<Postgres>(&format!(
         r#"
             SELECT {select_columns}
-            FROM {data_table_name}
+            FROM {table_ident}
         "#
     ))
-    .fetch_all(tx.as_mut())
+    .fetch_all(executor)
     .await?
     .into_iter()
-    .map(|row| entry_from_row(row, &fields).unwrap())
-    .collect_vec();
+    .map(|row| {
+        entry_from_row(
+            row,
+            &fields
+                .iter()
+                .map(
+                    |Field {
+                         field_id,
+                         field_kind,
+                         ..
+                     }| FieldMetadata {
+                        field_id: field_id.clone(),
+                        field_kind: field_kind.clone(),
+                    },
+                )
+                .collect_vec(),
+        )
+    })
+    .try_collect()?;
 
     Ok(TableData {
         table,
@@ -98,24 +115,31 @@ pub async fn get_table_data(
     })
 }
 
-fn entry_from_row(row: PgRow, fields: &[Field]) -> sqlx::Result<Entry> {
+fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entry> {
     Ok(Entry {
         entry_id: row.get("entry_id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
         cells: fields
-            .iter()
+            .into_iter()
             .map(|field| {
-                Cell::from_field_row(&row, &field.data_field_name, &field.field_kind.0)
-                    .or_else(|e| {
-                        if matches!(e, sqlx::Error::ColumnNotFound(_)) {
-                            Ok(None)
-                        } else {
-                            Err(e)
-                        }
-                    })
-                    .map(|v| (field.field_id, v))
+                Cell::from_field_row(
+                    &row,
+                    &FieldIdentifier::new(field.field_id).unquoted(),
+                    &field.field_kind.0,
+                )
+                .map(|v| (field.field_id, v))
             })
             .try_collect()?,
     })
+}
+
+fn field_columns<'a, T: IntoIterator<Item = &'a FieldIdentifier>>(
+    field_idents: T,
+) -> impl Iterator<Item = String> + use<'a, T> {
+    field_idents.into_iter().map(|x| x.to_string()).chain(
+        ["entry_id", "created_at", "updated_at"]
+            .iter()
+            .map(|x| x.to_string()),
+    )
 }

@@ -172,7 +172,6 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             // date_time_format,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldKind::Interval { .. } => todo!(),
         FieldKind::Enumeration {
             values,
             default_value,

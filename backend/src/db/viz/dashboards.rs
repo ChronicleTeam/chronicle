@@ -58,10 +58,10 @@ pub async fn update_dashboard(
 }
 
 pub async fn delete_dashboard(
-    connection: impl Acquire<'_, Database = Postgres>,
+    conn: impl Acquire<'_, Database = Postgres>,
     dashboard_id: Id,
 ) -> sqlx::Result<()> {
-    let mut tx = connection.begin().await?;
+    let mut tx = conn.begin().await?;
 
     let data_view_names: Vec<String> = sqlx::query_scalar(
         r#"
