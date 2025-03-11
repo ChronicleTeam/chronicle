@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use sqlx::{types::Json, FromRow};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 /// Table field response.
 #[derive(Serialize, FromRow)]
@@ -13,11 +13,6 @@ pub struct Field {
     pub table_id: Id,
     pub name: String,
     pub field_kind: Json<FieldKind>,
-
-    /// Private database identifier.
-    #[serde(skip)]
-    pub data_field_name: String,
-
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -67,7 +62,8 @@ pub enum FieldKind {
     Checkbox,
     Enumeration {
         is_required: bool,
-        #[serde_as(as = "HashMap<DisplayFromStr, _>")] // This is necessary because of a bug with serde
+        #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+        // This is necessary because of a bug with serde
         values: HashMap<i64, String>,
         default_value: i64,
     },
@@ -98,10 +94,33 @@ pub struct CreateField {
     pub field_kind: FieldKind,
 }
 
-
 /// Update field request.
 #[derive(Deserialize)]
 pub struct UpdateField {
     pub name: String,
     pub field_kind: FieldKind,
+}
+
+#[derive(FromRow)]
+pub struct FieldMetadata {
+    pub field_id: Id,
+    pub field_kind: Json<FieldKind>,
+}
+
+#[derive(Debug)]
+pub struct FieldIdentifier {
+    field_id: Id,
+}
+impl FieldIdentifier {
+    pub fn new(field_id: Id) -> Self {
+        Self { field_id }
+    }
+    pub fn unquoted(&self) -> String {
+        format!("f{}", self.field_id)
+    }
+}
+impl fmt::Display for FieldIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, r#""f{}""#, self.field_id)
+    }
 }

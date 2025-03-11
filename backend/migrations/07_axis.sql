@@ -1,6 +1,8 @@
 CREATE TYPE aggregate AS ENUM (
     'Sum',
     'Average',
+    'Min',
+    'Max',
     'Count'
 );
 
@@ -26,18 +28,3 @@ CREATE TABLE axis (
 );
 
 SELECT trigger_updated_at('axis');
-
-CREATE OR REPLACE FUNCTION set_data_item_name()
-RETURNS TRIGGER AS
-$$
-BEGIN
-    NEW.data_item_name := 'i' || NEW.axis_id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_data_item_name
-BEFORE INSERT OR UPDATE ON axis
-FOR EACH ROW
-WHEN (NEW.data_item_name IS NULL)
-EXECUTE FUNCTION set_data_item_name();

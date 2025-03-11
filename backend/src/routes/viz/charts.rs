@@ -1,6 +1,6 @@
 use crate::{
     db,
-    error::{ApiResult, ErrorMessage},
+    error::ApiResult,
     model::viz::{Chart, CreateChart},
     routes::ApiState,
     Id,
@@ -11,11 +11,8 @@ use axum::{
     Json, Router,
 };
 
-const TABLE_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("table_id", "Table not found");
-
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route("/dashboards/{dashboard-id}/charts", post(create_chart))
+    Router::new().route("/dashboards/{dashboard-id}/charts", post(create_chart))
 }
 
 async fn create_chart(

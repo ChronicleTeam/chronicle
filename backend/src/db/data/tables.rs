@@ -1,20 +1,16 @@
 use super::Relation;
 use crate::{
-    model::data::{CreateTable, Table, UpdateTable},
+    model::data::{CreateTable, Table, TableIdentifier, UpdateTable},
     Id,
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
-pub fn db_table_identifier(table_id: Id) {
-    
-}
-
 pub async fn create_table(
-    connection: impl Acquire<'_, Database = Postgres>,
+    conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
     CreateTable { name, description }: CreateTable,
 ) -> sqlx::Result<Table> {
-    let mut tx = connection.begin().await?;
+    let mut tx = conn.begin().await?;
 
     let table: Table = sqlx::query_as(
         r#"
@@ -25,7 +21,6 @@ pub async fn create_table(
                 user_id,
                 name,
                 description,
-                data_table_name,
                 created_at,
                 updated_at
         "#,
@@ -36,11 +31,11 @@ pub async fn create_table(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let data_table_name = &table.data_table_name;
+    let table_ident = TableIdentifier::new(table.table_id, "data_table");
 
     sqlx::query(&format!(
         r#"
-            CREATE TABLE {data_table_name} (
+            CREATE TABLE {table_ident} (
                 entry_id SERIAL PRIMARY KEY,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ
@@ -51,7 +46,7 @@ pub async fn create_table(
     .await?;
 
     sqlx::query(&format!(
-        r#"SELECT trigger_updated_at('{data_table_name}')"#
+        r#"SELECT trigger_updated_at('{table_ident}')"#
     ))
     .execute(tx.as_mut())
     .await?;
@@ -62,11 +57,13 @@ pub async fn create_table(
 }
 
 pub async fn update_table(
-    executor: impl PgExecutor<'_>,
+    conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     UpdateTable { name, description }: UpdateTable,
 ) -> sqlx::Result<Table> {
-    sqlx::query_as(
+    let mut tx = conn.begin().await?;
+    
+    let table = sqlx::query_as(
         r#"
             UPDATE meta_table
             SET name = $1, description = $2
@@ -76,7 +73,6 @@ pub async fn update_table(
                 user_id,
                 name,
                 description,
-                data_table_name,
                 created_at,
                 updated_at
         "#,
@@ -84,28 +80,33 @@ pub async fn update_table(
     .bind(name)
     .bind(description)
     .bind(table_id)
-    .fetch_one(executor)
-    .await
-}
-
-pub async fn delete_table(
-    connection: impl Acquire<'_, Database = Postgres>,
-    table_id: Id,
-) -> sqlx::Result<()> {
-    let mut tx = connection.begin().await?;
-
-    let data_table_name: String = sqlx::query_scalar(
-        r#"
-            DELETE FROM meta_table
-            WHERE table_id = $1
-            RETURNING data_table_name
-        "#,
-    )
-    .bind(table_id)
     .fetch_one(tx.as_mut())
     .await?;
 
-    sqlx::query(&format!(r#"DROP TABLE {data_table_name}"#))
+    tx.commit().await?;
+
+    Ok(table)
+}
+
+pub async fn delete_table(
+    conn: impl Acquire<'_, Database = Postgres>,
+    table_id: Id,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    sqlx::query(
+        r#"
+            DELETE FROM meta_table
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .execute(tx.as_mut())
+    .await?;
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+
+    sqlx::query(&format!(r#"DROP TABLE {table_ident}"#))
         .execute(tx.as_mut())
         .await?;
 
@@ -122,7 +123,6 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
                 user_id,
                 name,
                 description,
-                data_table_name,
                 created_at,
                 updated_at
             FROM meta_table

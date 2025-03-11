@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
@@ -15,6 +14,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
+use std::collections::HashMap;
 
 const FIELD_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("field_id", "Field not found");
 
@@ -22,7 +22,7 @@ const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
 pub fn router() -> Router<ApiState> {
     Router::new().route(
-        "/dashboards/{dashboard-id}/charts/{chart-id}",
+        "/dashboards/{dashboard-id}/charts/{chart-id}/axes",
         put(set_axes),
     )
 }
@@ -42,44 +42,47 @@ async fn set_axes(
         .await?
         .to_api_result()?;
 
-    // let chart = db::get_chart(&pool, )
+    db::check_table_relation(&pool, user_id, set_axes.table_id)
+        .await?
+        .to_api_result()?;
 
-    let fields: HashMap<_, _> = db::get_fields(&pool, set_axes.table_id)
+    let mut field_kinds: HashMap<_, _> = db::get_fields_metadata(&pool, set_axes.table_id)
         .await?
         .into_iter()
-        .map(|field| (field.field_id, field))
+        .map(|field| (field.field_id, field.field_kind))
         .collect();
 
-    let axes_and_fields = set_axes.axes.into_iter().map(|axis| {
-        let field = fields
-            .remove(&axis.field_id)
-            .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?;
+    let create_axes = set_axes
+        .axes
+        .into_iter()
+        .map(|axis| {
+            let field_kind = field_kinds
+                .remove(&axis.field_id)
+                .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?
+                .0;
 
-        if let Some(aggregate) = &axis.aggregate {
-            validate_axis(
-                &aggregate,
-                &field.field_kind,
-            )
-            .map_err(|message| {
-                ApiError::unprocessable_entity([ErrorMessage::new(
-                    axis.field_id.to_string(),
-                    message,
-                )])
-            })?;
-        }
-        
-        Ok((axis, field))
-    
-    }).try_collect()?;
+            if let Some(aggregate) = &axis.aggregate {
+                validate_axis(&aggregate, &field_kind).map_err(|message| {
+                    ApiError::unprocessable_entity([ErrorMessage::new(
+                        axis.field_id.to_string(),
+                        message,
+                    )])
+                })?;
+            }
 
-    let axes = db::set_axes(&pool, chart, table, axes_and_fields).await?;
+            ApiResult::Ok((axis, field_kind))
+        })
+        .try_collect()?;
+
+    let axes = db::set_axes(&pool, chart_id, set_axes.table_id, create_axes).await?;
 
     Ok(Json(axes))
 }
 
 fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'static str> {
     match (aggregate, field_kind) {
-        (
+        (Aggregate::Count, _)
+        | (
             Aggregate::Sum,
             FieldKind::Integer { .. } | FieldKind::Float { .. } | FieldKind::Money { .. },
         )

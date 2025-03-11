@@ -2,6 +2,7 @@ use crate::Id;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use std::fmt;
 
 /// User table metadata response.
 #[derive(Serialize, FromRow)]
@@ -10,11 +11,6 @@ pub struct Table {
     pub user_id: Id,
     pub name: String,
     pub description: String,
-    
-    /// Private database identifier
-    #[serde(skip)]
-    pub data_table_name: String,
-
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -26,10 +22,27 @@ pub struct CreateTable {
     pub description: String,
 }
 
-
 /// Update table request.
 #[derive(Deserialize)]
 pub struct UpdateTable {
     pub name: String,
     pub description: String,
+}
+
+pub struct TableIdentifier {
+    table_id: Id,
+    schema: String,
+}
+impl TableIdentifier {
+    pub fn new(table_id: Id, schema: &str) -> Self {
+        Self {
+            table_id,
+            schema: schema.to_string(),
+        }
+    }
+}
+impl fmt::Display for TableIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, r#""{}".t{}"#, self.schema, self.table_id)
+    }
 }

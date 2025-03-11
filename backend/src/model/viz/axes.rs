@@ -1,11 +1,10 @@
+use std::fmt;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use crate::{
-    model::data::{Field, FieldKind},
-    Id,
-};
+use crate::{model::data::FieldKind, Id};
 
 #[derive(Serialize, Deserialize, FromRow)]
 pub struct Axis {
@@ -14,8 +13,6 @@ pub struct Axis {
     pub field_id: Id,
     pub axis_kind: AxisKind,
     pub aggregate: Option<Aggregate>,
-    #[serde(skip)]
-    pub data_item_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -78,3 +75,16 @@ pub struct SetAxes {
     pub axes: Vec<CreateAxis>,
 }
 
+pub struct AxisIdentifier {
+    axis_id: Id,
+}
+impl AxisIdentifier {
+    pub fn new(axis_id: Id) -> Self {
+        Self { axis_id }
+    }
+}
+impl fmt::Display for AxisIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, r#""a{}""#, self.axis_id)
+    }
+}
