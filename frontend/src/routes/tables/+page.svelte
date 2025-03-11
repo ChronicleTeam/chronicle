@@ -2,12 +2,7 @@
   import type { Table } from "$lib/types.d.js";
   import DataTable from "./DataTable.svelte";
   import FieldEditor from "./FieldEditor.svelte";
-  import {
-    getTables,
-    postTable,
-    deleteTable,
-    type APIError,
-  } from "$lib/api.js";
+  import { getTables, postTable, deleteTable, type APIError } from "$lib/api";
 
   //
   // Constants
