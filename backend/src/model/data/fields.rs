@@ -99,15 +99,11 @@ pub struct CreateField {
 #[derive(Deserialize)]
 pub struct UpdateField {
     pub name: String,
-    pub ordering: i32,
     pub field_kind: FieldKind,
 }
 
 #[derive(Deserialize)]
-pub struct SetFieldOrdering {
-    pub order: HashMap<Id, i32>,
-}
-
+pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
 #[derive(FromRow)]
 pub struct FieldMetadata {

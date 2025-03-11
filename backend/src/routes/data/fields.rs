@@ -1,14 +1,16 @@
+use std::collections::HashSet;
+
 use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateField, Field, FieldKind, SetFieldOrdering, UpdateField},
+    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
     Id,
 };
 use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{patch, post, put},
     Json, Router,
 };
 use itertools::Itertools;
@@ -23,12 +25,13 @@ pub fn router() -> Router<ApiState> {
     Router::new()
         .route(
             "/tables/{table_id}/fields",
-            post(create_field).get(get_fields).patch(set_field_ordering),
+            post(create_field).get(get_fields),
         )
         .route(
             "/tables/{table_id}/fields/{field_id}",
             put(update_field).delete(delete_field),
         )
+        .route("/tables/{table-id}/fields/order", patch(set_field_order))
 }
 
 /// Create a field in a table.
@@ -141,10 +144,10 @@ async fn get_fields(
     Ok(Json(fields))
 }
 
-async fn set_field_ordering(
+async fn set_field_order(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
-    SetFieldOrdering { order }: SetFieldOrdering,
+    Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
@@ -152,12 +155,12 @@ async fn set_field_ordering(
         .await?
         .to_api_result()?;
 
-    let field_ids = db::get_field_ids(&pool, table_id).await?;
+    let field_ids: HashSet<_> = db::get_field_ids(&pool, table_id).await?.into_iter().collect();
 
-    let error_messages = field_ids
-        .into_iter()
+    let error_messages = order
+        .keys()
         .filter_map(|field_id| {
-            if order.get(&field_id) == None {
+            if field_ids.get(field_id) == None {
                 Some(ErrorMessage::new(field_id.to_string(), FIELD_ID_NOT_FOUND))
             } else {
                 None
@@ -169,9 +172,9 @@ async fn set_field_ordering(
         return Err(ApiError::unprocessable_entity(error_messages));
     }
 
-    db::set_field_ordering(&pool, table_id)
+    db::set_field_order(&pool, order).await?;
 
-    todo!()
+    Ok(())
 }
 
 /// Validates [`FieldKind`] from requests.

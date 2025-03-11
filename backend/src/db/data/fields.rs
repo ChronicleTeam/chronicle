@@ -1,14 +1,14 @@
 use super::Relation;
 use crate::{
     model::data::{
-        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, SetFieldOrdering,
+        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata,
         TableIdentifier, UpdateField,
     },
     Id,
 };
 use itertools::Itertools;
 use sqlx::{types::Json, Acquire, PgExecutor, Postgres};
-use std::mem::discriminant;
+use std::{collections::HashMap, mem::discriminant};
 
 pub async fn create_field(
     conn: impl Acquire<'_, Database = Postgres>,
@@ -60,7 +60,6 @@ pub async fn update_field(
     field_id: Id,
     UpdateField {
         name,
-        ordering,
         field_kind,
     }: UpdateField,
 ) -> sqlx::Result<Field> {
@@ -149,6 +148,7 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
                 created_at,
                 updated_at
@@ -174,9 +174,9 @@ pub async fn get_field_ids(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx:
     .await
 }
 
-pub async fn set_field_ordering(
+pub async fn set_field_order(
     conn: impl Acquire<'_, Database = Postgres>,
-    SetFieldOrdering { order }: SetFieldOrdering,
+    order: HashMap<Id, i32>,
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
 
