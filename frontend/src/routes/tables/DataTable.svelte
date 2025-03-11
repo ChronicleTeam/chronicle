@@ -28,7 +28,7 @@
     putEntry,
     deleteEntry,
     type APIError,
-  } from "$lib/api.js";
+  } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   let { table_prop } = $props();

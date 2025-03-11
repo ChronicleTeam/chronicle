@@ -29,7 +29,7 @@
     putField,
     deleteField,
     type APIError,
-  } from "$lib/api.js";
+  } from "$lib/api";
 
   let { table_prop, on_save, delete_table } = $props();
 
