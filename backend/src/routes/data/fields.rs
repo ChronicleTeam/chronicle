@@ -20,6 +20,8 @@ const INVALID_RANGE: ErrorMessage =
 const FIELD_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Field name already used for this table");
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
+const FIELD_ID_MISSING: &str = "Field ID missing";
+const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
 pub fn router() -> Router<ApiState> {
     Router::new()
@@ -155,18 +157,32 @@ async fn set_field_order(
         .await?
         .to_api_result()?;
 
-    let field_ids: HashSet<_> = db::get_field_ids(&pool, table_id).await?.into_iter().collect();
+    let mut field_ids: HashSet<_> = db::get_field_ids(&pool, table_id)
+        .await?
+        .into_iter()
+        .collect();
 
-    let error_messages = order
-        .keys()
-        .filter_map(|field_id| {
-            if field_ids.get(field_id) == None {
-                Some(ErrorMessage::new(field_id.to_string(), FIELD_ID_NOT_FOUND))
+    let mut error_messages = order
+        .iter()
+        .sorted_by_key(|(_, ordering)| **ordering)
+        .enumerate()
+        .filter_map(|(idx, (field_id, ordering))| {
+            let key = field_id.to_string();
+            if !field_ids.remove(field_id) {
+                Some(ErrorMessage::new(key, FIELD_ID_NOT_FOUND))
+            } else if idx as i32 + 1 != *ordering {
+                Some(ErrorMessage::new(key, INVALID_ORDERING))
             } else {
                 None
             }
         })
         .collect_vec();
+
+    error_messages.extend(
+        field_ids
+            .into_iter()
+            .map(|field_id| ErrorMessage::new(field_id.to_string(), FIELD_ID_MISSING)),
+    );
 
     if error_messages.len() > 0 {
         return Err(ApiError::unprocessable_entity(error_messages));
