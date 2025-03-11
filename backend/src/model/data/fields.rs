@@ -12,6 +12,7 @@ pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
     pub name: String,
+    pub ordering: i32,
     pub field_kind: Json<FieldKind>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -98,8 +99,15 @@ pub struct CreateField {
 #[derive(Deserialize)]
 pub struct UpdateField {
     pub name: String,
+    pub ordering: i32
     pub field_kind: FieldKind,
 }
+
+#[derive(Deserialize)]
+pub struct SetFieldOrdering {
+    pub order: HashMap<Id, i32>,
+}
+
 
 #[derive(FromRow)]
 pub struct FieldMetadata {

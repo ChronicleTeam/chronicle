@@ -5,6 +5,7 @@ CREATE TABLE meta_field (
     field_id SERIAL PRIMARY KEY,
     table_id INT NOT NULL REFERENCES meta_table(table_id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    ordering INT NOT NULL,
     field_kind JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ,

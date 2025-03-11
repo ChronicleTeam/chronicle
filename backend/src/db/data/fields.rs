@@ -21,6 +21,7 @@ pub async fn create_field(
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
                 created_at,
                 updated_at
@@ -53,7 +54,7 @@ pub async fn create_field(
 pub async fn update_field(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
-    UpdateField { name, field_kind }: UpdateField,
+    UpdateField { name, ordering, field_kind }: UpdateField,
 ) -> sqlx::Result<Field> {
     let mut tx = conn.begin().await?;
 
@@ -82,6 +83,7 @@ pub async fn update_field(
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
                 created_at,
                 updated_at

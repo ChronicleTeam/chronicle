@@ -2,7 +2,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateField, Field, FieldKind, UpdateField},
+    model::data::{CreateField, Field, FieldKind, SetFieldOrdering, UpdateField},
     Id,
 };
 use anyhow::anyhow;
@@ -21,7 +21,7 @@ pub fn router() -> Router<ApiState> {
     Router::new()
         .route(
             "/tables/{table_id}/fields",
-            post(create_field).get(get_fields),
+            post(create_field).get(get_fields).patch(set_fields_ordering),
         )
         .route(
             "/tables/{table_id}/fields/{field_id}",
