@@ -10,6 +10,7 @@ async fn main() -> anyhow::Result<()> {
     setup_tracing();
 
     // Load database URL from .env for development
+    #[cfg(debug_assertions)]
     dotenvy::dotenv().ok();
 
     // Parse configs from environment variables
