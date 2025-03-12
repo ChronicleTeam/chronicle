@@ -232,6 +232,7 @@
 
   const loadTable = () => {
     getDataTable(table_prop).then((response: DataTable) => {
+      response.fields.sort((f, g) => f.ordering - g.ordering);
       table = response;
     });
   };

@@ -19,6 +19,7 @@ export type Field = {
   user_id: number;
   field_id: number;
   name: string;
+  ordering: number;
   field_kind: FieldKind;
   updated_at?: Date;
 };
