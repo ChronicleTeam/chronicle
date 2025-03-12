@@ -26,12 +26,15 @@ const INVALID_TYPE: &str = "Value is not the correct type";
 const INVALID_FIELD_ID: &str = "Field ID key is invalid";
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route("/tables/{table_id}/entries", post(create_entry))
-        .route(
-            "/tables/{table_id}/entries/{entry_id}",
-            put(update_entry).delete(delete_entry),
-        )
+    Router::new().nest(
+        "/tables/{table-id}/entries",
+        Router::new()
+            .route("/", post(create_entry))
+            .route(
+                "/{entry-id}",
+                put(update_entry).delete(delete_entry),
+            ),
+    )
 }
 
 /// Create an entry in a table.
@@ -196,9 +199,9 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
             FieldKind::Float {
                 range_start,
                 range_end,
-                scientific_notation,
-                number_precision,
-                number_scale,
+                // scientific_notation,
+                // number_precision,
+                // number_scale,
                 ..
             },
         ) => {
@@ -240,7 +243,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
             FieldKind::DateTime {
                 range_start,
                 range_end,
-                date_time_format,
+                // date_time_format,
                 ..
             },
         ) => {

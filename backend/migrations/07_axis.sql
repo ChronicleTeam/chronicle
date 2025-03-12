@@ -18,7 +18,7 @@ CREATE TYPE axis_kind AS ENUM (
 
 CREATE TABLE axis (
     axis_id SERIAL PRIMARY KEY,
-    chart_id INT NOT NULL REFERENCES chart(chart_id),
+    chart_id INT NOT NULL REFERENCES chart(chart_id) ON DELETE CASCADE,
     field_id INT NOT NULL REFERENCES meta_field(field_id),
     axis_kind axis_kind NOT NULL,
     aggregate aggregate,

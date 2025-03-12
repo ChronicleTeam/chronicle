@@ -21,16 +21,16 @@ const FIELD_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("field_id", "Fiel
 const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
 pub fn router() -> Router<ApiState> {
-    Router::new().route(
+    Router::new().nest(
         "/dashboards/{dashboard-id}/charts/{chart-id}/axes",
-        put(set_axes),
+        Router::new().route("/", put(set_axes)),
     )
 }
 
 async fn set_axes(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
-    Json(set_axes): Json<SetAxes>,
+    Json(SetAxes(axes)): Json<SetAxes>,
 ) -> ApiResult<Json<Vec<Axis>>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
@@ -42,18 +42,19 @@ async fn set_axes(
         .await?
         .to_api_result()?;
 
-    db::check_table_relation(&pool, user_id, set_axes.table_id)
+    let table_id = db::get_chart_table_id(&pool, chart_id).await?;
+
+    db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let mut field_kinds: HashMap<_, _> = db::get_fields_metadata(&pool, set_axes.table_id)
+    let mut field_kinds: HashMap<_, _> = db::get_fields_metadata(&pool, table_id)
         .await?
         .into_iter()
         .map(|field| (field.field_id, field.field_kind))
         .collect();
 
-    let create_axes = set_axes
-        .axes
+    let axes = axes
         .into_iter()
         .map(|axis| {
             let field_kind = field_kinds
@@ -74,7 +75,7 @@ async fn set_axes(
         })
         .try_collect()?;
 
-    let axes = db::set_axes(&pool, chart_id, set_axes.table_id, create_axes).await?;
+    let axes = db::set_axes(&pool, chart_id, table_id, axes).await?;
 
     Ok(Json(axes))
 }

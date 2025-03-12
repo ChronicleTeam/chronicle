@@ -8,6 +8,7 @@ CREATE TYPE chart_kind AS ENUM (
 CREATE TABLE chart (
     chart_id SERIAL PRIMARY KEY,
     dashboard_id INT NOT NULL REFERENCES dashboard(dashboard_id),
+    table_id INT NOT NULL REFERENCES meta_table(table_id),
     title TEXT COLLATE case_insensitive NOT NULL,
     chart_kind chart_kind NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -7,7 +7,7 @@ use crate::{
 };
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{patch, post},
     Json, Router,
 };
 
@@ -15,12 +15,15 @@ const DASHBOARD_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Dashboard name already used");
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route("/dashboards", post(create_dashboard).get(get_dashboards))
-        .route(
-            "/dashboards/{dashboard-id}",
-            put(update_dashboard).delete(delete_dashboard),
-        )
+    Router::new().nest(
+        "/dashboards",
+        Router::new()
+            .route("/", post(create_dashboard).get(get_dashboards))
+            .route(
+                "/{dashboard-id}",
+                patch(update_dashboard).delete(delete_dashboard),
+            ),
+    )
 }
 
 async fn create_dashboard(
@@ -68,7 +71,7 @@ async fn delete_dashboard(
         .await?
         .to_api_result()?;
 
-    _ = db::delete_dashboard(&pool, dashboard_id).await?;
+    db::delete_dashboard(&pool, dashboard_id).await?;
 
     Ok(())
 }

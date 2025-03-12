@@ -2,12 +2,12 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateTable, Table, UpdateTable},
+    model::data::{CreateTable, Table, TableData, UpdateTable},
     Id,
 };
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{get, post, put},
     Json, Router,
 };
 
@@ -15,9 +15,13 @@ const TABLE_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Table name already used");
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route("/tables", post(create_table).get(get_tables))
-        .route("/tables/{table_id}", put(update_table).delete(delete_table))
+    Router::new().nest(
+        "/tables",
+        Router::new()
+            .route("/", post(create_table).get(get_tables))
+            .route("/{table-id}", put(update_table).delete(delete_table))
+            .route("/{table-id}/data", get(get_table_data)),
+    )
 }
 
 /// Create an empty user table.
@@ -100,4 +104,21 @@ async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<
 
     let tables = db::get_tables(&pool, user_id).await?;
     Ok(Json(tables))
+}
+
+/// Get all the meta data, fields, and entries of a table.
+///
+/// Used for displaying the table in the user interface.
+async fn get_table_data(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<Json<TableData>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let data_table = db::get_table_data(&pool, table_id).await?;
+
+    Ok(Json(data_table))
 }

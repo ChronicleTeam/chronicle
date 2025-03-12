@@ -1,5 +1,6 @@
-use super::{entry_from_row, field_columns, Relation};
+use super::{entry_from_row, field_columns};
 use crate::{
+    db::Relation,
     model::{
         data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},
         Cell,
@@ -126,7 +127,6 @@ pub async fn check_entry_relation(
     table_id: Id,
     entry_id: Id,
 ) -> sqlx::Result<Relation> {
-
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
     Ok(sqlx::query(&format!(

@@ -22,16 +22,13 @@ const FIELD_NAME_CONFLICT: ErrorMessage =
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/tables/{table_id}/fields",
-            post(create_field).get(get_fields),
-        )
-        .route(
-            "/tables/{table_id}/fields/{field_id}",
-            put(update_field).delete(delete_field),
-        )
-        .route("/tables/{table-id}/fields/order", patch(set_field_order))
+    Router::new().nest(
+        "/tables/{table-id}/fields",
+        Router::new()
+            .route("/", post(create_field).get(get_fields))
+            .route("/{field_id}", put(update_field).delete(delete_field))
+            .route("/order", patch(set_field_order)),
+    )
 }
 
 /// Create a field in a table.
@@ -155,7 +152,10 @@ async fn set_field_order(
         .await?
         .to_api_result()?;
 
-    let field_ids: HashSet<_> = db::get_field_ids(&pool, table_id).await?.into_iter().collect();
+    let field_ids: HashSet<_> = db::get_field_ids(&pool, table_id)
+        .await?
+        .into_iter()
+        .collect();
 
     let error_messages = order
         .keys()
