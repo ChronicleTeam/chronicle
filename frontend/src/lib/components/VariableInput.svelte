@@ -3,11 +3,11 @@
   import type { ClassValue } from "svelte/elements";
 
   let {
-    params,
-    disabled = false,
-    id,
-    class: innerClass = "",
-    onclick,
+    params, // Controls input type, certain attributes, and behaviour
+    disabled = false, // maps to input disabled attribute
+    id, // maps to id attribute
+    class: innerClass = "", // maps to class attribute
+    onclick, // maps to onclick attribute
   }: {
     params: InputParameters;
     disabled?: boolean;
@@ -23,14 +23,17 @@
   >
 {/if}
 {#if params.type === "select"}
+  {@const opts = Array.isArray(params.selectOptions)
+    ? params.selectOptions.map((o) => [o, o])
+    : Object.entries(params.selectOptions)}
   <select
     {disabled}
     {id}
     bind:value={params.bindGetter, params.bindSetter}
     {onclick}
   >
-    {#each params.selectOptions as opt}
-      <option>{opt}</option>
+    {#each opts as opt}
+      <option value={opt[0]}>{opt[1]}</option>
     {/each}
   </select>
 {:else if params.type === "textarea"}

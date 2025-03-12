@@ -1,20 +1,15 @@
-use crate::{model::CellMap, Id};
+use crate::Id;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use std::collections::HashMap;
-
-use super::{AxisData, CreateAxis};
+use std::fmt;
 
 #[derive(Serialize, FromRow)]
 pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
-    pub table_id: Id,
     pub title: String,
     pub chart_kind: ChartKind,
-    #[serde(skip)]
-    pub data_view_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -29,15 +24,31 @@ pub enum ChartKind {
 
 #[derive(Deserialize)]
 pub struct CreateChart {
-    pub table_id: Id,
     pub title: String,
     pub chart_kind: ChartKind,
-    pub axes: Vec<CreateAxis>,
 }
 
-#[derive(Serialize)]
-pub struct ChartData {
-    pub chart: Chart,
-    pub axis_data_map: HashMap<Id, AxisData>,
-    pub cells: Vec<CellMap>,
+// #[derive(Serialize)]
+// pub struct ChartData {
+//     pub chart: Chart,
+//     pub axis_data_map: HashMap<Id, AxisData>,
+//     pub cells: Vec<CellMap>,
+// }
+
+pub struct ChartIdentifier {
+    chart_id: Id,
+    schema: String,
+}
+impl ChartIdentifier {
+    pub fn new(chart_id: Id, schema: &str) -> Self {
+        Self {
+            chart_id,
+            schema: schema.to_string(),
+        }
+    }
+}
+impl fmt::Display for ChartIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, r#""{}"."c{}""#, self.schema, self.chart_id)
+    }
 }

@@ -2,7 +2,10 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage},
-    model::{data::{CreateEntry, Entry, Field, FieldKind, UpdateEntry}, Cell, CellMap},
+    model::{
+        data::{CreateEntry, Entry, FieldKind, FieldMetadata, UpdateEntry},
+        Cell,
+    },
     Id,
 };
 use axum::{
@@ -32,17 +35,17 @@ pub fn router() -> Router<ApiState> {
 }
 
 /// Create an entry in a table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table 
+/// - [`ApiError::Forbidden`]: User does not have access to that table
 /// - [`ApiError::NotFound`]: Table not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`IS_REQUIRED`]
 ///     - [`INVALID_TYPE`]
 ///     - [`ENUMERATION_VALUE_MISSING`]
 ///     - [`INVALID_FIELD_ID`]
-/// 
+///
 async fn create_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
@@ -53,7 +56,7 @@ async fn create_entry(
         .await?
         .to_api_result()?;
 
-    let fields = db::get_fields(&pool, table_id).await?;
+    let fields = db::get_fields_metadata(&pool, table_id).await?;
 
     let entry = convert_entry(entry, fields)?;
 
@@ -63,17 +66,17 @@ async fn create_entry(
 }
 
 /// Update an entry in a table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table 
+/// - [`ApiError::Forbidden`]: User does not have access to that table
 /// - [`ApiError::NotFound`]: Table or entry not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`IS_REQUIRED`]
 ///     - [`INVALID_TYPE`]
 ///     - [`ENUMERATION_VALUE_MISSING`]
 ///     - [`INVALID_FIELD_ID`]
-/// 
+///
 async fn update_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
@@ -87,7 +90,7 @@ async fn update_entry(
         .await?
         .to_api_result()?;
 
-    let fields = db::get_fields(&pool, table_id).await?;
+    let fields = db::get_fields_metadata(&pool, table_id).await?;
 
     let entry = convert_entry(entry, fields)?;
 
@@ -96,14 +99,13 @@ async fn update_entry(
     Ok(Json(entry))
 }
 
-
 /// Delete an entry from a table.
-/// 
+///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table 
+/// - [`ApiError::Forbidden`]: User does not have access to that table
 /// - [`ApiError::NotFound`]: Table or entry not found
-/// 
+///
 async fn delete_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
@@ -125,22 +127,18 @@ async fn delete_entry(
 /// performs validation on each value in the entry.
 fn convert_entry(
     mut entry: HashMap<Id, Value>,
-    fields: Vec<Field>,
-) -> ApiResult<CellMap> {
-    let (new_entry, mut error_messages): (HashMap<_, _>, Vec<_>) = fields
-        .iter()
-        .map(
-            |Field {
-                 field_id,
-                 field_kind,
-                 ..
-             }| {
-                let json_value = entry.remove(field_id).unwrap_or(Value::Null);
-                json_to_cell(json_value, field_kind)
-                    .map(|cell| (*field_id, cell))
-                    .map_err(|message| ErrorMessage::new(field_id.to_string(), message))
-            },
-        )
+    fields: Vec<FieldMetadata>,
+) -> ApiResult<Vec<(Option<Cell>, FieldMetadata)>> {
+    let (new_entry, mut error_messages): (Vec<_>, Vec<_>) = fields
+        .into_iter()
+        .map(|field| {
+            let json_value = entry.remove(&field.field_id).unwrap_or(Value::Null);
+            Ok((
+                json_to_cell(json_value, &field.field_kind)
+                    .map_err(|message| ErrorMessage::new(field.field_id.to_string(), message))?,
+                field,
+            ))
+        })
         .partition_result();
 
     error_messages.extend(
@@ -156,8 +154,7 @@ fn convert_entry(
     Ok(new_entry)
 }
 
-
-/// Converts a JSON value to a [`Cell`] and returns the 
+/// Converts a JSON value to a [`Cell`] and returns the
 /// correct error message on failure.
 fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'static str> {
     match (value, field_kind) {
@@ -254,7 +251,6 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 Err(INVALID_TYPE)
             }
         }
-        (_, FieldKind::Interval { .. }) => todo!(),
         (
             Value::String(value),
             FieldKind::Text { .. } | FieldKind::WebLink { .. } | FieldKind::Email { .. },

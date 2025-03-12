@@ -1,3 +1,26 @@
+//! This module is responsible for building the application [`Router`] 
+//! and defining the logic of all route handlers to create a REST API.
+//! 
+//! Routes represent ressources on which CRUD opertions are performed.
+//! 
+//! HTTP methods map to different operations like this:
+//! - POST: Create
+//! - GET: Read
+//! - PUT: Update
+//! - DELETE: Delete
+//! 
+//! See [`crate::error::ApiError`] for the errors that can be returned from the API.
+//! 
+//! Handlers have only the following responsability
+//! - Validating the input request.
+//! - Calling database functions from [`crate::db`].
+//! - Returning the output response.
+//! 
+//! Handlers should not be concerned with creating SQL queries
+//! and should validate every possible input. Fortunately, Axum
+//! and Rust allow for strict types which reduce the amount of validation
+//! necessary.
+
 mod data;
 mod users;
 mod viz;
@@ -7,7 +30,7 @@ mod tests;
 
 use crate::config::Config;
 use anyhow::Result;
-use axum::Router;
+use axum::{Router};
 use sqlx::PgPool;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;

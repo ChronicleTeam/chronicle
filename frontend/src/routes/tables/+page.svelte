@@ -2,12 +2,7 @@
   import type { Table } from "$lib/types.d.js";
   import DataTable from "./DataTable.svelte";
   import FieldEditor from "./FieldEditor.svelte";
-  import {
-    getTables,
-    postTable,
-    deleteTable,
-    type APIError,
-  } from "$lib/api.js";
+  import { getTables, postTable, deleteTable, type APIError } from "$lib/api";
 
   //
   // Constants
@@ -71,7 +66,7 @@
   };
 </script>
 
-<div class="flex flex-wrap gap-4 p-4 size-full items-stretch">
+<div class="flex flex-wrap gap-4 size-full items-stretch">
   <!-- Sidebar -->
   <div class="basis-[12rem] grow bg-gray-200 rounded-lg p-3">
     <!-- Table list -->
@@ -86,7 +81,7 @@
               curTable = t;
               editMode = EditMode.TABLE;
             }}
-            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-md p-2"
+            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-xl p-2 mb-2"
             >{t.name}</button
           >
         {/each}

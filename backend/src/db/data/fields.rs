@@ -1,17 +1,21 @@
 use super::Relation;
 use crate::{
-    model::data::{CreateField, Field, FieldKind, UpdateField},
+    model::data::{
+        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata,
+        TableIdentifier, UpdateField,
+    },
     Id,
 };
+use itertools::Itertools;
 use sqlx::{types::Json, Acquire, PgExecutor, Postgres};
-use std::mem::discriminant;
+use std::{collections::HashMap, mem::discriminant};
 
 pub async fn create_field(
-    connection: impl Acquire<'_, Database = Postgres>,
+    conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     CreateField { name, field_kind }: CreateField,
 ) -> sqlx::Result<Field> {
-    let mut tx = connection.begin().await?;
+    let mut tx = conn.begin().await?;
 
     let field: Field = sqlx::query_as(
         r#"
@@ -21,8 +25,8 @@ pub async fn create_field(
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
-                data_field_name,
                 created_at,
                 updated_at
         "#,
@@ -33,25 +37,14 @@ pub async fn create_field(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let data_table_name: String = sqlx::query_scalar(
-        r#"
-            SELECT data_table_name
-            FROM meta_table
-            WHERE table_id = $1
-        "#,
-    )
-    .bind(table_id)
-    .fetch_one(tx.as_mut())
-    .await?;
-
     let column_type = field_kind.get_sql_type();
-
-    let data_field_name = &field.data_field_name;
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+    let field_ident = FieldIdentifier::new(field.field_id);
 
     sqlx::query(&format!(
         r#"
-            ALTER TABLE {data_table_name}
-            ADD COLUMN {data_field_name} {column_type}
+            ALTER TABLE {table_ident}
+            ADD COLUMN {field_ident} {column_type}
         "#,
     ))
     .execute(tx.as_mut())
@@ -63,11 +56,14 @@ pub async fn create_field(
 }
 
 pub async fn update_field(
-    connection: impl Acquire<'_, Database = Postgres>,
+    conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
-    UpdateField { name, field_kind }: UpdateField,
+    UpdateField {
+        name,
+        field_kind,
+    }: UpdateField,
 ) -> sqlx::Result<Field> {
-    let mut tx = connection.begin().await?;
+    let mut tx = conn.begin().await?;
 
     let Json(old_field_kind): Json<FieldKind> = sqlx::query_scalar(
         r#"
@@ -94,8 +90,8 @@ pub async fn update_field(
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
-                data_field_name,
                 created_at,
                 updated_at
         "#,
@@ -112,39 +108,29 @@ pub async fn update_field(
 }
 
 pub async fn delete_field(
-    connection: impl Acquire<'_, Database = Postgres>,
+    conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
 ) -> sqlx::Result<()> {
-    let mut tx = connection.begin().await?;
+    let mut tx = conn.begin().await?;
 
-    let data_table_name: String = sqlx::query_scalar(
-        r#"
-            SELECT data_table_name
-            FROM meta_table AS t
-            JOIN meta_field AS f
-            ON t.table_id = f.table_id
-            WHERE field_id = $1
-        "#,
-    )
-    .bind(field_id)
-    .fetch_one(tx.as_mut())
-    .await?;
-
-    let data_field_name: String = sqlx::query_scalar(
+    let table_id = sqlx::query_scalar(
         r#"
             DELETE FROM meta_field
             WHERE field_id = $1
-            RETURNING data_field_name
+            RETURNING table_id
         "#,
     )
     .bind(field_id)
     .fetch_one(tx.as_mut())
     .await?;
 
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+    let field_ident = FieldIdentifier::new(field_id);
+
     sqlx::query(&format!(
         r#"
-            ALTER TABLE {data_table_name}
-            DROP COLUMN {data_field_name} CASCADE
+            ALTER TABLE {table_ident}
+            DROP COLUMN {field_ident}
         "#,
     ))
     .execute(tx.as_mut())
@@ -162,10 +148,69 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
                 field_id,
                 table_id,
                 name,
+                ordering,
                 field_kind,
-                data_field_name,
                 created_at,
                 updated_at
+            FROM meta_field
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await
+}
+
+pub async fn get_field_ids(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<Id>> {
+    sqlx::query_scalar(
+        r#"
+            SELECT field_id
+            FROM meta_field
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await
+}
+
+pub async fn set_field_order(
+    conn: impl Acquire<'_, Database = Postgres>,
+    order: HashMap<Id, i32>,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    sqlx::query(
+        r#"
+            UPDATE meta_field AS f
+            SET ordering = n.ordering
+            FROM (
+                SELECT
+                    unnest($1::int[]) AS field_id,
+                    unnest($2::int[]) AS ordering
+            ) AS n
+            WHERE f.field_id = n.field_id
+        "#,
+    )
+    .bind(order.keys().collect_vec())
+    .bind(order.values().collect_vec())
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn get_fields_metadata(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<Vec<FieldMetadata>> {
+    sqlx::query_as(
+        r#"
+            SELECT
+                field_id,
+                field_kind
             FROM meta_field
             WHERE table_id = $1
         "#,

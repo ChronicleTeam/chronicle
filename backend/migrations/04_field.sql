@@ -3,36 +3,49 @@ A field in a user table. Contains JSON options under field_kind. See src/model/d
 */
 CREATE TABLE meta_field (
     field_id SERIAL PRIMARY KEY,
-    table_id INT NOT NULL REFERENCES meta_table(table_id) ON DELETE CASCADE,
+    table_id INT NOT NULL REFERENCES meta_table (table_id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    ordering INT,
     field_kind JSONB NOT NULL,
-    data_field_name TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ,
     UNIQUE (table_id, name)
 );
 
-SELECT trigger_updated_at('meta_field');
+SELECT trigger_updated_at ('meta_field');
 
-/*
-data_field_name is the name of the actual column name in postgres 
-and it is set dynamically to prevent injection.
-This should never be sent to the front-end.
-*/
-CREATE OR REPLACE FUNCTION set_data_field_name()
-RETURNS TRIGGER AS
-$$
-DECLARE
-    field_count INTEGER;
+CREATE OR REPLACE FUNCTION set_default_ordering()
+RETURNS TRIGGER AS $$
 BEGIN
-    NEW.data_field_name := 'f' || NEW.field_id;
+    IF NEW.ordering IS NULL THEN
+        SELECT COALESCE(MAX(ordering), 0) + 1
+        INTO NEW.ordering
+        FROM meta_field
+        WHERE table_id = NEW.table_id;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-
-CREATE TRIGGER trigger_data_field_name
+CREATE TRIGGER trigger_set_default_ordering
 BEFORE INSERT ON meta_field
 FOR EACH ROW
-WHEN (NEW.data_field_name IS NULL)
-EXECUTE FUNCTION set_data_field_name();
+EXECUTE FUNCTION set_default_ordering();
+
+CREATE OR REPLACE FUNCTION decrement_orderings()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE meta_field
+    SET ordering = ordering - 1
+    WHERE table_id = OLD.table_id
+        AND ordering > OLD.ordering;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_decrement_orderings
+BEFORE DELETE ON meta_field
+FOR EACH ROW
+EXECUTE FUNCTION decrement_orderings();

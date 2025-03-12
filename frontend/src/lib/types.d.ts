@@ -2,7 +2,7 @@
 export enum FieldType {
   Text = "Text",
   Integer = "Integer",
-  Decimal = "Decimal",
+  Decimal = "Float",
   Money = "Money",
   Progress = "Progress",
   DateTime = "DateTime",
@@ -19,6 +19,7 @@ export type Field = {
   user_id: number;
   field_id: number;
   name: string;
+  ordering: number;
   field_kind: FieldKind;
   updated_at?: Date;
 };
@@ -113,6 +114,17 @@ export type FieldKind =
   | EnumerationKind
   | ImageKind
   | FileKind;
+
+export const typeToStr = (t: FieldType): string => {
+  switch(t){
+    case FieldType.Decimal:
+      return "Decimal";
+    case FieldType.DateTime:
+      return "Date Time";
+    default:
+      return t;
+  }
+}
 
 // Data table
 export type Table = {
@@ -228,7 +240,7 @@ export type InputParameters =
   | {
     label: string;
     type: "select";
-    selectOptions: string[];
+    selectOptions: string[] | {[key: string | number]: string};
     bindSetter: (val: any) => void;
     bindGetter: () => string | boolean | number;
     min?: undefined;
@@ -254,3 +266,33 @@ export type InputParameters =
     step?: undefined;
   };
 
+// Charts
+export type Chart = {
+  chart_id: number;
+  dashboard_id: number;
+  title: string;
+  chart_kind: ChartKind;
+}
+
+export enum ChartKind {
+  Table = "Table",
+  Bar = "Bar",
+  Line = "Line"
+}
+
+export type Axis = {
+  axis_id: number;
+  chart_id: number;
+  field_id: number;
+  axis_kind: AxisKind;
+}
+
+export enum AxisKind {
+  X = "X",
+  Y = "Y",
+  Color = "Color",
+  Size = "Size",
+  Tooltip = "Tooltip",
+  Label = "Label",
+  Detail = "Detail",
+}

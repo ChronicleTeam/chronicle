@@ -15,6 +15,11 @@ curl -X POST $ADDR/tables/1/fields \
     -H "Content-Type: application/json" \
     -d '{"name": "Field 2", "field_kind": {"type": "Integer", "is_required": true}}'
 
+curl -X PATCH $ADDR/tables/1/fields/order \
+    -H "Content-Type: application/json" \
+    -d '{"1": 1, "2": 2}'
+
+
 set json '{
     "name": "Enum field",
     "field_kind": {
@@ -27,6 +32,19 @@ set json '{
         },
         "default_value": 1
     }
+}'
+
+set json '{
+  "name": "Field 13233333",
+  "field_kind": {
+    "type": "Float",
+    "is_required": true,
+    "range_start": 10,
+    "range_end": 100,
+    "scientific_notation": false,
+    "number_scale": 2,
+    "number_precision": 6
+  }
 }'
 
 curl -X POST $ADDR/tables/1/fields \
@@ -43,36 +61,8 @@ curl -X PUT $ADDR/tables/1/entries/1 \
     -H "Content-Type: application/json" \
     -d '{"1": "New text", "2": 666}'
 
-curl -X DELETE $ADDR/tables/1/entries/1
-
-curl -X DELETE $ADDR/tables/1/fields/1
-
-curl -X DELETE $ADDR/tables/1
-
 curl -X GET $ADDR/tables/1/data
 
-
-set json '{
-    "table_id": 1,
-    "title": "Test chart",
-    "chart_kind": "Bar",
-    "axes": [
-        {
-            "field_id": 1,
-            "axis_kind": "X",
-            "aggregate": null
-        },
-        {
-            "field_id": 2,
-            "axis_kind": "Y",
-            "aggregate": "Sum"
-        }
-    ]
-}'
-
-curl -X POST $ADDR/dashboards/1/charts \
-    -H "Content-Type: application/json" \
-    -d "$json"
 
 
 curl -X POST $ADDR/tables/1/entries \
@@ -117,6 +107,3 @@ curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
     -d '{"1": "c3", "2": 321}'
 
-curl -X POST $ADDR/dashboards \
-    -H "Content-Type: application/json" \
-    -d '{"name": "Test dashboard", "description": "Some description"}'

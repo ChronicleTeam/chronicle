@@ -1,21 +1,25 @@
+use std::collections::HashSet;
+
 use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    model::data::{CreateField, Field, FieldKind, UpdateField},
+    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
     Id,
 };
 use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{patch, post, put},
     Json, Router,
 };
+use itertools::Itertools;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
 const FIELD_NAME_CONFLICT: ErrorMessage =
     ErrorMessage::new_static("name", "Field name already used for this table");
+const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 
 pub fn router() -> Router<ApiState> {
     Router::new()
@@ -27,6 +31,7 @@ pub fn router() -> Router<ApiState> {
             "/tables/{table_id}/fields/{field_id}",
             put(update_field).delete(delete_field),
         )
+        .route("/tables/{table-id}/fields/order", patch(set_field_order))
 }
 
 /// Create a field in a table.
@@ -139,6 +144,39 @@ async fn get_fields(
     Ok(Json(fields))
 }
 
+async fn set_field_order(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+    Json(SetFieldOrder(order)): Json<SetFieldOrder>,
+) -> ApiResult<()> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let field_ids: HashSet<_> = db::get_field_ids(&pool, table_id).await?.into_iter().collect();
+
+    let error_messages = order
+        .keys()
+        .filter_map(|field_id| {
+            if field_ids.get(field_id) == None {
+                Some(ErrorMessage::new(field_id.to_string(), FIELD_ID_NOT_FOUND))
+            } else {
+                None
+            }
+        })
+        .collect_vec();
+
+    if error_messages.len() > 0 {
+        return Err(ApiError::unprocessable_entity(error_messages));
+    }
+
+    db::set_field_order(&pool, order).await?;
+
+    Ok(())
+}
+
 /// Validates [`FieldKind`] from requests.
 fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     match field_kind {
@@ -172,7 +210,6 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             // date_time_format,
             ..
         } => validate_range(*range_start, *range_end)?,
-        FieldKind::Interval { .. } => todo!(),
         FieldKind::Enumeration {
             values,
             default_value,
