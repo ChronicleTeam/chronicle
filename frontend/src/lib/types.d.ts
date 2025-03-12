@@ -265,3 +265,33 @@ export type InputParameters =
     step?: undefined;
   };
 
+// Charts
+export type Chart = {
+  chart_id: number;
+  dashboard_id: number;
+  title: string;
+  chart_kind: ChartKind;
+}
+
+export enum ChartKind {
+  Table = "Table",
+  Bar = "Bar",
+  Line = "Line"
+}
+
+export type Axis = {
+  axis_id: number;
+  chart_id: number;
+  field_id: number;
+  axis_kind: AxisKind;
+}
+
+export enum AxisKind {
+  X = "X",
+  Y = "Y",
+  Color = "Color",
+  Size = "Size",
+  Tooltip = "Tooltip",
+  Label = "Label",
+  Detail = "Detail",
+}
