@@ -80,6 +80,7 @@ async fn delete_chart(
     Ok(())
 }
 
+
 async fn get_chart_data(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
