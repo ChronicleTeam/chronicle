@@ -46,6 +46,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_decrement_orderings
-BEFORE DELETE ON meta_field
+AFTER DELETE ON meta_field
 FOR EACH ROW
 EXECUTE FUNCTION decrement_orderings();
