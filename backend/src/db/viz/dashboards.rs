@@ -2,16 +2,18 @@ use sqlx::{Acquire, PgExecutor, Postgres};
 
 use crate::{
     db::Relation,
-    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
+    model::viz::{ChartIdentifier, CreateDashboard, Dashboard, UpdateDashboard},
     Id,
 };
 
 pub async fn create_dashboard(
-    executor: impl PgExecutor<'_>,
+    conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
     CreateDashboard { name, description }: CreateDashboard,
 ) -> sqlx::Result<Dashboard> {
-    sqlx::query_as(
+    let mut tx = conn.begin().await?;
+
+    let dashboard = sqlx::query_as(
         r#"
             INSERT INTO dashboard (user_id, name, description)
             VALUES ($1, $2, $3) 
@@ -20,23 +22,29 @@ pub async fn create_dashboard(
                 user_id,
                 name,
                 description,
-                created_at,
+                // created_at,
                 updated_at
         "#,
     )
     .bind(user_id)
     .bind(name)
     .bind(description)
-    .fetch_one(executor)
-    .await
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(dashboard)
 }
 
 pub async fn update_dashboard(
-    executor: impl PgExecutor<'_>,
+    conn: impl Acquire<'_, Database = Postgres>,
     dashboard_id: Id,
     UpdateDashboard { name, description }: UpdateDashboard,
 ) -> sqlx::Result<Dashboard> {
-    sqlx::query_as(
+    let mut tx = conn.begin().await?;
+
+    let dashboard = sqlx::query_as(
         r#"
             UPDATE dashboard
             SET name = $1, description = $2
@@ -53,8 +61,12 @@ pub async fn update_dashboard(
     .bind(name)
     .bind(description)
     .bind(dashboard_id)
-    .fetch_one(executor)
-    .await
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(dashboard)
 }
 
 pub async fn delete_dashboard(
@@ -63,24 +75,25 @@ pub async fn delete_dashboard(
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
 
-    let data_view_names: Vec<String> = sqlx::query_scalar(
+    let chart_ids: Vec<Id> = sqlx::query_scalar(
         r#"
             DELETE FROM chart
             WHERE dashboard_id = $1
-            RETURNING data_view_name
+            RETURNING chart_id
         "#,
     )
     .bind(dashboard_id)
     .fetch_all(tx.as_mut())
     .await?;
 
-    for data_view_name in data_view_names {
-        _ = sqlx::query(&format!(r#"DROP VIEW {data_view_name}"#))
+    for chart_id in chart_ids {
+        let chart_ident = ChartIdentifier::new(chart_id, "data_view");
+        sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
             .execute(tx.as_mut())
             .await?;
     }
 
-    _ = sqlx::query(
+    sqlx::query(
         r#"
             DELETE FROM dashboard
             WHERE dashboard_id = $1

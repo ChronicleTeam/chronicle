@@ -1,10 +1,8 @@
-use super::Relation;
 use crate::{
-    model::data::{
+    db::Relation, model::data::{
         CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata,
         TableIdentifier, UpdateField,
-    },
-    Id,
+    }, Id
 };
 use itertools::Itertools;
 use sqlx::{types::Json, Acquire, PgExecutor, Postgres};

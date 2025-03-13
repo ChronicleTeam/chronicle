@@ -1,7 +1,6 @@
+mod axes;
 mod charts;
 mod dashboards;
-mod axes;
 
-pub use {charts::*, dashboards::*, axes::*};
-
+pub use {axes::*, charts::*, dashboards::*};
 

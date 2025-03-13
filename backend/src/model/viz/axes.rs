@@ -2,7 +2,7 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{types::Json, FromRow};
 
 use crate::{model::data::FieldKind, Id};
 
@@ -70,10 +70,16 @@ pub struct CreateAxis {
 }
 
 #[derive(Deserialize)]
-pub struct SetAxes {
-    pub table_id: Id,
-    pub axes: Vec<CreateAxis>,
+pub struct SetAxes(pub Vec<CreateAxis>);
+
+#[derive(Serialize, FromRow)]
+pub struct AxisField {
+    #[sqlx(flatten)]
+    pub axis: Axis,
+    pub field_name: String,
+    pub field_kind: Json<FieldKind>,
 }
+
 
 pub struct AxisIdentifier {
     axis_id: Id,
@@ -81,6 +87,9 @@ pub struct AxisIdentifier {
 impl AxisIdentifier {
     pub fn new(axis_id: Id) -> Self {
         Self { axis_id }
+    }
+    pub fn unquoted(&self) -> String {
+        format!("a{}", self.axis_id)
     }
 }
 impl fmt::Display for AxisIdentifier {

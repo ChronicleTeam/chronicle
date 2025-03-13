@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::fmt;
 
+use super::{Entry, Field};
+
 /// User table metadata response.
 #[derive(Serialize, FromRow)]
 pub struct Table {
@@ -28,6 +30,15 @@ pub struct UpdateTable {
     pub name: String,
     pub description: String,
 }
+
+/// Response for fetching entire table data.
+#[derive(Serialize)]
+pub struct TableData {
+    pub table: Table,
+    pub fields: Vec<Field>,
+    pub entries: Vec<Entry>,
+}
+
 
 pub struct TableIdentifier {
     table_id: Id,
