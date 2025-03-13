@@ -52,6 +52,23 @@
     bind:checked={params.bindGetter, params.bindSetter}
     {onclick}
   />
+{:else if params.type === "url"}
+  {#if disabled}
+    <a
+      href={"https://" + params.bindGetter().toString()}
+      class={["text-blue-600 underline cursor-pointer", innerClass]}
+      target="_blank">{params.bindGetter().toString()}</a
+    >
+  {:else}
+    <input
+      {disabled}
+      {id}
+      class={innerClass}
+      type={params.type}
+      bind:value={params.bindGetter, params.bindSetter}
+      {onclick}
+    />
+  {/if}
 {:else}
   <input
     {disabled}
