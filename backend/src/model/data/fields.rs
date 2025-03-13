@@ -80,8 +80,8 @@ impl FieldKind {
             FieldKind::Money { .. } => "numeric_money",
             FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",
-            FieldKind::WebLink { .. } => "COLLATE case_insensitive TEXT",
-            FieldKind::Email { .. } => "COLLATE case_insensitive TEXT",
+            FieldKind::WebLink { .. } => "TEXT COLLATE case_insensitive",
+            FieldKind::Email { .. } => "TEXT COLLATE case_insensitive",
             FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
             FieldKind::Enumeration { .. } => "BIGINT",
         }
