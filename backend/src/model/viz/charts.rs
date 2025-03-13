@@ -1,13 +1,16 @@
-use crate::Id;
+use crate::{model::Cell, Id};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use std::fmt;
+use std::{collections::HashMap, fmt};
+
+use super::AxisField;
 
 #[derive(Serialize, FromRow)]
 pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
+    pub table_id: Id,
     pub title: String,
     pub chart_kind: ChartKind,
     pub created_at: DateTime<Utc>,
@@ -24,16 +27,25 @@ pub enum ChartKind {
 
 #[derive(Deserialize)]
 pub struct CreateChart {
+    pub table_id: Id,
     pub title: String,
     pub chart_kind: ChartKind,
 }
 
-// #[derive(Serialize)]
-// pub struct ChartData {
-//     pub chart: Chart,
-//     pub axis_data_map: HashMap<Id, AxisData>,
-//     pub cells: Vec<CellMap>,
-// }
+
+#[derive(Deserialize)]
+pub struct UpdateChart {
+    pub title: String,
+    pub chart_kind: ChartKind,
+}
+
+#[derive(Serialize)]
+pub struct ChartData {
+    pub chart: Chart,
+    pub axes: Vec<AxisField>,
+    pub cells: Vec<HashMap<Id, Option<Cell>>>,
+}
+
 
 pub struct ChartIdentifier {
     chart_id: Id,

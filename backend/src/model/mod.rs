@@ -3,7 +3,7 @@
 //! `sqlx` queries.
 //!
 //! Theses types model the database into code.
-//! 
+//!
 //! The important trait implementation used are:
 //! - Serialize: Convert into JSON for responses.
 //! - Deserialize: Convert from JSON for requests.
@@ -19,6 +19,7 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 use sqlx::{postgres::PgRow, Row};
 use viz::Aggregate;
+
 
 /// This represents all the data types in user entries and charts.
 #[derive(Serialize)]

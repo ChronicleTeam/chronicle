@@ -1,9 +1,9 @@
-use super::Relation;
+use super::{field_columns, entry_from_row};
 use crate::{
-    model::data::{CreateTable, Table, TableIdentifier, UpdateTable},
-    Id,
+    db::Relation, model::data::{CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier, UpdateTable}, Id
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
+use itertools::Itertools;
 
 pub async fn create_table(
     conn: impl Acquire<'_, Database = Postgres>,
@@ -132,6 +132,91 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
     .bind(user_id)
     .fetch_all(executor)
     .await
+}
+
+
+pub async fn get_table_data(
+    executor: impl PgExecutor<'_> + Copy,
+    table_id: Id,
+) -> sqlx::Result<TableData> {
+    let table: Table = sqlx::query_as(
+        r#"
+            SELECT 
+                table_id,
+                user_id,
+                name,
+                description,
+                created_at,
+                updated_at
+            FROM meta_table
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_one(executor)
+    .await?;
+
+    let fields: Vec<Field> = sqlx::query_as(
+        r#"
+            SELECT
+                field_id,
+                table_id,
+                name,
+                ordering,
+                field_kind,
+                created_at,
+                updated_at
+            FROM meta_field
+            WHERE table_id = $1
+            ORDER BY field_id
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await?;
+
+    let field_idents = fields
+        .iter()
+        .map(|field| FieldIdentifier::new(field.field_id))
+        .collect_vec();
+
+    let select_columns = field_columns(&field_idents).join(", ");
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+    let entries = sqlx::query::<Postgres>(&format!(
+        r#"
+            SELECT {select_columns}
+            FROM {table_ident}
+        "#
+    ))
+    .fetch_all(executor)
+    .await?
+    .into_iter()
+    .map(|row| {
+        entry_from_row(
+            row,
+            &fields
+                .iter()
+                .map(
+                    |Field {
+                         field_id,
+                         field_kind,
+                         ..
+                     }| FieldMetadata {
+                        field_id: field_id.clone(),
+                        field_kind: field_kind.clone(),
+                    },
+                )
+                .collect_vec(),
+        )
+    })
+    .try_collect()?;
+
+    Ok(TableData {
+        table,
+        fields,
+        entries,
+    })
 }
 
 pub async fn check_table_relation(

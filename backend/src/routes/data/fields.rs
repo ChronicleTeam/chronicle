@@ -24,16 +24,13 @@ const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/tables/{table_id}/fields",
-            post(create_field).get(get_fields),
-        )
-        .route(
-            "/tables/{table_id}/fields/{field_id}",
-            put(update_field).delete(delete_field),
-        )
-        .route("/tables/{table-id}/fields/order", patch(set_field_order))
+    Router::new().nest(
+        "/tables/{table-id}/fields",
+        Router::new()
+            .route("/", post(create_field).get(get_fields))
+            .route("/{field_id}", put(update_field).delete(delete_field))
+            .route("/order", patch(set_field_order)),
+    )
 }
 
 /// Create a field in a table.

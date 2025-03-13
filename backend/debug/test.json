@@ -1,0 +1,61 @@
+{
+  "chart": {
+    "chart_id": 1,
+    "dashboard_id": 1,
+    "table_id": 1,
+    "title": "Test chart",
+    "chart_kind": "Bar",
+    "created_at": "2025-03-12T05:35:44.631244Z",
+    "updated_at": null
+  },
+  "axes": [
+    {
+      "axis": {
+        "axis_id": 1,
+        "chart_id": 1,
+        "field_id": 1,
+        "axis_kind": "X",
+        "aggregate": null,
+        "created_at": "2025-03-12T05:38:18.180502Z",
+        "updated_at": null
+      },
+      "field_name": "Field 1",
+      "field_kind": {
+        "type": "Text",
+        "is_required": true
+      }
+    },
+    {
+      "axis": {
+        "axis_id": 2,
+        "chart_id": 1,
+        "field_id": 2,
+        "axis_kind": "Y",
+        "aggregate": "Sum",
+        "created_at": "2025-03-12T05:38:18.180502Z",
+        "updated_at": null
+      },
+      "field_name": "Field 2",
+      "field_kind": {
+        "type": "Integer",
+        "is_required": true,
+        "range_start": null,
+        "range_end": null
+      }
+    }
+  ],
+  "cells": [
+    {
+      "1": "c2",
+      "2": "45"
+    },
+    {
+      "1": "c3",
+      "2": "444"
+    },
+    {
+      "2": "15",
+      "1": "c1"
+    }
+  ]
+}
