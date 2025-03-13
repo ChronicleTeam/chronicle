@@ -477,7 +477,7 @@
   //
 
   // add a field to the table
-  const addField = (i: number): void => {
+  const addField = (): void => {
     // find unique field name
     let j = 1;
     let newFieldName = "New Field " + j;
@@ -496,6 +496,7 @@
       table_id: table.table.table_id,
       user_id: -1,
       field_id: id, // temporary id, will be replaced when created
+      ordering: table.fields.length,
 
       name: newFieldName,
       field_kind: {
@@ -504,13 +505,11 @@
       },
     };
 
-    table.fields.splice(i + 1, 0, newField);
+    table.fields.push(newField);
 
     // update optionalCheckBoxStates
-    optionalCheckboxStates.splice(
-      i + 1,
-      0,
-      optionInputList[i].map((v) => !v.optional),
+    optionalCheckboxStates.push(
+      optionInputList[table.fields.length - 1].map((v) => !v.optional),
     );
 
     //clear errors
@@ -709,7 +708,7 @@
   const loadFields = () => {
     getFields(table_prop).then((fields) => {
       // update tables
-      originalTable.fields = fields;
+      originalTable.fields = fields.toSorted((f, g) => f.ordering - g.ordering);
       table = $state.snapshot(originalTable);
 
       //update optionalCheckboxStates
@@ -721,6 +720,7 @@
   };
 
   // unifies POST, PUT and DELETE methods into one method to be run when the user confirms the modifications
+  // TODO: Fix race condition so that ordering is guaranteed
   const saveFields = () => {
     let promises = [];
 
@@ -853,22 +853,7 @@
   />
 
   <!-- Fields  -->
-  <div class="flex items-stretch w-full flex-nowrap overflow-scroll">
-    <!-- Add field button -->
-    {#if table.fields.length === 0}
-      <button
-        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed"
-        onclick={() => addField(0)}
-        aria-label="add field">+</button
-      >
-    {:else}
-      <button
-        class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all"
-        onclick={() => addField(0)}
-        aria-label="add field">+</button
-      >
-    {/if}
-
+  <div class="flex items-stretch w-full flex-nowrap overflow-scroll gap-3">
     <!-- Field editing sections -->
     {#each table.fields as field, i}
       <div
@@ -925,12 +910,22 @@
           </div>
         {/if}
       </div>
+    {/each}
+
+    <!-- Add field button -->
+    {#if table.fields.length === 0}
       <button
-        class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all"
-        onclick={() => addField(i)}
+        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed"
+        onclick={addField}
         aria-label="add field">+</button
       >
-    {/each}
+    {:else}
+      <button
+        class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all"
+        onclick={addField}
+        aria-label="add field">+</button
+      >
+    {/if}
 
     <!-- Deleted but restorable fields -->
     {#each removedOGFields as field, i}
