@@ -267,6 +267,14 @@ export type InputParameters =
   };
 
 // Charts
+
+export type Dashboard = {
+  dashboard_id: number;
+  user_id: number;
+  name: string;
+  description: string;
+}
+
 export type Chart = {
   chart_id: number;
   dashboard_id: number;
@@ -295,4 +303,10 @@ export enum AxisKind {
   Tooltip = "Tooltip",
   Label = "Label",
   Detail = "Detail",
+}
+
+export type ChartData = {
+  chart: Chart;
+  axes: Axis[];
+  cells: Cells;
 }
