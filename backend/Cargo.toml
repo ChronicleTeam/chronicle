@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Web framework
-axum = "0.8"
+axum = { version = "0.8", features = ["multipart"] }
 axum-macros = "0.5"
 
 # Async runtime
@@ -58,6 +58,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Iterator utilities
 itertools = "0.14"
+
+# Import/export excel
+umya-spreadsheet = "2.2"
 
 [dev-dependencies]
 mime = "0.3"

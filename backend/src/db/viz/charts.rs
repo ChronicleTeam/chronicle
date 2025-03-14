@@ -127,6 +127,30 @@ pub async fn get_chart_table_id(executor: impl PgExecutor<'_>, chart_id: Id) -> 
     .await
 }
 
+pub async fn get_charts(
+    executor: impl PgExecutor<'_> + Copy,
+    dashboard_id: Id,
+) -> sqlx::Result<Vec<Chart>> {
+    sqlx::query_as(
+        r#"
+            SELECT
+                chart_id,
+                dashboard_id,
+                table_id,
+                title,
+                chart_kind,
+                created_at,
+                updated_at
+            FROM chart
+            WHERE dashboard_id = $1
+        "#,
+    )
+    .bind(dashboard_id)
+    .fetch_all(executor)
+    .await
+}
+
+
 
 pub async fn get_chart_data(
     executor: impl PgExecutor<'_> + Copy,
@@ -177,16 +201,16 @@ pub async fn get_chart_data(
         .fetch_all(executor)
         .await?;
 
-    let mut cells: Vec<HashMap<Id, Option<Cell>>> = Vec::new();
+    let mut cells: Vec<HashMap<Id, Cell>> = Vec::new();
 
     for row in rows {
-        let mut cell_entry = HashMap::new();
+        let mut entry = HashMap::new();
         for AxisField {
             axis, field_kind, ..
         } in &axes
         {
             let axis_ident = AxisIdentifier::new(axis.axis_id);
-            cell_entry.insert(
+            entry.insert(
                 axis.axis_id,
                 axis.aggregate.as_ref().map_or_else(
                     || Cell::from_field_row(&row, &axis_ident.unquoted(), &field_kind),
@@ -201,7 +225,7 @@ pub async fn get_chart_data(
                 )?,
             );
         }
-        cells.push(cell_entry);
+        cells.push(entry);
     }
 
     Ok(ChartData { chart, axes, cells })

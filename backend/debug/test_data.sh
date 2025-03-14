@@ -107,3 +107,6 @@ curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
     -d '{"1": "c3", "2": 321}'
 
+
+curl -X POST $ADDR/tables/export \
+    -F "file=@test.xlsx"

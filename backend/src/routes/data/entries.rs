@@ -10,7 +10,7 @@ use crate::{
 };
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{patch, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -30,10 +30,7 @@ pub fn router() -> Router<ApiState> {
         "/tables/{table-id}/entries",
         Router::new()
             .route("/", post(create_entry))
-            .route(
-                "/{entry-id}",
-                put(update_entry).delete(delete_entry),
-            ),
+            .route("/{entry-id}", patch(update_entry).delete(delete_entry)),
     )
 }
 
@@ -131,7 +128,7 @@ async fn delete_entry(
 fn convert_entry(
     mut entry: HashMap<Id, Value>,
     fields: Vec<FieldMetadata>,
-) -> ApiResult<Vec<(Option<Cell>, FieldMetadata)>> {
+) -> ApiResult<Vec<(Cell, FieldMetadata)>> {
     let (new_entry, mut error_messages): (Vec<_>, Vec<_>) = fields
         .into_iter()
         .map(|field| {
@@ -159,7 +156,7 @@ fn convert_entry(
 
 /// Converts a JSON value to a [`Cell`] and returns the
 /// correct error message on failure.
-fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'static str> {
+fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static str> {
     match (value, field_kind) {
         (
             Value::Null,
@@ -175,7 +172,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
             if *is_required {
                 Err(IS_REQUIRED)
             } else {
-                Ok(None)
+                Ok(Cell::Null)
             }
         }
         (
@@ -188,7 +185,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
         ) => {
             if let Some(value) = value.as_i64() {
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
-                Ok(Some(Cell::Integer(value)))
+                Ok(Cell::Integer(value))
             } else {
                 Err(INVALID_TYPE)
             }
@@ -207,7 +204,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
         ) => {
             if let Some(value) = value.as_f64() {
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
-                Ok(Some(Cell::Float(value)))
+                Ok(Cell::Float(value))
             } else {
                 Err(INVALID_TYPE)
             }
@@ -222,7 +219,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
         ) => {
             if let Ok(value) = Decimal::from_str_radix(&value, 10) {
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
-                Ok(Some(Cell::Decimal(value)))
+                Ok(Cell::Decimal(value))
             } else {
                 Err(INVALID_TYPE)
             }
@@ -232,7 +229,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
                 if value > *total_steps as i64 || value < 0 {
                     Err(OUT_OF_RANGE)
                 } else {
-                    Ok(Some(Cell::Integer(value)))
+                    Ok(Cell::Integer(value))
                 }
             } else {
                 Err(INVALID_TYPE)
@@ -249,7 +246,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
         ) => {
             if let Ok(value) = DateTime::<Utc>::from_str(&value) {
                 check_range(&value, range_start.as_ref(), range_end.as_ref())?;
-                Ok(Some(Cell::DateTime(value)))
+                Ok(Cell::DateTime(value))
             } else {
                 Err(INVALID_TYPE)
             }
@@ -257,12 +254,12 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Option<Cell>, &'
         (
             Value::String(value),
             FieldKind::Text { .. } | FieldKind::WebLink { .. } | FieldKind::Email { .. },
-        ) => Ok(Some(Cell::String(value))),
-        (Value::Bool(value), FieldKind::Checkbox) => Ok(Some(Cell::Boolean(value))),
+        ) => Ok(Cell::String(value)),
+        (Value::Bool(value), FieldKind::Checkbox) => Ok(Cell::Boolean(value)),
         (Value::Number(value), FieldKind::Enumeration { values, .. }) => {
             if let Some(value) = value.as_i64() {
                 if values.contains_key(&value) {
-                    Ok(Some(Cell::Integer(value)))
+                    Ok(Cell::Integer(value))
                 } else {
                     Err(ENUMERATION_VALUE_MISSING)
                 }

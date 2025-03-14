@@ -11,11 +11,11 @@ pub async fn set_axes(
     conn: impl Acquire<'_, Database = Postgres> + Clone,
     chart_id: Id,
     table_id: Id,
-    create_axes: Vec<(CreateAxis, FieldKind)>,
+    axes: Vec<(CreateAxis, FieldKind)>,
 ) -> sqlx::Result<Vec<Axis>> {
     let mut tx = conn.clone().begin().await?;
 
-    let (create_axes, field_kinds): (Vec<_>, Vec<_>) = create_axes.into_iter().unzip();
+    let (axes, field_kinds): (Vec<_>, Vec<_>) = axes.into_iter().unzip();
 
     sqlx::query(
         r#"
@@ -29,7 +29,7 @@ pub async fn set_axes(
 
     let axes: Vec<Axis> =
         QueryBuilder::new(r#"INSERT INTO axis (chart_id, field_id, axis_kind, aggregate)"#)
-            .push_values(create_axes, |mut b, axis| {
+            .push_values(axes, |mut b, axis| {
                 b.push_bind(chart_id)
                     .push_bind(axis.field_id)
                     .push_bind(axis.axis_kind)

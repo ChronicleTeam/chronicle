@@ -1,9 +1,14 @@
-use super::{field_columns, entry_from_row};
+use super::{entry_from_row, field_columns};
 use crate::{
-    db::Relation, model::data::{CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier, UpdateTable}, Id
+    db::Relation,
+    model::data::{
+        CreateTable, CreateTableData, Field, FieldIdentifier, FieldMetadata, Table, TableData,
+        TableIdentifier, UpdateTable,
+    },
+    Id,
 };
-use sqlx::{Acquire, PgExecutor, Postgres};
 use itertools::Itertools;
+use sqlx::{Acquire, PgExecutor, Postgres};
 
 pub async fn create_table(
     conn: impl Acquire<'_, Database = Postgres>,
@@ -45,11 +50,9 @@ pub async fn create_table(
     .execute(tx.as_mut())
     .await?;
 
-    sqlx::query(&format!(
-        r#"SELECT trigger_updated_at('{table_ident}')"#
-    ))
-    .execute(tx.as_mut())
-    .await?;
+    sqlx::query(&format!(r#"SELECT trigger_updated_at('{table_ident}')"#))
+        .execute(tx.as_mut())
+        .await?;
 
     tx.commit().await?;
 
@@ -62,7 +65,7 @@ pub async fn update_table(
     UpdateTable { name, description }: UpdateTable,
 ) -> sqlx::Result<Table> {
     let mut tx = conn.begin().await?;
-    
+
     let table = sqlx::query_as(
         r#"
             UPDATE meta_table
@@ -133,7 +136,6 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
     .fetch_all(executor)
     .await
 }
-
 
 pub async fn get_table_data(
     executor: impl PgExecutor<'_> + Copy,

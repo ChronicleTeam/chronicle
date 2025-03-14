@@ -8,23 +8,26 @@ use crate::{
     Id,
 };
 use itertools::Itertools;
-use sqlx::{postgres::PgArguments, query::Query, Acquire, PgExecutor, Postgres};
+use sqlx::{
+    postgres::PgArguments, query::Query, query_builder::Separated, Acquire, PgExecutor, Postgres,
+    QueryBuilder,
+};
 
 pub async fn create_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    cell_entry: Vec<(Option<Cell>, FieldMetadata)>,
+    entry: Vec<(Cell, FieldMetadata)>,
 ) -> sqlx::Result<Entry> {
     let mut tx = conn.begin().await?;
 
-    let (cells, fields): (Vec<_>, Vec<_>) = cell_entry.into_iter().unzip();
+    let (entry, fields): (Vec<_>, Vec<_>) = entry.into_iter().unzip();
 
     let field_idents = fields
         .iter()
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let parameters = (1..=cells.len()).map(|i| format!("${i}")).join(", ");
+    let parameters = (1..=entry.len()).map(|i| format!("${i}")).join(", ");
     let insert_columns = field_idents.iter().join(", ");
     let return_columns = field_columns(&field_idents).join(", ");
 
@@ -40,7 +43,7 @@ pub async fn create_entry(
     );
     let mut insert_query = sqlx::query(&insert_query);
 
-    for cell in cells {
+    for cell in entry {
         insert_query = bind_cell(insert_query, cell);
     }
 
@@ -52,11 +55,58 @@ pub async fn create_entry(
     Ok(entry)
 }
 
+pub async fn create_entries(
+    conn: impl Acquire<'_, Database = Postgres>,
+    table_id: Id,
+    fields: Vec<FieldMetadata>,
+    entries: Vec<Vec<Cell>>,
+) -> sqlx::Result<Vec<Entry>> {
+    assert!(entries
+        .iter()
+        .next()
+        .map_or(true, |entry| entry.len() == fields.len()));
+    let mut tx = conn.begin().await?;
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+
+    let field_idents = fields
+        .iter()
+        .map(|field| FieldIdentifier::new(field.field_id))
+        .collect_vec();
+
+    let insert_columns = field_idents.iter().join(", ");
+    let return_columns = field_columns(&field_idents).join(", ");
+
+    let rows = QueryBuilder::new(format!(r#"INSERT INTO {table_ident} ({insert_columns})"#))
+        .push_values(entries, |mut b, entry| {
+            for cell in entry {
+                push_bind_cell(&mut b, cell);
+            }
+        })
+        .push(format!(
+            r#"
+                RETURNING {return_columns}
+            "#
+        ))
+        .build()
+        .fetch_all(tx.as_mut())
+        .await?;
+
+    let entries = rows
+        .into_iter()
+        .map(|row| entry_from_row(row, &fields).unwrap())
+        .collect_vec();
+
+    tx.commit().await?;
+
+    Ok(entries)
+}
+
 pub async fn update_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     entry_id: Id,
-    cell_entry: Vec<(Option<Cell>, FieldMetadata)>,
+    cell_entry: Vec<(Cell, FieldMetadata)>,
 ) -> sqlx::Result<Entry> {
     let mut tx = conn.begin().await?;
 
@@ -144,7 +194,7 @@ pub async fn check_entry_relation(
 
 // fn bind_cell_scalar<'q, O>(
 //     query: QueryScalar<'q, Postgres, O, PgArguments>,
-//     cell: Option<Cell>,
+//     cell: Cell,
 // ) -> QueryScalar<'q, Postgres, O, PgArguments> {
 //     if let Some(cell) = cell {
 //         match cell {
@@ -163,19 +213,27 @@ pub async fn check_entry_relation(
 
 fn bind_cell<'q>(
     query: Query<'q, Postgres, PgArguments>,
-    cell: Option<Cell>,
+    cell: Cell,
 ) -> Query<'q, Postgres, PgArguments> {
-    if let Some(cell) = cell {
-        match cell {
-            Cell::Integer(v) => query.bind(v),
-            Cell::Float(v) => query.bind(v),
-            Cell::Decimal(v) => query.bind(v),
-            Cell::Boolean(v) => query.bind(v),
-            Cell::DateTime(v) => query.bind(v),
-            Cell::String(v) => query.bind(v),
-            Cell::Interval(_) => todo!(),
-        }
-    } else {
-        query.bind::<Option<bool>>(None)
+    match cell {
+        Cell::Integer(v) => query.bind(v),
+        Cell::Float(v) => query.bind(v),
+        Cell::Decimal(v) => query.bind(v),
+        Cell::Boolean(v) => query.bind(v),
+        Cell::DateTime(v) => query.bind(v),
+        Cell::String(v) => query.bind(v),
+        Cell::Null => query.bind(None::<bool>),
     }
+}
+
+fn push_bind_cell<'q>(builder: &mut Separated<'_, '_, Postgres, &str>, cell: Cell) {
+    match cell {
+        Cell::Integer(v) => builder.push_bind(v),
+        Cell::Float(v) => builder.push_bind(v),
+        Cell::Decimal(v) => builder.push_bind(v),
+        Cell::Boolean(v) => builder.push_bind(v),
+        Cell::DateTime(v) => builder.push_bind(v),
+        Cell::String(v) => builder.push_bind(v),
+        Cell::Null => builder.push_bind(None::<bool>),
+    };
 }

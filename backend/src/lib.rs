@@ -1,13 +1,13 @@
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod io;
 pub mod model;
 pub mod routes;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 type Id = i32;
-
 
 /// Sets up tracing for debuging and monitoring.
 /// Does nothing if called more than once.

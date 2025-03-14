@@ -6,7 +6,7 @@ use sqlx::{types::Json, FromRow};
 
 use crate::{model::data::FieldKind, Id};
 
-#[derive(Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct Axis {
     pub axis_id: Id,
     pub chart_id: Id,
@@ -17,7 +17,7 @@ pub struct Axis {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
 #[sqlx(type_name = "axis_kind")]
 pub enum AxisKind {
     X,
@@ -29,7 +29,7 @@ pub enum AxisKind {
     Detail,
 }
 
-#[derive(Serialize, Deserialize, sqlx::Type, Clone)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
     Sum,
@@ -62,17 +62,17 @@ impl Aggregate {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateAxis {
     pub field_id: Id,
     pub axis_kind: AxisKind,
     pub aggregate: Option<Aggregate>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SetAxes(pub Vec<CreateAxis>);
 
-#[derive(Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct AxisField {
     #[sqlx(flatten)]
     pub axis: Axis,
@@ -81,6 +81,7 @@ pub struct AxisField {
 }
 
 
+#[derive(Debug)]
 pub struct AxisIdentifier {
     axis_id: Id,
 }

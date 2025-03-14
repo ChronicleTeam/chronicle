@@ -7,7 +7,7 @@ use sqlx::{types::Json, FromRow};
 use std::{collections::HashMap, fmt};
 
 /// Table field response.
-#[derive(Serialize, FromRow)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
@@ -20,7 +20,7 @@ pub struct Field {
 
 /// The field kind and associated options.
 #[serde_as]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum FieldKind {
     Text {
@@ -89,26 +89,35 @@ impl FieldKind {
 }
 
 /// Create field request.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
 /// Update field request.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
-#[derive(FromRow)]
+#[derive(Debug, FromRow)]
 pub struct FieldMetadata {
     pub field_id: Id,
     pub field_kind: Json<FieldKind>,
+}
+
+impl FieldMetadata {
+    pub fn from_field(field: Field) -> Self {
+        Self {
+            field_id: field.field_id,
+            field_kind: field.field_kind,
+        }
+    }
 }
 
 #[derive(Debug)]
