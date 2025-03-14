@@ -48,7 +48,7 @@ export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => 
     "Content-Type": "application/json",
   },
   body: JSON.stringify(jsonBody)
-});
+}).then(handleResponse<T>);
 
 export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL + endpoint, {
   method: "DELETE",

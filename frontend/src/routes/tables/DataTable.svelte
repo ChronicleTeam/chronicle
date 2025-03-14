@@ -25,7 +25,7 @@
   import {
     getDataTable,
     postEntry,
-    putEntry,
+    patchEntry,
     deleteEntry,
     type APIError,
   } from "$lib/api";
@@ -259,7 +259,7 @@
   };
 
   const updateEntry = () => {
-    putEntry(table.table, table.entries[editableEntry])
+    patchEntry(table.table, table.entries[editableEntry])
       .then(() => {
         cancelEntry();
         loadTable();

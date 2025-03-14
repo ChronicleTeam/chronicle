@@ -23,10 +23,10 @@
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
-    putTable,
+    patchTable,
     getFields,
     postField,
-    putField,
+    patchField,
     deleteField,
     type APIError,
   } from "$lib/api";
@@ -732,7 +732,7 @@
       table.table.description !== originalTable.table.description
     )
       promises.push(
-        putTable(table.table)
+        patchTable(table.table)
           .then((response: Table) => {
             originalTable.table.name = response.name;
             originalTable.table.description = response.description;
@@ -770,7 +770,7 @@
     // modify existing fields
     moddedFields.forEach((field) => {
       promises.push(
-        putField(field)
+        patchField(field)
           .then((response: Field) => {
             originalTable.fields[
               originalTable.fields.findIndex(
