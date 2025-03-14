@@ -59,5 +59,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Iterator utilities
 itertools = "0.14"
 
+# Import/export excel
+umya-spreadsheet = "2.2"
+
 [dev-dependencies]
 mime = "0.3"
