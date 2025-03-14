@@ -1,11 +1,12 @@
 use crate::{
-    db::Relation, model::data::{
-        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata,
-        TableIdentifier, UpdateField,
-    }, Id
+    db::Relation,
+    model::data::{
+        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier, UpdateField,
+    },
+    Id,
 };
 use itertools::Itertools;
-use sqlx::{types::Json, Acquire, PgExecutor, Postgres};
+use sqlx::{types::Json, Acquire, PgExecutor, Postgres, QueryBuilder};
 use std::{collections::HashMap, mem::discriminant};
 
 pub async fn create_field(
@@ -53,13 +54,65 @@ pub async fn create_field(
     return Ok(field);
 }
 
+pub async fn create_fields(
+    conn: impl Acquire<'_, Database = Postgres>,
+    table_id: Id,
+    fields: Vec<CreateField>,
+) -> sqlx::Result<Vec<Field>> {
+    let mut tx = conn.begin().await?;
+
+    let fields: Vec<Field> =
+        QueryBuilder::new(r#"INSERT INTO meta_field (table_id, name, field_kind)"#)
+            .push_values(fields, |mut b, field| {
+                b.push_bind(table_id)
+                    .push_bind(field.name)
+                    .push_bind(Json(field.field_kind));
+            })
+            .push(
+                r#"
+                    RETURNING
+                        field_id,
+                        table_id,
+                        name,
+                        ordering,
+                        field_kind,
+                        created_at,
+                        updated_at
+                "#,
+            )
+            .build_query_as()
+            .fetch_all(tx.as_mut())
+            .await?;
+
+    let add_column_statement = fields
+        .iter()
+        .map(|field| {
+            let column_type = field.field_kind.0.get_sql_type();
+            let field_ident = FieldIdentifier::new(field.field_id);
+            format!(r#"ADD COLUMN {field_ident} {column_type}"#)
+        })
+        .join(", ");
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+
+    sqlx::query(&format!(
+        r#"
+            ALTER TABLE {table_ident}
+            {add_column_statement}
+        "#,
+    ))
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    return Ok(fields);
+}
+
 pub async fn update_field(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
-    UpdateField {
-        name,
-        field_kind,
-    }: UpdateField,
+    UpdateField { name, field_kind }: UpdateField,
 ) -> sqlx::Result<Field> {
     let mut tx = conn.begin().await?;
 

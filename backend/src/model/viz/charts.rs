@@ -6,7 +6,7 @@ use std::{collections::HashMap, fmt};
 
 use super::AxisField;
 
-#[derive(Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
@@ -17,7 +17,7 @@ pub struct Chart {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "chart_kind")]
 pub enum ChartKind {
     Table,
@@ -25,7 +25,7 @@ pub enum ChartKind {
     Line,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateChart {
     pub table_id: Id,
     pub title: String,
@@ -33,20 +33,20 @@ pub struct CreateChart {
 }
 
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdateChart {
     pub title: String,
     pub chart_kind: ChartKind,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ChartData {
     pub chart: Chart,
     pub axes: Vec<AxisField>,
-    pub cells: Vec<HashMap<Id, Option<Cell>>>,
+    pub cells: Vec<HashMap<Id, Cell>>,
 }
 
-
+#[derive(Debug)]
 pub struct ChartIdentifier {
     chart_id: Id,
     schema: String,

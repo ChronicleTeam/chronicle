@@ -53,6 +53,10 @@ impl ErrorMessage {
 /// the `?` operator or `Into::into`
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {
+    // Returns `400 Bad Request`
+    #[error("invalid request")]
+    BadRequest,
+
     // Returns `401 Unauthorized`
     #[error("authentication required")]
     Unauthorized,
@@ -91,6 +95,7 @@ impl ApiError {
     /// Maps `ApiError` variants to `StatusCode`s
     fn status_code(&self) -> StatusCode {
         match self {
+            Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::NotFound => StatusCode::NOT_FOUND,
