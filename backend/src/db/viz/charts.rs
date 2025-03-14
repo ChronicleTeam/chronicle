@@ -127,6 +127,30 @@ pub async fn get_chart_table_id(executor: impl PgExecutor<'_>, chart_id: Id) -> 
     .await
 }
 
+pub async fn get_charts(
+    executor: impl PgExecutor<'_> + Copy,
+    dashboard_id: Id,
+) -> sqlx::Result<Vec<Chart>> {
+    sqlx::query_as(
+        r#"
+            SELECT
+                chart_id,
+                dashboard_id,
+                table_id,
+                title,
+                chart_kind,
+                created_at,
+                updated_at
+            FROM chart
+            WHERE dashboard_id = $1
+        "#,
+    )
+    .bind(dashboard_id)
+    .fetch_all(executor)
+    .await
+}
+
+
 
 pub async fn get_chart_data(
     executor: impl PgExecutor<'_> + Copy,

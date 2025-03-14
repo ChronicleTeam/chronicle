@@ -15,7 +15,7 @@ pub fn router() -> Router<ApiState> {
     Router::new().nest(
         "/dashboards/{dashboard-id}/charts",
         Router::new()
-            .route("/", post(create_chart))
+            .route("/", post(create_chart).get(get_charts))
             .route("/{chart-id}", patch(update_chart).delete(delete_chart))
             .route("/{chart-id}/data", get(get_chart_data))
     )
@@ -79,6 +79,22 @@ async fn delete_chart(
 
     Ok(())
 }
+
+async fn get_charts(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(dashboard_id): Path<Id>,
+) -> ApiResult<Json<Vec<Chart>>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+
+    db::check_dashboard_relation(&pool, user_id, dashboard_id)
+        .await?
+        .to_api_result()?;
+
+    let charts = db::get_charts(&pool, dashboard_id).await?;
+
+    Ok(Json(charts))
+}
+
 
 
 async fn get_chart_data(
