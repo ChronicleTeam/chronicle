@@ -10,7 +10,7 @@ use crate::{
 use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
-    routing::{patch, post, put},
+    routing::{patch, post},
     Json, Router,
 };
 use itertools::Itertools;
@@ -28,7 +28,7 @@ pub fn router() -> Router<ApiState> {
         "/tables/{table-id}/fields",
         Router::new()
             .route("/", post(create_field).get(get_fields))
-            .route("/{field_id}", put(update_field).delete(delete_field))
+            .route("/{field_id}", patch(update_field).delete(delete_field))
             .route("/order", patch(set_field_order)),
     )
 }

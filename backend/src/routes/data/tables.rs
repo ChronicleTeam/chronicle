@@ -7,7 +7,7 @@ use crate::{
 };
 use axum::{
     extract::{Path, State},
-    routing::{get, post, put},
+    routing::{get, post, patch},
     Json, Router,
 };
 
@@ -19,7 +19,7 @@ pub fn router() -> Router<ApiState> {
         "/tables",
         Router::new()
             .route("/", post(create_table).get(get_tables))
-            .route("/{table-id}", put(update_table).delete(delete_table))
+            .route("/{table-id}", patch(update_table).delete(delete_table))
             .route("/{table-id}/data", get(get_table_data)),
     )
 }

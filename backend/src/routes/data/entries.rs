@@ -10,7 +10,7 @@ use crate::{
 };
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{post, patch},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -32,7 +32,7 @@ pub fn router() -> Router<ApiState> {
             .route("/", post(create_entry))
             .route(
                 "/{entry-id}",
-                put(update_entry).delete(delete_entry),
+                patch(update_entry).delete(delete_entry),
             ),
     )
 }
