@@ -48,22 +48,21 @@ async fn set_axes(
         .await?
         .to_api_result()?;
 
-    let mut field_kinds: HashMap<_, _> = db::get_fields_metadata(&pool, table_id)
+    let field_kinds: HashMap<_, _> = db::get_fields_metadata(&pool, table_id)
         .await?
         .into_iter()
-        .map(|field| (field.field_id, field.field_kind))
+        .map(|field| (field.field_id, field.field_kind.0))
         .collect();
 
     let axes = axes
         .into_iter()
         .map(|axis| {
-            let field_kind = field_kinds
-                .remove(&axis.field_id)
-                .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?
-                .0;
+            let field_kind = &field_kinds
+                .get(&axis.field_id)
+                .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?;
 
             if let Some(aggregate) = &axis.aggregate {
-                validate_axis(&aggregate, &field_kind).map_err(|message| {
+                validate_axis(&aggregate, field_kind).map_err(|message| {
                     ApiError::unprocessable_entity([ErrorMessage::new(
                         axis.field_id.to_string(),
                         message,
@@ -71,11 +70,11 @@ async fn set_axes(
                 })?;
             }
 
-            ApiResult::Ok((axis, field_kind))
+            ApiResult::Ok(axis)
         })
         .try_collect()?;
 
-    let axes = db::set_axes(&pool, chart_id, table_id, axes).await?;
+    let axes = db::set_axes(&pool, chart_id, table_id, &field_kinds, axes).await?;
 
     Ok(Json(axes))
 }

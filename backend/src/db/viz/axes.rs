@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     model::{
         data::{FieldIdentifier, FieldKind, TableIdentifier},
@@ -11,11 +13,10 @@ pub async fn set_axes(
     conn: impl Acquire<'_, Database = Postgres> + Clone,
     chart_id: Id,
     table_id: Id,
-    axes: Vec<(CreateAxis, FieldKind)>,
+    field_kinds: &HashMap<Id, FieldKind>,
+    axes: Vec<CreateAxis>,
 ) -> sqlx::Result<Vec<Axis>> {
     let mut tx = conn.clone().begin().await?;
-
-    let (axes, field_kinds): (Vec<_>, Vec<_>) = axes.into_iter().unzip();
 
     sqlx::query(
         r#"
@@ -53,14 +54,14 @@ pub async fn set_axes(
 
     let mut group_by_columns = Vec::new();
     let mut select_columns = Vec::new();
-    for (axis, field_kind) in axes.iter().zip(field_kinds) {
+    for axis in &axes {
         let field_ident = FieldIdentifier::new(axis.field_id);
         let item = if let Some(aggregate) = &axis.aggregate {
             &format!(
                 "{}({})::{}",
                 aggregate.get_sql_aggregate(),
                 field_ident,
-                aggregate.get_sql_type(&field_kind),
+                aggregate.get_sql_type(&field_kinds.get(&axis.field_id).unwrap()),
             )
         } else {
             group_by_columns.push(field_ident.to_string());
