@@ -572,6 +572,7 @@ dependencies = [
  "futures",
  "itertools 0.14.0",
  "mime",
+ "num-traits",
  "rust_decimal",
  "serde",
  "serde_json",

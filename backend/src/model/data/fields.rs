@@ -56,10 +56,6 @@ pub enum FieldKind {
     WebLink {
         is_required: bool,
     },
-
-    Email {
-        is_required: bool,
-    },
     Checkbox,
     Enumeration {
         is_required: bool,
@@ -81,7 +77,6 @@ impl FieldKind {
             FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",
             FieldKind::WebLink { .. } => "TEXT COLLATE case_insensitive",
-            FieldKind::Email { .. } => "TEXT COLLATE case_insensitive",
             FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
             FieldKind::Enumeration { .. } => "BIGINT",
         }
@@ -128,7 +123,7 @@ impl FieldIdentifier {
     pub fn new(field_id: Id) -> Self {
         Self { field_id }
     }
-    pub fn unquoted(&self) -> String {
+    pub fn unquote(&self) -> String {
         format!("f{}", self.field_id)
     }
 }

@@ -166,7 +166,6 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
             | FieldKind::Money { is_required, .. }
             | FieldKind::DateTime { is_required, .. }
             | FieldKind::WebLink { is_required, .. }
-            | FieldKind::Email { is_required, .. }
             | FieldKind::Enumeration { is_required, .. },
         ) => {
             if *is_required {
@@ -253,7 +252,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
         }
         (
             Value::String(value),
-            FieldKind::Text { .. } | FieldKind::WebLink { .. } | FieldKind::Email { .. },
+            FieldKind::Text { .. } | FieldKind::WebLink { .. }
         ) => Ok(Cell::String(value)),
         (Value::Bool(value), FieldKind::Checkbox) => Ok(Cell::Boolean(value)),
         (Value::Number(value), FieldKind::Enumeration { values, .. }) => {

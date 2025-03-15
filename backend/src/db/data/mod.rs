@@ -32,7 +32,7 @@ fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entr
             .map(|field| {
                 Cell::from_field_row(
                     &row,
-                    &FieldIdentifier::new(field.field_id).unquoted(),
+                    &FieldIdentifier::new(field.field_id).unquote(),
                     &field.field_kind.0,
                 )
                 .map(|v| (field.field_id, v))

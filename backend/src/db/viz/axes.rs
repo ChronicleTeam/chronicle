@@ -81,14 +81,9 @@ pub async fn set_axes(
     let chart_ident = ChartIdentifier::new(chart_id, "data_view");
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
-    println!(
-        r#"
-            CREATE VIEW {chart_ident} AS
-            SELECT {select_columns}
-            FROM {table_ident}
-            {group_by_statement}
-        "#
-    );
+    sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
+        .execute(tx.as_mut())
+        .await?;
 
     sqlx::query(&format!(
         r#"
