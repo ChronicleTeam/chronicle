@@ -30,7 +30,7 @@ set json '[
 ]'
 
 
-curl -X POST $ADDR/dashboards/1/charts/1/axes \
+curl -X PUT $ADDR/dashboards/1/charts/1/axes \
     -H "Content-Type: application/json" \
     -d "$json"
 
