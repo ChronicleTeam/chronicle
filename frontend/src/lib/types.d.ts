@@ -278,8 +278,13 @@ export type Dashboard = {
 export type Chart = {
   chart_id: number;
   dashboard_id: number;
+  table_id: number;
   title: string;
   chart_kind: ChartKind;
+  w: number,
+  h: number,
+  x: number,
+  y: number
 }
 
 export enum ChartKind {
@@ -305,8 +310,14 @@ export enum AxisKind {
   Detail = "Detail",
 }
 
+export type AxisField = {
+  axis: Axis;
+  field_name: string;
+  field_kind: FieldKind;
+}
+
 export type ChartData = {
   chart: Chart;
-  axes: Axis[];
+  axes: AxisField[];
   cells: Cells;
 }
