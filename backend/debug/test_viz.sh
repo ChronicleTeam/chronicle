@@ -26,6 +26,11 @@ set json '[
         "field_id": 2,
         "axis_kind": "Y",
         "aggregate": "Sum"
+    },
+    {
+        "field_id": 2,
+        "axis_kind": "Label",
+        "aggregate": "Sum"
     }
 ]'
 
