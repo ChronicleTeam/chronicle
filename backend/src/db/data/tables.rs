@@ -2,7 +2,7 @@ use super::{entry_from_row, field_columns};
 use crate::{
     db::Relation,
     model::data::{
-        CreateTable, CreateTableData, Field, FieldIdentifier, FieldMetadata, Table, TableData,
+        CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData,
         TableIdentifier, UpdateTable,
     },
     Id,

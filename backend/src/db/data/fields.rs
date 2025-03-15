@@ -1,7 +1,11 @@
 use crate::{
     db::Relation,
-    model::data::{
-        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier, UpdateField,
+    model::{
+        data::{
+            CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier,
+            UpdateField,
+        },
+        Cell,
     },
     Id,
 };
@@ -116,9 +120,9 @@ pub async fn update_field(
 ) -> sqlx::Result<Field> {
     let mut tx = conn.begin().await?;
 
-    let Json(old_field_kind): Json<FieldKind> = sqlx::query_scalar(
+    let (table_id, Json(old_field_kind)): (Id, Json<FieldKind>) = sqlx::query_as(
         r#"
-            SELECT field_kind
+            SELECT table_id, field_kind 
             FROM meta_field
             WHERE field_id = $1
         "#,
@@ -129,6 +133,26 @@ pub async fn update_field(
 
     // Should create a new field and attempt to convert
     if discriminant(&field_kind) != discriminant(&old_field_kind) {
+        let field_ident = FieldIdentifier::new(field_id);
+        let table_ident = TableIdentifier::new(table_id, "data_table");
+        let rows = sqlx::query(&format!(
+            r#"
+                SELECT {field_ident}
+                FROM {table_ident}
+            "#
+        ))
+        .fetch_all(tx.as_mut())
+        .await?;
+
+        let cells: Vec<Cell> = rows
+            .into_iter()
+            .map(|row| Cell::from_field_row(&row, &field_ident.unquote(), &old_field_kind))
+            .try_collect()?;
+
+        
+
+
+
         todo!("Not implemented")
     }
 
