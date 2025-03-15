@@ -18,7 +18,7 @@ pub async fn create_chart(
 ) -> sqlx::Result<Chart> {
     let mut tx = conn.begin().await?;
 
-    let chart = sqlx::query_as(
+    let chart: Chart = sqlx::query_as(
         r#"
             INSERT INTO chart (dashboard_id, table_id, title, chart_kind)
             VALUES ($1, $2, $3, $4)
@@ -37,6 +37,18 @@ pub async fn create_chart(
     .bind(title)
     .bind(chart_kind)
     .fetch_one(tx.as_mut())
+    .await?;
+
+
+    let chart_ident = ChartIdentifier::new(chart.chart_id, "data_view");
+    // A view which always returns zero rows
+    sqlx::query(&format!(
+        r#"
+            CREATE VIEW {chart_ident} AS
+            SELECT NULL WHERE FALSE
+        "#
+    ))
+    .execute(tx.as_mut())
     .await?;
 
     tx.commit().await?;
@@ -70,17 +82,6 @@ pub async fn update_chart(
     .bind(chart_kind)
     .bind(chart_id)
     .fetch_one(tx.as_mut())
-    .await?;
-
-    let chart_ident = ChartIdentifier::new(chart_id, "data_view");
-    // A view which always returns zero rows
-    sqlx::query(&format!(
-        r#"
-            CREATE VIEW {chart_ident}
-            SELECT NULL WHERE FALSE
-        "#
-    ))
-    .execute(tx.as_mut())
     .await?;
 
     tx.commit().await?;

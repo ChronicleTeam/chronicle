@@ -4,7 +4,7 @@ use super::ApiState;
 use crate::{
     db,
     error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
-    io::import_table_from_excel,
+    io,
     model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
     Id,
 };
@@ -154,7 +154,7 @@ async fn import_table_from_file(
 
     let spreadsheet = xlsx::read_reader(Cursor::new(data), true).map_err(anyhow::Error::from)?;
 
-    let create_tables = import_table_from_excel(spreadsheet);
+    let create_tables = io::import_table_from_excel(spreadsheet);
     info!("{create_tables:?}");
 
     let mut tx = pool.begin().await?;
@@ -172,9 +172,13 @@ async fn import_table_from_file(
         let entries = db::create_entries(
             tx.as_mut(),
             table.table_id,
-            fields.iter().map(|field| FieldMetadata::from_field(field.clone())).collect_vec(),
+            fields
+                .iter()
+                .map(|field| FieldMetadata::from_field(field.clone()))
+                .collect_vec(),
             entries,
-        ).await?;
+        )
+        .await?;
         tables.push(TableData {
             table,
             fields,

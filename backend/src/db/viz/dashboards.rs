@@ -13,7 +13,7 @@ pub async fn create_dashboard(
 ) -> sqlx::Result<Dashboard> {
     let mut tx = conn.begin().await?;
 
-    let dashboard = sqlx::query_as(
+    let dashboard: Dashboard = sqlx::query_as(
         r#"
             INSERT INTO dashboard (user_id, name, description)
             VALUES ($1, $2, $3) 
@@ -22,7 +22,7 @@ pub async fn create_dashboard(
                 user_id,
                 name,
                 description,
-                // created_at,
+                created_at,
                 updated_at
         "#,
     )
@@ -44,7 +44,7 @@ pub async fn update_dashboard(
 ) -> sqlx::Result<Dashboard> {
     let mut tx = conn.begin().await?;
 
-    let dashboard = sqlx::query_as(
+    let dashboard: Dashboard = sqlx::query_as(
         r#"
             UPDATE dashboard
             SET name = $1, description = $2
