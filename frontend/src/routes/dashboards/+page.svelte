@@ -7,7 +7,7 @@
 
   let asyncDashboards: Promise<Dashboard[]> = $state(getDashboards());
 
-  let curDash: Dashboard = $state(null as unknown as Dashboard);
+  let curDash: Dashboard | null = $state(null);
 
   let addDashMode = $state(false);
   let addDashName = $state("");
@@ -23,6 +23,8 @@
       .catch((e: APIError) => {
         addDashError = "Error: " + (e.body as { [key: string]: string }).name;
       });
+
+  $inspect(curDash);
 </script>
 
 <div class="flex flex-wrap gap-4 size-full items-stretch">
@@ -34,6 +36,7 @@
       {#await asyncDashboards}
         Loading...
       {:then dashboards}
+        {@debug dashboards}
         {#each dashboards as d}
           <button
             onclick={() => {
@@ -93,7 +96,9 @@
         <h2 class="text-lg font-bold">Select a Dashboard</h2>
       </div>
     {:else}
-      <DashboardEditor dashboard={curDash} />
+      {#key curDash}
+        <DashboardEditor dashboard={curDash} />
+      {/key}
     {/if}
   </div>
 </div>
