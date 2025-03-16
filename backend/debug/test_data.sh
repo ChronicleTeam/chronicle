@@ -9,11 +9,11 @@ curl -X POST $ADDR/tables \
 
 curl -X POST $ADDR/tables/1/fields \
     -H "Content-Type: application/json" \
-    -d '{"name": "Field 1", "field_kind": {"type": "Text", "is_required": true}}'
+    -d '{"name": "Field", "field_kind": {"type": "Text", "is_required": true}}'
 
 curl -X POST $ADDR/tables/1/fields \
     -H "Content-Type: application/json" \
-    -d '{"name": "Field 2", "field_kind": {"type": "Integer", "is_required": true}}'
+    -d '{"name": "Field", "field_kind": {"type": "Integer", "is_required": true}}'
 
 curl -X PATCH $ADDR/tables/1/fields/order \
     -H "Content-Type: application/json" \

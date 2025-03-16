@@ -3,7 +3,7 @@ use std::io::Cursor;
 use super::ApiState;
 use crate::{
     db,
-    error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
+    error::{ApiError, ApiResult},
     io,
     model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
     Id,
@@ -18,8 +18,8 @@ use itertools::Itertools;
 use tracing::info;
 use umya_spreadsheet::reader::xlsx;
 
-const TABLE_NAME_CONFLICT: ErrorMessage =
-    ErrorMessage::new_static("name", "Table name already used");
+// const TABLE_NAME_CONFLICT: ErrorMessage =
+//     ErrorMessage::new_static("name", "Table name already used");
 
 pub fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -36,8 +36,6 @@ pub fn router() -> Router<ApiState> {
 ///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::UnprocessableEntity`]:
-///     - [`TABLE_NAME_CONFLICT`]
 ///
 async fn create_table(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -45,11 +43,7 @@ async fn create_table(
 ) -> ApiResult<Json<Table>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    let table = db::create_table(&pool, user_id, create_table)
-        .await
-        .on_constraint("meta_table_user_id_name_key", |_| {
-            ApiError::unprocessable_entity([TABLE_NAME_CONFLICT])
-        })?;
+    let table = db::create_table(&pool, user_id, create_table).await?;
 
     Ok(Json(table))
 }
@@ -72,11 +66,7 @@ async fn update_table(
         .await?
         .to_api_result()?;
 
-    let table = db::update_table(&pool, table_id, update_table)
-        .await
-        .on_constraint("meta_table_user_id_name_key", |_| {
-            ApiError::unprocessable_entity([TABLE_NAME_CONFLICT])
-        })?;
+    let table = db::update_table(&pool, table_id, update_table).await?;
 
     Ok(Json(table))
 }

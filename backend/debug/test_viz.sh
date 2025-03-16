@@ -8,7 +8,7 @@ curl -X POST $ADDR/dashboards \
 
 set json '{
     "table_id": 1,
-    "title": "Test chart",
+    "name": "Test chart",
     "chart_kind": "Bar"
 }'
 
