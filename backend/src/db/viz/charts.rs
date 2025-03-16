@@ -12,7 +12,7 @@ pub async fn create_chart(
     dashboard_id: Id,
     CreateChart {
         table_id,
-        title,
+        name,
         chart_kind,
     }: CreateChart,
 ) -> sqlx::Result<Chart> {
@@ -20,13 +20,13 @@ pub async fn create_chart(
 
     let chart: Chart = sqlx::query_as(
         r#"
-            INSERT INTO chart (dashboard_id, table_id, title, chart_kind)
+            INSERT INTO chart (dashboard_id, table_id, name, chart_kind)
             VALUES ($1, $2, $3, $4)
             RETURNING
                 chart_id,
                 dashboard_id,
                 table_id,
-                title,
+                name,
                 chart_kind,
                 created_at,
                 updated_at
@@ -34,7 +34,7 @@ pub async fn create_chart(
     )
     .bind(dashboard_id)
     .bind(table_id)
-    .bind(title)
+    .bind(name)
     .bind(chart_kind)
     .fetch_one(tx.as_mut())
     .await?;
@@ -59,26 +59,26 @@ pub async fn create_chart(
 pub async fn update_chart(
     conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,
-    UpdateChart { title, chart_kind }: UpdateChart,
+    UpdateChart { name, chart_kind }: UpdateChart,
 ) -> sqlx::Result<Chart> {
     let mut tx = conn.begin().await?;
 
     let chart = sqlx::query_as(
         r#"
             UPDATE chart
-            SET title = $1, chart_kind = $2
+            SET name = $1, chart_kind = $2
             WHERE chart_id = $3
             RETURNING
                 chart_id,
                 dashboard_id,
                 table_id,
-                title,
+                name,
                 chart_kind,
                 created_at,
                 updated_at
         "#,
     )
-    .bind(title)
+    .bind(name)
     .bind(chart_kind)
     .bind(chart_id)
     .fetch_one(tx.as_mut())
@@ -138,7 +138,7 @@ pub async fn get_charts(
                 chart_id,
                 dashboard_id,
                 table_id,
-                title,
+                name,
                 chart_kind,
                 created_at,
                 updated_at
@@ -163,7 +163,7 @@ pub async fn get_chart_data(
                 chart_id,
                 dashboard_id,
                 table_id,
-                title,
+                name,
                 chart_kind,
                 created_at,
                 updated_at

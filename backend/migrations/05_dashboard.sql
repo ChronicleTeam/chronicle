@@ -10,4 +10,6 @@ CREATE TABLE dashboard (
 
 SELECT trigger_updated_at('dashboard');
 
+SELECT trigger_rename_duplicate('dashboard', 'dashboard_id', 'user_id');
+
 CREATE SCHEMA data_view;
