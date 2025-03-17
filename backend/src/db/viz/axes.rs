@@ -30,8 +30,9 @@ pub async fn set_axes(
 
     let axes: Vec<Axis> =
         QueryBuilder::new(r#"INSERT INTO axis (chart_id, field_id, axis_kind, aggregate)"#)
-            .push_values(axes, |mut b, axis| {
-                b.push_bind(chart_id)
+            .push_values(axes, |mut builder, axis| {
+                builder
+                    .push_bind(chart_id)
                     .push_bind(axis.field_id)
                     .push_bind(axis.axis_kind)
                     .push_bind(axis.aggregate);

@@ -11,7 +11,7 @@ pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
     pub table_id: Id,
-    pub title: String,
+    pub name: String,
     pub chart_kind: ChartKind,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -28,14 +28,14 @@ pub enum ChartKind {
 #[derive(Debug, Deserialize)]
 pub struct CreateChart {
     pub table_id: Id,
-    pub title: String,
+    pub name: String,
     pub chart_kind: ChartKind,
 }
 
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateChart {
-    pub title: String,
+    pub name: String,
     pub chart_kind: ChartKind,
 }
 

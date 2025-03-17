@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::ApiState;
 use crate::{
     db,
-    error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
+    error::{ApiError, ApiResult, ErrorMessage},
     model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
     Id,
 };
@@ -17,8 +17,8 @@ use itertools::Itertools;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
-const FIELD_NAME_CONFLICT: ErrorMessage =
-    ErrorMessage::new_static("name", "Field name already used for this table");
+// const FIELD_NAME_CONFLICT: ErrorMessage =
+//     ErrorMessage::new_static("name", "Field name already used for this table");
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
@@ -41,7 +41,6 @@ pub fn router() -> Router<ApiState> {
 /// - [`ApiError::NotFound`]: Table or field not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
-///     - [`FIELD_NAME_CONFLICT`]
 ///
 async fn create_field(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -55,11 +54,7 @@ async fn create_field(
 
     validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&pool, table_id, create_field)
-        .await
-        .on_constraint("meta_field_table_id_name_key", |_| {
-            ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
-        })?;
+    let field = db::create_field(&pool, table_id, create_field).await?;
 
     Ok(Json(field))
 }
@@ -72,7 +67,6 @@ async fn create_field(
 /// - [`ApiError::NotFound`]: Table or field not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
-///     - [`FIELD_NAME_CONFLICT`]
 ///
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -89,11 +83,7 @@ async fn update_field(
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field)
-        .await
-        .on_constraint("meta_field_table_id_name_key", |_| {
-            ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
-        })?;
+    let field = db::update_field(&pool, field_id, update_field).await?;
 
     Ok(Json(field))
 }

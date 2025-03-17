@@ -12,7 +12,9 @@ CREATE TABLE meta_field (
     UNIQUE (table_id, name)
 );
 
-SELECT trigger_updated_at ('meta_field');
+SELECT trigger_updated_at('meta_field');
+
+SELECT trigger_rename_duplicate('meta_field', 'field_id', 'table_id');
 
 CREATE OR REPLACE FUNCTION set_default_ordering()
 RETURNS TRIGGER AS $$
@@ -49,3 +51,4 @@ CREATE TRIGGER trigger_decrement_orderings
 AFTER DELETE ON meta_field
 FOR EACH ROW
 EXECUTE FUNCTION decrement_orderings();
+
