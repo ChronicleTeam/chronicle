@@ -30,6 +30,7 @@
     deleteField,
     type APIError,
   } from "$lib/api";
+  import { onMount } from "svelte";
 
   let { table_prop, on_save, delete_table } = $props();
 
@@ -820,12 +821,14 @@
   // Startup
   //
 
-  loadFields();
+  onMount(() => {
+    loadFields();
 
-  updateAllOptionalCheckboxes();
+    updateAllOptionalCheckboxes();
 
-  table.fields.forEach((f) => {
-    fieldErrors[f.field_id] = "";
+    table.fields.forEach((f) => {
+      fieldErrors[f.field_id] = "";
+    });
   });
 </script>
 

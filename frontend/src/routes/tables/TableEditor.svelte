@@ -31,6 +31,7 @@
   } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
+  import { onMount } from "svelte";
   let { table_prop } = $props();
 
   //
@@ -282,8 +283,9 @@
   //
   // Startup
   //
-
-  loadTable();
+  onMount(() => {
+    loadTable();
+  });
 </script>
 
 <div class="flex flex-col items-center justify-center gap-3">
