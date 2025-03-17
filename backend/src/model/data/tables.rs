@@ -67,6 +67,6 @@ impl TableIdentifier {
 }
 impl fmt::Display for TableIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, r#""{}".t{}"#, self.schema, self.table_id)
+        write!(f, r#""{}"."t{}""#, self.schema, self.table_id)
     }
 }
