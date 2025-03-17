@@ -41,7 +41,6 @@ pub fn router() -> Router<ApiState> {
 /// - [`ApiError::NotFound`]: Table or field not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
-///     - [`FIELD_NAME_CONFLICT`]
 ///
 async fn create_field(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -68,7 +67,6 @@ async fn create_field(
 /// - [`ApiError::NotFound`]: Table or field not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
-///     - [`FIELD_NAME_CONFLICT`]
 ///
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
