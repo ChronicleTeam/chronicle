@@ -7,7 +7,8 @@ CREATE TABLE meta_table (
     name TEXT COLLATE case_insensitive NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ,
+    UNIQUE (user_id, name)
 );
 
 SELECT trigger_updated_at('meta_table');
