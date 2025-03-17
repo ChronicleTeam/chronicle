@@ -1,4 +1,4 @@
-import { GET, POST, PUT, DELETE, hydrateJSONDataTable} from "./base.js";
+import { GET, POST, PUT, DELETE, hydrateJSONTableData} from "./base.js";
 import {type Dashboard , type Chart, type ChartData} from "../types.d.ts"
 
 // Dashboard methods

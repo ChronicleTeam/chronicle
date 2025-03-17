@@ -2,7 +2,7 @@
   import {
     getChartData,
     getCharts,
-    getDataTable,
+    getTableData,
     getTables,
     postChart,
     putAxes,
@@ -14,7 +14,7 @@
     ChartKind,
     AxisKind,
     type Table,
-    type DataTable,
+    type TableData,
     type AxisField,
     type FieldKind,
   } from "$lib/types.d.js";
@@ -71,7 +71,7 @@
   // chart being edited
   let curChartIdx = $state(-1);
   let editedAxisFields = $state([] as AxisField[]);
-  let curChartTableData: DataTable | null = $state(null);
+  let curChartTableData: TableData | null = $state(null);
   $inspect(editedAxisFields);
   //
   // Helper methods
@@ -161,7 +161,7 @@
       curChartIdx = charts.findIndex((d) => d.chart_id === c.chart_id);
       editedAxisFields = r.axes;
       curChartTableData = await getTables().then((t) =>
-        getDataTable(
+        getTableData(
           t.find((table) => table.table_id === r.chart.table_id) as Table,
         ),
       );

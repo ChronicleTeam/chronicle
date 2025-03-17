@@ -1,6 +1,6 @@
 <script lang="ts">
   import {
-    type DataTable,
+    type TableData,
     type Field,
     type Cell,
     type TextKind,
@@ -69,7 +69,7 @@
   //
 
   // the unmodified table, as it was fetched from the server
-  let originalTable: DataTable = $state({
+  let originalTable: TableData = $state({
     table: table_prop,
     fields: [],
     entries: [],

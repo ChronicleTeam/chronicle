@@ -135,7 +135,7 @@ export type Table = {
   created_at: Date;
   updated_at?: Date;
 };
-export type DataTable = {
+export type TableData = {
   table: Table;
   fields: Field[];
   entries: Entry[];

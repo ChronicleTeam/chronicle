@@ -1,4 +1,4 @@
-import { type Table, type DataTable, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
+import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
 
 const API_URL = "http://localhost:3000/api";
 
@@ -84,7 +84,7 @@ type JSONDateTimeKind = DateTimeKind & {
   range_end: string;
 }
 
-export const hydrateJSONDataTable = (jsonObj: DataTable): DataTable => {
+export const hydrateJSONTableData = (jsonObj: TableData): TableData => {
   let outTable = jsonObj;
 
   for (let i = 0; i < outTable.fields.length; i++) {
