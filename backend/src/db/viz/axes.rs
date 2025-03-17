@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     model::{
         data::{FieldIdentifier, FieldKind, TableIdentifier},
@@ -11,11 +13,10 @@ pub async fn set_axes(
     conn: impl Acquire<'_, Database = Postgres> + Clone,
     chart_id: Id,
     table_id: Id,
-    create_axes: Vec<(CreateAxis, FieldKind)>,
+    field_kinds: &HashMap<Id, FieldKind>,
+    axes: Vec<CreateAxis>,
 ) -> sqlx::Result<Vec<Axis>> {
     let mut tx = conn.clone().begin().await?;
-
-    let (create_axes, field_kinds): (Vec<_>, Vec<_>) = create_axes.into_iter().unzip();
 
     sqlx::query(
         r#"
@@ -29,8 +30,9 @@ pub async fn set_axes(
 
     let axes: Vec<Axis> =
         QueryBuilder::new(r#"INSERT INTO axis (chart_id, field_id, axis_kind, aggregate)"#)
-            .push_values(create_axes, |mut b, axis| {
-                b.push_bind(chart_id)
+            .push_values(axes, |mut builder, axis| {
+                builder
+                    .push_bind(chart_id)
                     .push_bind(axis.field_id)
                     .push_bind(axis.axis_kind)
                     .push_bind(axis.aggregate);
@@ -53,14 +55,14 @@ pub async fn set_axes(
 
     let mut group_by_columns = Vec::new();
     let mut select_columns = Vec::new();
-    for (axis, field_kind) in axes.iter().zip(field_kinds) {
+    for axis in &axes {
         let field_ident = FieldIdentifier::new(axis.field_id);
         let item = if let Some(aggregate) = &axis.aggregate {
             &format!(
                 "{}({})::{}",
                 aggregate.get_sql_aggregate(),
                 field_ident,
-                aggregate.get_sql_type(&field_kind),
+                aggregate.get_sql_type(&field_kinds.get(&axis.field_id).unwrap()),
             )
         } else {
             group_by_columns.push(field_ident.to_string());
@@ -81,14 +83,9 @@ pub async fn set_axes(
     let chart_ident = ChartIdentifier::new(chart_id, "data_view");
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
-    println!(
-        r#"
-            CREATE VIEW {chart_ident} AS
-            SELECT {select_columns}
-            FROM {table_ident}
-            {group_by_statement}
-        "#
-    );
+    sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
+        .execute(tx.as_mut())
+        .await?;
 
     sqlx::query(&format!(
         r#"

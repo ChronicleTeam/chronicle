@@ -7,21 +7,21 @@ use std::collections::HashMap;
 
 /// Table entry response.
 #[serde_as]
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Entry {
     pub entry_id: Id,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 
     /// Keys map to field IDs.
-    pub cells: HashMap<Id, Option<Cell>>,
+    pub cells: HashMap<Id, Cell>,
 }
 
 /// Create entry request. Keys map to field IDs.
 #[serde_as]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateEntry(pub HashMap<Id, Value>);
 
 /// Update entry request. Keys map to field IDs.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdateEntry(pub HashMap<Id, Value>);

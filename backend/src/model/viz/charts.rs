@@ -1,20 +1,23 @@
-use crate::Id;
+use crate::{model::Cell, Id};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
-#[derive(Serialize, FromRow)]
+use super::AxisField;
+
+#[derive(Debug, Serialize, FromRow)]
 pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
-    pub title: String,
+    pub table_id: Id,
+    pub name: String,
     pub chart_kind: ChartKind,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "chart_kind")]
 pub enum ChartKind {
     Table,
@@ -22,19 +25,28 @@ pub enum ChartKind {
     Line,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateChart {
-    pub title: String,
+    pub table_id: Id,
+    pub name: String,
     pub chart_kind: ChartKind,
 }
 
-// #[derive(Serialize)]
-// pub struct ChartData {
-//     pub chart: Chart,
-//     pub axis_data_map: HashMap<Id, AxisData>,
-//     pub cells: Vec<CellMap>,
-// }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateChart {
+    pub name: String,
+    pub chart_kind: ChartKind,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChartData {
+    pub chart: Chart,
+    pub axes: Vec<AxisField>,
+    pub cells: Vec<HashMap<Id, Cell>>,
+}
+
+#[derive(Debug)]
 pub struct ChartIdentifier {
     chart_id: Id,
     schema: String,

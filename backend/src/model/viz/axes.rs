@@ -2,11 +2,11 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{types::Json, FromRow};
 
 use crate::{model::data::FieldKind, Id};
 
-#[derive(Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct Axis {
     pub axis_id: Id,
     pub chart_id: Id,
@@ -17,7 +17,7 @@ pub struct Axis {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
 #[sqlx(type_name = "axis_kind")]
 pub enum AxisKind {
     X,
@@ -29,7 +29,7 @@ pub enum AxisKind {
     Detail,
 }
 
-#[derive(Serialize, Deserialize, sqlx::Type, Clone)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
     Sum,
@@ -62,25 +62,35 @@ impl Aggregate {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateAxis {
     pub field_id: Id,
     pub axis_kind: AxisKind,
     pub aggregate: Option<Aggregate>,
 }
 
-#[derive(Deserialize)]
-pub struct SetAxes {
-    pub table_id: Id,
-    pub axes: Vec<CreateAxis>,
+#[derive(Debug, Deserialize)]
+pub struct SetAxes(pub Vec<CreateAxis>);
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct AxisField {
+    #[sqlx(flatten)]
+    pub axis: Axis,
+    pub field_name: String,
+    pub field_kind: Json<FieldKind>,
 }
 
+
+#[derive(Debug)]
 pub struct AxisIdentifier {
     axis_id: Id,
 }
 impl AxisIdentifier {
     pub fn new(axis_id: Id) -> Self {
         Self { axis_id }
+    }
+    pub fn unquoted(&self) -> String {
+        format!("a{}", self.axis_id)
     }
 }
 impl fmt::Display for AxisIdentifier {

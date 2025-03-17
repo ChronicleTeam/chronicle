@@ -1,8 +1,13 @@
-use super::Relation;
+use super::{entry_from_row, field_columns};
 use crate::{
-    model::data::{CreateTable, Table, TableIdentifier, UpdateTable},
+    db::Relation,
+    model::data::{
+        CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData,
+        TableIdentifier, UpdateTable,
+    },
     Id,
 };
+use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
 
 pub async fn create_table(
@@ -45,11 +50,9 @@ pub async fn create_table(
     .execute(tx.as_mut())
     .await?;
 
-    sqlx::query(&format!(
-        r#"SELECT trigger_updated_at('{table_ident}')"#
-    ))
-    .execute(tx.as_mut())
-    .await?;
+    sqlx::query(&format!(r#"SELECT trigger_updated_at('{table_ident}')"#))
+        .execute(tx.as_mut())
+        .await?;
 
     tx.commit().await?;
 
@@ -62,7 +65,7 @@ pub async fn update_table(
     UpdateTable { name, description }: UpdateTable,
 ) -> sqlx::Result<Table> {
     let mut tx = conn.begin().await?;
-    
+
     let table = sqlx::query_as(
         r#"
             UPDATE meta_table
@@ -132,6 +135,90 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
     .bind(user_id)
     .fetch_all(executor)
     .await
+}
+
+pub async fn get_table_data(
+    executor: impl PgExecutor<'_> + Copy,
+    table_id: Id,
+) -> sqlx::Result<TableData> {
+    let table: Table = sqlx::query_as(
+        r#"
+            SELECT 
+                table_id,
+                user_id,
+                name,
+                description,
+                created_at,
+                updated_at
+            FROM meta_table
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_one(executor)
+    .await?;
+
+    let fields: Vec<Field> = sqlx::query_as(
+        r#"
+            SELECT
+                field_id,
+                table_id,
+                name,
+                ordering,
+                field_kind,
+                created_at,
+                updated_at
+            FROM meta_field
+            WHERE table_id = $1
+            ORDER BY field_id
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await?;
+
+    let field_idents = fields
+        .iter()
+        .map(|field| FieldIdentifier::new(field.field_id))
+        .collect_vec();
+
+    let select_columns = field_columns(&field_idents).join(", ");
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+    let entries = sqlx::query::<Postgres>(&format!(
+        r#"
+            SELECT {select_columns}
+            FROM {table_ident}
+        "#
+    ))
+    .fetch_all(executor)
+    .await?
+    .into_iter()
+    .map(|row| {
+        entry_from_row(
+            row,
+            &fields
+                .iter()
+                .map(
+                    |Field {
+                         field_id,
+                         field_kind,
+                         ..
+                     }| FieldMetadata {
+                        field_id: field_id.clone(),
+                        field_kind: field_kind.clone(),
+                    },
+                )
+                .collect_vec(),
+        )
+    })
+    .try_collect()?;
+
+    Ok(TableData {
+        table,
+        fields,
+        entries,
+    })
 }
 
 pub async fn check_table_relation(

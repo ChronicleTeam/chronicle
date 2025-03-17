@@ -3,35 +3,34 @@ use std::collections::HashSet;
 use super::ApiState;
 use crate::{
     db,
-    error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
+    error::{ApiError, ApiResult, ErrorMessage},
     model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
     Id,
 };
 use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
-    routing::{patch, post, put},
+    routing::{patch, post},
     Json, Router,
 };
 use itertools::Itertools;
 
 const INVALID_RANGE: ErrorMessage =
     ErrorMessage::new_static("range", "Range start bound is greater than end bound");
-const FIELD_NAME_CONFLICT: ErrorMessage =
-    ErrorMessage::new_static("name", "Field name already used for this table");
+// const FIELD_NAME_CONFLICT: ErrorMessage =
+//     ErrorMessage::new_static("name", "Field name already used for this table");
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
+const FIELD_ID_MISSING: &str = "Field ID missing";
+const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route(
-            "/tables/{table_id}/fields",
-            post(create_field).get(get_fields),
-        )
-        .route(
-            "/tables/{table_id}/fields/{field_id}",
-            put(update_field).delete(delete_field),
-        )
-        .route("/tables/{table-id}/fields/order", patch(set_field_order))
+    Router::new().nest(
+        "/tables/{table-id}/fields",
+        Router::new()
+            .route("/", post(create_field).get(get_fields))
+            .route("/{field_id}", patch(update_field).delete(delete_field))
+            .route("/order", patch(set_field_order)),
+    )
 }
 
 /// Create a field in a table.
@@ -42,7 +41,6 @@ pub fn router() -> Router<ApiState> {
 /// - [`ApiError::NotFound`]: Table or field not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
-///     - [`FIELD_NAME_CONFLICT`]
 ///
 async fn create_field(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -56,11 +54,7 @@ async fn create_field(
 
     validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&pool, table_id, create_field)
-        .await
-        .on_constraint("meta_field_table_id_name_key", |_| {
-            ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
-        })?;
+    let field = db::create_field(&pool, table_id, create_field).await?;
 
     Ok(Json(field))
 }
@@ -73,7 +67,6 @@ async fn create_field(
 /// - [`ApiError::NotFound`]: Table or field not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`INVALID_RANGE`]
-///     - [`FIELD_NAME_CONFLICT`]
 ///
 async fn update_field(
     State(ApiState { pool, .. }): State<ApiState>,
@@ -90,11 +83,7 @@ async fn update_field(
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field)
-        .await
-        .on_constraint("meta_field_table_id_name_key", |_| {
-            ApiError::unprocessable_entity([FIELD_NAME_CONFLICT])
-        })?;
+    let field = db::update_field(&pool, field_id, update_field).await?;
 
     Ok(Json(field))
 }
@@ -155,18 +144,32 @@ async fn set_field_order(
         .await?
         .to_api_result()?;
 
-    let field_ids: HashSet<_> = db::get_field_ids(&pool, table_id).await?.into_iter().collect();
+    let mut field_ids: HashSet<_> = db::get_field_ids(&pool, table_id)
+        .await?
+        .into_iter()
+        .collect();
 
-    let error_messages = order
-        .keys()
-        .filter_map(|field_id| {
-            if field_ids.get(field_id) == None {
-                Some(ErrorMessage::new(field_id.to_string(), FIELD_ID_NOT_FOUND))
+    let mut error_messages = order
+        .iter()
+        .sorted_by_key(|(_, ordering)| **ordering)
+        .enumerate()
+        .filter_map(|(idx, (field_id, ordering))| {
+            let key = field_id.to_string();
+            if !field_ids.remove(field_id) {
+                Some(ErrorMessage::new(key, FIELD_ID_NOT_FOUND))
+            } else if idx as i32 + 1 != *ordering {
+                Some(ErrorMessage::new(key, INVALID_ORDERING))
             } else {
                 None
             }
         })
         .collect_vec();
+
+    error_messages.extend(
+        field_ids
+            .into_iter()
+            .map(|field_id| ErrorMessage::new(field_id.to_string(), FIELD_ID_MISSING)),
+    );
 
     if error_messages.len() > 0 {
         return Err(ApiError::unprocessable_entity(error_messages));

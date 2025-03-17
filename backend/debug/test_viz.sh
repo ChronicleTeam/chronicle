@@ -8,22 +8,35 @@ curl -X POST $ADDR/dashboards \
 
 set json '{
     "table_id": 1,
-    "title": "Test chart",
-    "chart_kind": "Bar",
-    "axes": [
-        {
-            "field_id": 1,
-            "axis_kind": "X",
-            "aggregate": null
-        },
-        {
-            "field_id": 2,
-            "axis_kind": "Y",
-            "aggregate": "Sum"
-        }
-    ]
+    "name": "Test chart",
+    "chart_kind": "Bar"
 }'
 
 curl -X POST $ADDR/dashboards/1/charts \
     -H "Content-Type: application/json" \
     -d "$json"
+
+set json '[
+     {
+        "field_id": 1,
+        "axis_kind": "X",
+        "aggregate": null
+    },
+    {
+        "field_id": 2,
+        "axis_kind": "Y",
+        "aggregate": "Sum"
+    },
+    {
+        "field_id": 2,
+        "axis_kind": "Label",
+        "aggregate": "Sum"
+    }
+]'
+
+
+curl -X PUT $ADDR/dashboards/1/charts/1/axes \
+    -H "Content-Type: application/json" \
+    -d "$json"
+
+curl -X GET $ADDR/dashboards/1/charts/1/data

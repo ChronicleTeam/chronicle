@@ -1,26 +1,29 @@
 use crate::{
     db,
-    error::{ApiError, ApiResult, ErrorMessage, OnConstraint},
+    error::ApiResult,
     model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
     routes::ApiState,
     Id,
 };
 use axum::{
     extract::{Path, State},
-    routing::{post, put},
+    routing::{patch, post},
     Json, Router,
 };
 
-const DASHBOARD_NAME_CONFLICT: ErrorMessage =
-    ErrorMessage::new_static("name", "Dashboard name already used");
+// const DASHBOARD_NAME_CONFLICT: ErrorMessage =
+//     ErrorMessage::new_static("name", "Dashboard name already used");
 
 pub fn router() -> Router<ApiState> {
-    Router::new()
-        .route("/dashboards", post(create_dashboard).get(get_dashboards))
-        .route(
-            "/dashboards/{dashboard-id}",
-            put(update_dashboard).delete(delete_dashboard),
-        )
+    Router::new().nest(
+        "/dashboards",
+        Router::new()
+            .route("/", post(create_dashboard).get(get_dashboards))
+            .route(
+                "/{dashboard-id}",
+                patch(update_dashboard).delete(delete_dashboard),
+            ),
+    )
 }
 
 async fn create_dashboard(
@@ -29,11 +32,7 @@ async fn create_dashboard(
 ) -> ApiResult<Json<Dashboard>> {
     let user_id = db::debug_get_user_id(&pool).await?;
 
-    let dashboard = db::create_dashboard(&pool, user_id, create_dashboard)
-        .await
-        .on_constraint("dashboard_user_id_name_key", |_| {
-            ApiError::unprocessable_entity([DASHBOARD_NAME_CONFLICT])
-        })?;
+    let dashboard = db::create_dashboard(&pool, user_id, create_dashboard).await?;
 
     Ok(Json(dashboard))
 }
@@ -49,11 +48,7 @@ async fn update_dashboard(
         .await?
         .to_api_result()?;
 
-    let dashboard = db::update_dashboard(&pool, dashboard_id, update_dashboard)
-        .await
-        .on_constraint("dashboard_user_id_name_key", |_| {
-            ApiError::unprocessable_entity([DASHBOARD_NAME_CONFLICT])
-        })?;
+    let dashboard = db::update_dashboard(&pool, dashboard_id, update_dashboard).await?;
 
     Ok(Json(dashboard))
 }
@@ -68,7 +63,7 @@ async fn delete_dashboard(
         .await?
         .to_api_result()?;
 
-    _ = db::delete_dashboard(&pool, dashboard_id).await?;
+    db::delete_dashboard(&pool, dashboard_id).await?;
 
     Ok(())
 }

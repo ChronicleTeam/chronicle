@@ -1,14 +1,18 @@
-use super::Relation;
 use crate::{
-    model::data::{
-        CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata,
-        TableIdentifier, UpdateField,
+    db::Relation,
+    model::{
+        data::{
+            CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier,
+            UpdateField,
+        },
+        Cell,
     },
     Id,
 };
 use itertools::Itertools;
-use sqlx::{types::Json, Acquire, PgExecutor, Postgres};
+use sqlx::{types::Json, Acquire, PgExecutor, Postgres, QueryBuilder, Row};
 use std::{collections::HashMap, mem::discriminant};
+use tracing::{debug, info};
 
 pub async fn create_field(
     conn: impl Acquire<'_, Database = Postgres>,
@@ -41,6 +45,9 @@ pub async fn create_field(
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let field_ident = FieldIdentifier::new(field.field_id);
 
+    debug!("column_type {column_type}");
+    debug!("field_ident {field_ident}");
+
     sqlx::query(&format!(
         r#"
             ALTER TABLE {table_ident}
@@ -55,33 +62,79 @@ pub async fn create_field(
     return Ok(field);
 }
 
+pub async fn create_fields(
+    conn: impl Acquire<'_, Database = Postgres>,
+    table_id: Id,
+    fields: Vec<CreateField>,
+) -> sqlx::Result<Vec<Field>> {
+    let mut tx = conn.begin().await?;
+
+    let fields: Vec<Field> =
+        QueryBuilder::new(r#"INSERT INTO meta_field (table_id, name, field_kind)"#)
+            .push_values(fields, |mut builder, field| {
+                builder
+                    .push_bind(table_id)
+                    .push_bind(field.name)
+                    .push_bind(Json(field.field_kind));
+            })
+            .push(
+                r#"
+                    RETURNING
+                        field_id,
+                        table_id,
+                        name,
+                        ordering,
+                        field_kind,
+                        created_at,
+                        updated_at
+                "#,
+            )
+            .build_query_as()
+            .fetch_all(tx.as_mut())
+            .await?;
+
+    let add_column_statement = fields
+        .iter()
+        .map(|field| {
+            let column_type = field.field_kind.0.get_sql_type();
+            let field_ident = FieldIdentifier::new(field.field_id);
+            format!(r#"ADD COLUMN {field_ident} {column_type}"#)
+        })
+        .join(", ");
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+
+    sqlx::query(&format!(
+        r#"
+            ALTER TABLE {table_ident}
+            {add_column_statement}
+        "#,
+    ))
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    return Ok(fields);
+}
+
 pub async fn update_field(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
-    UpdateField {
-        name,
-        field_kind,
-    }: UpdateField,
+    UpdateField { name, field_kind }: UpdateField,
 ) -> sqlx::Result<Field> {
     let mut tx = conn.begin().await?;
 
     let Json(old_field_kind): Json<FieldKind> = sqlx::query_scalar(
-        r#"
-            SELECT field_kind
-            FROM meta_field
-            WHERE field_id = $1
-        "#,
+        r"SELECT field_kind
+        FROM meta_field
+        WHERE field_id = $1",
     )
     .bind(field_id)
     .fetch_one(tx.as_mut())
     .await?;
 
-    // Should create a new field and attempt to convert
-    if discriminant(&field_kind) != discriminant(&old_field_kind) {
-        todo!("Not implemented")
-    }
-
-    let field: Field = sqlx::query_as(
+    let mut field: Field = sqlx::query_as(
         r#"
             UPDATE meta_field
             SET name = $1, field_kind = $2
@@ -97,10 +150,99 @@ pub async fn update_field(
         "#,
     )
     .bind(name)
-    .bind(Json(field_kind))
+    .bind(Json(field_kind.clone()))
     .bind(field_id)
     .fetch_one(tx.as_mut())
     .await?;
+
+    if discriminant(&field_kind) != discriminant(&old_field_kind) {
+        field = convert_field_kind(tx.as_mut(), field, old_field_kind).await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(field)
+}
+
+async fn convert_field_kind(
+    conn: impl Acquire<'_, Database = Postgres>,
+    field: Field,
+    old_field_kind: FieldKind,
+) -> sqlx::Result<Field> {
+    let mut tx = conn.begin().await?;
+
+    let field_ident = FieldIdentifier::new(field.field_id);
+    let table_ident = TableIdentifier::new(field.table_id, "data_table");
+    let rows = sqlx::query(&format!(
+        r#"
+            SELECT entry_id, {field_ident}
+            FROM {table_ident}
+        "#
+    ))
+    .fetch_all(tx.as_mut())
+    .await?;
+
+    let cells: Vec<(Id, Cell)> = rows
+        .into_iter()
+        .filter_map(|row| {
+            Cell::from_field_row(&row, &field_ident.unquote(), &old_field_kind)
+                .map(|cell| {
+                    Some((
+                        row.get("entry_id"),
+                        cell.convert_field_kind(&field.field_kind.0)?,
+                    ))
+                })
+                .transpose()
+        })
+        .collect::<sqlx::Result<_>>()?;
+
+    sqlx::query(
+        r#"
+            UPDATE meta_field
+            SET name = name || ' (BACKUP)', field_kind = $1
+            WHERE field_id = $2
+        "#,
+    )
+    .bind(Json(old_field_kind))
+    .bind(field.field_id)
+    .execute(tx.as_mut())
+    .await?;
+
+    debug!("{field:?}");
+
+    let field = create_field(
+        tx.as_mut(),
+        field.table_id,
+        CreateField {
+            name: field.name,
+            field_kind: field.field_kind.0,
+        },
+    )
+    .await?;
+
+    let field_ident = FieldIdentifier::new(field.field_id);
+
+    let mut q = QueryBuilder::<Postgres>::new(format!(
+        r#"
+            UPDATE {table_ident}
+            SET {field_ident} = data.cell
+            FROM (
+        "#
+    ));
+    q.push_values(cells, |mut builder, (id, cell)| {
+        builder.push_bind(id);
+        cell.push_bind(&mut builder);
+    })
+    .push(format!(
+        r#"
+            ) AS data (entry_id, cell)
+            WHERE {table_ident}.entry_id = data.entry_id
+        "#
+    ));
+
+    debug!("{}", q.sql());
+
+    q.build().execute(tx.as_mut()).await?;
 
     tx.commit().await?;
 

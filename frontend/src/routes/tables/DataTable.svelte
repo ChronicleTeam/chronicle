@@ -212,8 +212,15 @@
             );
           },
         } as InputParameters;
-      case FieldType.Text:
       case FieldType.WebLink:
+        return {
+          type: "url",
+          bindGetter: () => table.entries[entryIdx].cells[f.field_id],
+          bindSetter: (val: string) => {
+            table.entries[entryIdx].cells[f.field_id] = val;
+          },
+        } as InputParameters;
+      case FieldType.Text:
       case FieldType.Email:
       default:
         return {
@@ -295,10 +302,10 @@
           {#each table.fields as field}
             <td
               class={[
-                "relative text-black border-2 border-gray-400 size-min",
+                "relative text-black border-2 border-gray-400 size-min p-2",
                 editableEntry === i ? "bg-blue-200" : "bg-white",
               ]}
-              onclick={() => {
+              ondblclick={() => {
                 if (tableMode === TableMode.DISPLAY) editEntry(i);
               }}
             >

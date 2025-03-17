@@ -7,7 +7,7 @@ use sqlx::{types::Json, FromRow};
 use std::{collections::HashMap, fmt};
 
 /// Table field response.
-#[derive(Serialize, FromRow)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
@@ -20,7 +20,7 @@ pub struct Field {
 
 /// The field kind and associated options.
 #[serde_as]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum FieldKind {
     Text {
@@ -56,10 +56,6 @@ pub enum FieldKind {
     WebLink {
         is_required: bool,
     },
-
-    Email {
-        is_required: bool,
-    },
     Checkbox,
     Enumeration {
         is_required: bool,
@@ -80,8 +76,7 @@ impl FieldKind {
             FieldKind::Money { .. } => "numeric_money",
             FieldKind::Progress { .. } => "BIGINT NOT NULL DEFAULT 0",
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",
-            FieldKind::WebLink { .. } => "COLLATE case_insensitive TEXT",
-            FieldKind::Email { .. } => "COLLATE case_insensitive TEXT",
+            FieldKind::WebLink { .. } => "TEXT COLLATE case_insensitive",
             FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
             FieldKind::Enumeration { .. } => "BIGINT",
         }
@@ -89,26 +84,35 @@ impl FieldKind {
 }
 
 /// Create field request.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CreateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
 /// Update field request.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct UpdateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
-#[derive(FromRow)]
+#[derive(Debug, FromRow)]
 pub struct FieldMetadata {
     pub field_id: Id,
     pub field_kind: Json<FieldKind>,
+}
+
+impl FieldMetadata {
+    pub fn from_field(field: Field) -> Self {
+        Self {
+            field_id: field.field_id,
+            field_kind: field.field_kind,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -119,7 +123,7 @@ impl FieldIdentifier {
     pub fn new(field_id: Id) -> Self {
         Self { field_id }
     }
-    pub fn unquoted(&self) -> String {
+    pub fn unquote(&self) -> String {
         format!("f{}", self.field_id)
     }
 }
