@@ -25,7 +25,7 @@ export const getChartData = async (d: Dashboard, c: Chart): Promise<ChartData> =
 
 export const postChart = async (d: Dashboard, c: Chart): Promise<Chart> => POST<Chart>(`/dashboards/${d.dashboard_id}/charts`, {
   table_id: c.table_id,
-  title: c.title,
+  name: c.name,
   chart_kind: c.chart_kind
 });
 

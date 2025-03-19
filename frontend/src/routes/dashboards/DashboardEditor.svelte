@@ -7,6 +7,7 @@
     postChart,
     putAxes,
   } from "$lib/api";
+  import ChartComponent from "$lib/components/charts/Chart.svelte";
   import {
     type Dashboard,
     type Chart,
@@ -17,6 +18,7 @@
     type TableData,
     type AxisField,
     type FieldKind,
+    type ChartData,
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
 
@@ -25,6 +27,54 @@
   //
   // Constants
   //
+
+  const col_start = [
+    "",
+    "col-start-1",
+    "col-start-2",
+    "col-start-3",
+    "col-start-4",
+    "col-start-5",
+    "col-start-6",
+    "col-start-7",
+    "col-start-8",
+  ];
+
+  const col_span = [
+    "",
+    "col-span-1",
+    "col-span-2",
+    "col-span-3",
+    "col-span-4",
+    "col-span-5",
+    "col-span-6",
+    "col-span-7",
+    "col-span-8",
+  ];
+
+  const row_start = [
+    "",
+    "row-start-1",
+    "row-start-2",
+    "row-start-3",
+    "row-start-4",
+    "row-start-5",
+    "row-start-6",
+    "row-start-7",
+    "row-start-8",
+  ];
+
+  const row_span = [
+    "",
+    "row-span-1",
+    "row-span-2",
+    "row-span-3",
+    "row-span-4",
+    "row-span-5",
+    "row-span-6",
+    "row-span-7",
+    "row-span-8",
+  ];
 
   const asyncTables = $state(getTables());
 
@@ -42,21 +92,13 @@
 
   let charts: Chart[] = $state([]);
 
-  let gridDims = $derived({
-    w: charts.length + (editMode === EditMode.DASH ? 1 : 0) || 1,
-    h: 1,
-  });
-
   let freeSpaces = $derived.by(() => {
     let out = [];
-    for (let i = 1; i <= gridDims.w; i++) {
-      for (let j = 1; j <= gridDims.h; j++) {
+    for (let i = 1; i <= 8; i++) {
+      for (let j = 1; j <= 1; j++) {
         if (
-          !charts.some(
-            (c) =>
-              withinChart(i, j, c) &&
-              (!newChart || !withinChart(i, j, newChart)),
-          )
+          !charts.some((c) => withinChart(i, j, c)) &&
+          (!newChart || !withinChart(i, j, newChart))
         ) {
           out.push([i, j]);
         }
@@ -73,17 +115,18 @@
   let editedAxisFields = $state([] as AxisField[]);
   let curChartTableData: TableData | null = $state(null);
   $inspect(editedAxisFields);
+
   //
   // Helper methods
   //
   const blankChart = (x: number, y: number, w: number, h: number): Chart => {
     let i = 0;
-    while (charts.some((c) => c.title === `Chart ${++i}`));
+    while (charts.some((c) => c.name === `Chart ${++i}`));
     return {
       chart_id: -1,
       dashboard_id: dashboard.dashboard_id,
       table_id: -1,
-      title: `Chart ${i}`,
+      name: `Chart ${i}`,
       chart_kind: ChartKind.Bar,
       x,
       y,
@@ -185,12 +228,18 @@
 </script>
 
 {#if editMode === EditMode.DISPLAY || editMode === EditMode.DASH}
-  <div class="grid grid-cols-{gridDims.w} grid-rows-{gridDims.h} gap-2">
+  <div class="grid grid-cols-8 grid-rows-1 gap-2">
     {#each charts as chart}
       <div
-        class="rounded-lg bg-gray-100 p-3 col-start-{chart.x} col-span-{chart.w} row-start-{chart.y} row-span-{chart.h} flex flex-col"
+        class={[
+          "rounded-lg bg-gray-100 p-3 flex flex-col",
+          col_start[chart.x],
+          row_start[chart.y],
+          col_span[chart.w],
+          row_span[chart.h],
+        ]}
       >
-        <p class="font-bold text-center">{chart.title}</p>
+        <p class="font-bold text-center">{chart.name}</p>
         <p>Kind: {chart.chart_kind}</p>
         {#await asyncTables then tables}
           <p>
@@ -199,6 +248,7 @@
             )?.name}
           </p>
         {/await}
+        <ChartComponent {dashboard} {chart} />
         <button
           class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
           onclick={() => editChart(chart)}>Edit</button
@@ -214,9 +264,15 @@
     {#if editMode === EditMode.DASH}
       {#if newChart}
         <div
-          class="rounded-lg bg-gray-100 col-start-{newChart.x} col-span-{newChart.w} row-start-{newChart.y} row-span-{newChart.h} flex flex-col gap-3"
+          class={[
+            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3",
+            col_start[newChart.x],
+            row_start[newChart.y],
+            col_span[newChart.w],
+            row_span[newChart.h],
+          ]}
         >
-          <input bind:value={newChart.title} />
+          <input bind:value={newChart.name} />
           <select bind:value={newChart.chart_kind}>
             {#each Object.values(ChartKind) as kind}
               <option>{kind}</option>
@@ -247,7 +303,11 @@
       {/if}
       {#each freeSpaces as space}
         <button
-          class="rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg"
+          class={[
+            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg",
+            col_start[space[0]],
+            row_start[space[1]],
+          ]}
           onclick={() => {
             newChart = blankChart(space[0], space[1], 1, 1);
           }}>+</button
@@ -266,7 +326,7 @@
     </div>
   {/if}
 {:else}
-  <input class="mb-2" bind:value={charts[curChartIdx].title} />
+  <input class="mb-2" bind:value={charts[curChartIdx].name} />
   <div class="flex gap-3">
     {#each editedAxisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">

@@ -279,7 +279,7 @@ export type Chart = {
   chart_id: number;
   dashboard_id: number;
   table_id: number;
-  title: string;
+  name: string;
   chart_kind: ChartKind;
   w: number,
   h: number,
