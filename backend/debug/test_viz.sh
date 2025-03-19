@@ -25,7 +25,7 @@ set json '[
     {
         "field_id": 2,
         "axis_kind": "Y",
-        "aggregate": "Sum"
+        "aggregate": "Average"
     },
     {
         "field_id": 2,
