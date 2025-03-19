@@ -91,6 +91,7 @@
   let editMode = $state(EditMode.DISPLAY);
 
   let charts: Chart[] = $state([]);
+  let loadChartError = $state("");
 
   let freeSpaces = $derived.by(() => {
     let out = [];
@@ -109,11 +110,14 @@
   });
 
   let newChart: Chart | null = $state(null);
+  let createChartError = $state("");
 
   // chart being edited
   let curChartIdx = $state(-1);
   let editedAxisFields = $state([] as AxisField[]);
   let curChartTableData: TableData | null = $state(null);
+  let editChartError = $state("");
+  let editAxesError = $state("");
   $inspect(editedAxisFields);
 
   //
@@ -177,15 +181,20 @@
   //
 
   const loadCharts = () =>
-    getCharts(dashboard).then((result: Chart[]) => {
-      charts = result.map((c, i) => {
-        c.x = i + 1;
-        c.y = 1;
-        c.w = 1;
-        c.h = 1;
-        return c;
+    getCharts(dashboard)
+      .then((result: Chart[]) => {
+        loadChartError = "";
+        charts = result.map((c, i) => {
+          c.x = i + 1;
+          c.y = 1;
+          c.w = 1;
+          c.h = 1;
+          return c;
+        });
+      })
+      .catch((e) => {
+        loadChartError = e.body.toString();
       });
-    });
 
   const createChart = () => {
     if (newChart) {
@@ -193,22 +202,35 @@
         .then(loadCharts)
         .then(cancelCreateChart)
         .then(() => {
+          createChartError = "";
           editMode = EditMode.DISPLAY;
+        })
+        .catch((e) => {
+          createChartError = e.body.toString();
         });
     }
   };
 
   const editChart = (c: Chart) => {
-    getChartData(dashboard, c).then(async (r) => {
-      editMode = EditMode.CHART;
-      curChartIdx = charts.findIndex((d) => d.chart_id === c.chart_id);
-      editedAxisFields = r.axes;
-      curChartTableData = await getTables().then((t) =>
-        getTableData(
-          t.find((table) => table.table_id === r.chart.table_id) as Table,
-        ),
-      );
-    });
+    getChartData(dashboard, c)
+      .then(async (r) => {
+        editMode = EditMode.CHART;
+        curChartIdx = charts.findIndex((d) => d.chart_id === c.chart_id);
+        editedAxisFields = r.axes;
+        curChartTableData = await getTables().then((t) =>
+          getTableData(
+            t.find((table) => table.table_id === r.chart.table_id) as Table,
+          ).catch(() => null),
+        );
+        if (curChartTableData === null)
+          throw { body: "Could not get Chart data" };
+
+        editChartError = "";
+        editAxesError = "";
+      })
+      .catch((e) => {
+        editChartError = e.body.toString();
+      });
   };
 
   const saveAxisFields = (chart: Chart, axes: AxisField[]) =>
@@ -216,7 +238,14 @@
       dashboard,
       chart,
       axes.map((af) => af.axis),
-    ).then(cancelEditChart);
+    )
+      .then(() => {
+        cancelEditChart();
+        editAxesError = "";
+      })
+      .catch((e) => {
+        editAxesError = e.body.toString();
+      });
 
   //
   // Startup
@@ -229,38 +258,50 @@
 
 {#if editMode === EditMode.DISPLAY || editMode === EditMode.DASH}
   <div class="grid grid-cols-8 grid-rows-1 gap-2">
-    {#each charts as chart}
-      <div
-        class={[
-          "rounded-lg bg-gray-100 p-3 flex flex-col",
-          col_start[chart.x],
-          row_start[chart.y],
-          col_span[chart.w],
-          row_span[chart.h],
-        ]}
-      >
-        <p class="font-bold text-center">{chart.name}</p>
-        <p>Kind: {chart.chart_kind}</p>
-        {#await asyncTables then tables}
-          <p>
-            Source Table: {tables.find(
-              (t: Table) => t.table_id === chart.table_id,
-            )?.name}
-          </p>
-        {/await}
-        <ChartComponent {dashboard} {chart} />
-        <button
-          class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-          onclick={() => editChart(chart)}>Edit</button
-        >
-      </div>
+    {#if loadChartError}
+      <p class="text-red-500">{loadChartError}</p>
     {:else}
-      {#if editMode === EditMode.DISPLAY}
-        <div class="flex justify-center items-center">
-          <p>No Charts.</p>
+      {#each charts as chart}
+        <div
+          class={[
+            "rounded-lg bg-gray-100 p-3 flex flex-col",
+            col_start[chart.x],
+            row_start[chart.y],
+            col_span[chart.w],
+            row_span[chart.h],
+          ]}
+        >
+          <p class="font-bold text-center">{chart.name}</p>
+          <p>Kind: {chart.chart_kind}</p>
+          {#await asyncTables then tables}
+            <p>
+              Source Table: {tables.find(
+                (t: Table) => t.table_id === chart.table_id,
+              )?.name}
+            </p>
+          {:catch}
+            <p>Source Table: <span class="text-red-500">(Not Found)</span></p>
+          {/await}
+          <ChartComponent {dashboard} {chart} />
+          <button
+            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+            onclick={() => editChart(chart)}>Edit</button
+          >
+          {#if editChartError}
+            <p class="text-red-500">{editChartError}</p>
+          {/if}
         </div>
+      {:else}
+        {#if editMode === EditMode.DISPLAY}
+          <div class="flex justify-center items-center">
+            <p>No Charts.</p>
+          </div>
+        {/if}
+      {/each}
+      {#if createChartError}
+        <p class="text-red-500">Error: {createChartError}</p>
       {/if}
-    {/each}
+    {/if}
     {#if editMode === EditMode.DASH}
       {#if newChart}
         <div
@@ -370,5 +411,11 @@
         saveAxisFields(charts[curChartIdx], editedAxisFields);
       }}>Save</button
     >
+    <button
+      onclick={cancelEditChart}
+      class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+      >Cancel</button
+    >
   </div>
+  {#if editAxesError}<p class="text-red-500">{editAxesError}</p>{/if}
 {/if}

@@ -46,6 +46,11 @@
             >{d.name}</button
           >
         {/each}
+      {:catch error}
+        <p class="text-red-500">
+          Error{#if error.status}
+            ({error.status}){/if}: Could not load dashboards
+        </p>
       {/await}
     </div>
     <!-- Dashboard creation input -->
