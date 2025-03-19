@@ -1,61 +1,139 @@
-{
-  "chart": {
-    "chart_id": 1,
-    "dashboard_id": 1,
-    "table_id": 1,
-    "title": "Test chart",
-    "chart_kind": "Bar",
-    "created_at": "2025-03-12T05:35:44.631244Z",
-    "updated_at": null
+[
+  {
+    "chart": {
+      "chart_id": 1,
+      "dashboard_id": 1,
+      "table_id": 1,
+      "name": "Test chart",
+      "chart_kind": "Bar",
+      "created_at": "2025-03-19T04:22:03.407870Z",
+      "updated_at": null
+    },
+    "axes": [
+      {
+        "axis": {
+          "axis_id": 8,
+          "chart_id": 1,
+          "field_id": 2,
+          "axis_kind": "X",
+          "aggregate": "Sum",
+          "created_at": "2025-03-19T16:02:27.001881Z",
+          "updated_at": null
+        },
+        "field_name": "Field (1)",
+        "field_kind": {
+          "type": "Integer",
+          "is_required": true,
+          "range_start": null,
+          "range_end": null
+        }
+      },
+      {
+        "axis": {
+          "axis_id": 7,
+          "chart_id": 1,
+          "field_id": 2,
+          "axis_kind": "X",
+          "aggregate": "Average",
+          "created_at": "2025-03-19T16:02:27.001881Z",
+          "updated_at": null
+        },
+        "field_name": "Field (1)",
+        "field_kind": {
+          "type": "Integer",
+          "is_required": true,
+          "range_start": null,
+          "range_end": null
+        }
+      }
+    ],
+    "cells": [
+      {
+        "8": "504",
+        "7": "50.4000000000000000"
+      }
+    ]
   },
-  "axes": [
-    {
-      "axis": {
-        "axis_id": 1,
-        "chart_id": 1,
-        "field_id": 1,
-        "axis_kind": "X",
-        "aggregate": null,
-        "created_at": "2025-03-12T05:38:18.180502Z",
-        "updated_at": null
+  {
+    "chart": {
+      "chart_id": 2,
+      "dashboard_id": 1,
+      "table_id": 1,
+      "name": "Test chart (1)",
+      "chart_kind": "Table",
+      "created_at": "2025-03-19T16:01:45.962048Z",
+      "updated_at": null
+    },
+    "axes": [
+      {
+        "axis": {
+          "axis_id": 14,
+          "chart_id": 2,
+          "field_id": 1,
+          "axis_kind": "X",
+          "aggregate": null,
+          "created_at": "2025-03-19T16:26:20.337345Z",
+          "updated_at": null
+        },
+        "field_name": "Field",
+        "field_kind": {
+          "type": "Text",
+          "is_required": true
+        }
       },
-      "field_name": "Field 1",
-      "field_kind": {
-        "type": "Text",
-        "is_required": true
-      }
-    },
-    {
-      "axis": {
-        "axis_id": 2,
-        "chart_id": 1,
-        "field_id": 2,
-        "axis_kind": "Y",
-        "aggregate": "Sum",
-        "created_at": "2025-03-12T05:38:18.180502Z",
-        "updated_at": null
+      {
+        "axis": {
+          "axis_id": 16,
+          "chart_id": 2,
+          "field_id": 2,
+          "axis_kind": "Label",
+          "aggregate": "Sum",
+          "created_at": "2025-03-19T16:26:20.337345Z",
+          "updated_at": null
+        },
+        "field_name": "Field (1)",
+        "field_kind": {
+          "type": "Integer",
+          "is_required": true,
+          "range_start": null,
+          "range_end": null
+        }
       },
-      "field_name": "Field 2",
-      "field_kind": {
-        "type": "Integer",
-        "is_required": true,
-        "range_start": null,
-        "range_end": null
+      {
+        "axis": {
+          "axis_id": 15,
+          "chart_id": 2,
+          "field_id": 2,
+          "axis_kind": "Y",
+          "aggregate": "Average",
+          "created_at": "2025-03-19T16:26:20.337345Z",
+          "updated_at": null
+        },
+        "field_name": "Field (1)",
+        "field_kind": {
+          "type": "Integer",
+          "is_required": true,
+          "range_start": null,
+          "range_end": null
+        }
       }
-    }
-  ],
-  "cells": [
-    {
-      "1": "c2",
-      "2": "45"
-    },
-    {
-      "1": "c3",
-      "2": "444"
-    },
-    {
-      "2": "15",
-      "1": "c1"
-    }
-  ]
-}
+    ],
+    "cells": [
+      {
+        "14": "c2",
+        "15": "15.0000000000000000",
+        "16": "45"
+      },
+      {
+        "16": "444",
+        "14": "c3",
+        "15": "222.0000000000000000"
+      },
+      {
+        "14": "c1",
+        "15": "3.0000000000000000",
+        "16": "15"
+      }
+    ]
+  }
+]
