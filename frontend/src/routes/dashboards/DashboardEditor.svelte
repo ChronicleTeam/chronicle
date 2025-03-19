@@ -95,7 +95,7 @@
 
   let freeSpaces = $derived.by(() => {
     let out = [];
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= 4; i++) {
       for (let j = 1; j <= 1; j++) {
         if (
           !charts.some((c) => withinChart(i, j, c)) &&
@@ -257,14 +257,14 @@
 </script>
 
 {#if editMode === EditMode.DISPLAY || editMode === EditMode.DASH}
-  <div class="grid grid-cols-8 grid-rows-1 gap-2">
+  <div class="grid grid-cols-4 grid-rows-1 gap-2">
     {#if loadChartError}
       <p class="text-red-500">{loadChartError}</p>
     {:else}
       {#each charts as chart}
         <div
           class={[
-            "rounded-lg bg-gray-100 p-3 flex flex-col",
+            "rounded-lg bg-gray-100 p-3 flex flex-col w-48",
             col_start[chart.x],
             row_start[chart.y],
             col_span[chart.w],
@@ -284,7 +284,7 @@
           {/await}
           <ChartComponent {dashboard} {chart} />
           <button
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
             onclick={() => editChart(chart)}>Edit</button
           >
           {#if editChartError}
@@ -306,7 +306,7 @@
       {#if newChart}
         <div
           class={[
-            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3",
+            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3 w-48",
             col_start[newChart.x],
             row_start[newChart.y],
             col_span[newChart.w],
@@ -345,7 +345,7 @@
       {#each freeSpaces as space}
         <button
           class={[
-            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg",
+            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg w-48",
             col_start[space[0]],
             row_start[space[1]],
           ]}
@@ -371,7 +371,7 @@
   <div class="flex gap-3">
     {#each editedAxisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">
-        <div class="flex mb-2">
+        <div class="flex mb-2 gap-2">
           <p>Field:</p>
           <select bind:value={editedAxisFields[i].axis.field_id}>
             {#if curChartTableData}
@@ -381,7 +381,7 @@
             {/if}
           </select>
         </div>
-        <div class="flex">
+        <div class="flex gap-2">
           <p>Kind:</p>
           <select bind:value={editedAxisFields[i].axis.axis_kind}>
             {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
