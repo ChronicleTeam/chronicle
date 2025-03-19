@@ -1,4 +1,4 @@
-import { type Table, type DataTable, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
+import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
 
 const API_URL = "http://localhost:3000/api";
 
@@ -42,6 +42,14 @@ export const PUT = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fe
   body: JSON.stringify(jsonBody)
 }).then(handleResponse<T>);
 
+export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL +endpoint, {
+  method: "PATCH",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(jsonBody)
+}).then(handleResponse<T>);
+
 export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL + endpoint, {
   method: "DELETE",
 }).then(response => {
@@ -76,7 +84,7 @@ type JSONDateTimeKind = DateTimeKind & {
   range_end: string;
 }
 
-export const hydrateJSONDataTable = (jsonObj: DataTable): DataTable => {
+export const hydrateJSONTableData = (jsonObj: TableData): TableData => {
   let outTable = jsonObj;
 
   for (let i = 0; i < outTable.fields.length; i++) {

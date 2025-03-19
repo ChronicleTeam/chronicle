@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Table } from "$lib/types.d.js";
-  import DataTable from "./DataTable.svelte";
+  import TableEditor from "./TableEditor.svelte";
   import FieldEditor from "./FieldEditor.svelte";
   import { getTables, postTable, deleteTable, type APIError } from "$lib/api";
 
@@ -150,7 +150,7 @@
 
       <!-- Main Table -->
       {#key curTable.table_id}
-        <DataTable table_prop={curTable} />
+        <TableEditor table_prop={curTable} />
       {/key}
       <!-- Error -->
       {#if deleteTableError !== ""}

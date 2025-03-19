@@ -19,7 +19,7 @@
   ];
 </script>
 
-<div class="p-4">
+<div class="p-4 h-screen">
   <!-- Navbar -->
   <nav class="flex bg-gray-200 mb-4 rounded-lg">
     {#each links as link}
