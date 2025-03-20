@@ -22,7 +22,6 @@ CREATE TABLE axis (
     field_id INT NOT NULL REFERENCES meta_field(field_id),
     axis_kind axis_kind NOT NULL,
     aggregate aggregate,
-    data_item_name TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ
 );
