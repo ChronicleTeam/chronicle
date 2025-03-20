@@ -1,6 +1,6 @@
 <script lang="ts">
   import type {
-    DataTable,
+    TableData,
     Field,
     Entry,
     Cell,
@@ -23,14 +23,15 @@
   } from "$lib/types.d.js";
   import { FieldType } from "$lib/types.d.js";
   import {
-    getDataTable,
+    getTableData,
     postEntry,
-    putEntry,
+    patchEntry,
     deleteEntry,
     type APIError,
   } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
+  import { onMount } from "svelte";
   let { table_prop } = $props();
 
   //
@@ -47,12 +48,12 @@
   // State
   //
 
-  // the DataTable object being displayed
+  // the TableData object being displayed
   let table = $state({
     table: table_prop,
     fields: [],
     entries: [],
-  } as DataTable);
+  } as TableData);
 
   // the index of the entry being edited (-1 if no entry is being edited)
   let editableEntry = $state(-1);
@@ -238,7 +239,7 @@
   //
 
   const loadTable = () => {
-    getDataTable(table_prop).then((response: DataTable) => {
+    getTableData(table_prop).then((response: TableData) => {
       response.fields.sort((f, g) => f.ordering - g.ordering);
       table = response;
     });
@@ -259,7 +260,7 @@
   };
 
   const updateEntry = () => {
-    putEntry(table.table, table.entries[editableEntry])
+    patchEntry(table.table, table.entries[editableEntry])
       .then(() => {
         cancelEntry();
         loadTable();
@@ -282,8 +283,9 @@
   //
   // Startup
   //
-
-  loadTable();
+  onMount(() => {
+    loadTable();
+  });
 </script>
 
 <div class="flex flex-col items-center justify-center gap-3">
