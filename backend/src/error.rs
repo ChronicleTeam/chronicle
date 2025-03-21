@@ -7,7 +7,11 @@ use axum::{
     Json,
 };
 use sqlx::error::DatabaseError;
-use std::{borrow::Cow, collections::HashMap};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
 
 /// Main return type for the API.
 /// See [`ApiError`] for details on usage.
@@ -177,5 +181,18 @@ where
 {
     fn into_anyhow(self) -> Result<T, anyhow::Error> {
         self.map_err(anyhow::Error::from)
+    }
+}
+
+pub trait IntoMessage<T> {
+    fn into_msg(self) -> Result<T, anyhow::Error>;
+}
+
+impl<T, E> IntoMessage<T> for Result<T, E>
+where
+    E: Display + Debug + Send + Sync + 'static,
+{
+    fn into_msg(self) -> Result<T, anyhow::Error> {
+        self.map_err(anyhow::Error::msg)
     }
 }

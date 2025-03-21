@@ -157,7 +157,7 @@ async fn set_field_order(
             let key = field_id.to_string();
             if !field_ids.remove(field_id) {
                 Some(ErrorMessage::new(key, FIELD_ID_NOT_FOUND))
-            } else if idx as i32 + 1 != *ordering {
+            } else if idx as i32 != *ordering {
                 Some(ErrorMessage::new(key, INVALID_ORDERING))
             } else {
                 None
