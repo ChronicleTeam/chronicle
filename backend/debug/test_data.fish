@@ -48,5 +48,25 @@ curl -X PATCH $ADDR/tables/1/fields/2 \
      
 curl -X GET $ADDR/tables/1/data
 
-curl -X POST $ADDR/tables/export \
+
+
+set json '{
+  "1": 1,
+  "2": 0
+}'
+
+
+curl -X PATCH $ADDR/tables/1/fields/order \
+    -H "Content-Type: application/json" \
+    -d "$json"
+
+
+curl -X POST $ADDR/tables/excel \
     -F "file=@test.xlsx"
+
+curl -X GET -o export.xlsx $ADDR/tables/1/excel \
+    -F "dummy="
+
+
+curl -X GET -o export.xlsx $ADDR/tables/1/excel \
+    -F "file=@test.xlsx" 
