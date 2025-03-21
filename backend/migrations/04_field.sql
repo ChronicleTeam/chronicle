@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION set_default_ordering()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.ordering IS NULL THEN
-        SELECT COALESCE(MAX(ordering), 0) + 1
+        SELECT COALESCE(MAX(ordering) + 1, 0)
         INTO NEW.ordering
         FROM meta_field
         WHERE table_id = NEW.table_id;
