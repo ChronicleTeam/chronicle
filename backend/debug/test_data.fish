@@ -70,3 +70,6 @@ curl -X GET -o export.xlsx $ADDR/tables/1/excel \
 
 curl -X GET -o export.xlsx $ADDR/tables/1/excel \
     -F "file=@test.xlsx" 
+
+curl -X POST $ADDR/tables/csv \
+    -F "file=@test.csv"

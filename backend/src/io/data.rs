@@ -135,21 +135,21 @@ pub fn export_table_to_excel(
 }
 
 pub fn import_table_from_csv<R>(
-    mut rdr: csv::Reader<R>,
-    name: String,
+    mut csv_reader: csv::Reader<R>,
+    name: &str,
 ) -> anyhow::Result<CreateTableData>
 where
     R: std::io::Read,
 {
     let table = CreateTable {
-        name,
+        name: name.to_string(),
         description: CSV_IMPORT_TABLE_DESCRIPTION.to_string(),
     };
 
     let mut fields: Vec<CreateField> = Vec::new();
 
     let mut fields_names = HashSet::new();
-    for original_name in rdr.headers()? {
+    for original_name in csv_reader.headers()? {
         let mut name = original_name.to_string();
         let mut count = 1;
         while fields_names.contains(&name) {
@@ -164,7 +164,7 @@ where
         });
     }
 
-    let entries: Vec<Vec<Cell>> = rdr
+    let entries: Vec<Vec<Cell>> = csv_reader
         .records()
         .map(|record| {
             Ok(record?
