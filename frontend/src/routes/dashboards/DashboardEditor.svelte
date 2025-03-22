@@ -25,7 +25,13 @@
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
 
-  let { dashboard }: { dashboard: Dashboard } = $props();
+  let {
+    dashboard,
+    removeDashboard,
+  }: {
+    dashboard: Dashboard;
+    removeDashboard: () => void;
+  } = $props();
 
   //
   // Constants
@@ -271,6 +277,17 @@
 </script>
 
 {#if editMode === EditMode.DISPLAY || editMode === EditMode.DASH}
+  {#if editMode === EditMode.DISPLAY}
+    <div class="flex flex-col items-center">
+      <h2 class="font-bold text-xl">{dashboard.name}</h2>
+      <p>{dashboard.description}</p>
+    </div>
+  {:else if editMode === EditMode.DASH}
+    <div class="flex flex-col items-center">
+      <input bind:value={dashboard.name} />
+      <input bind:value={dashboard.description} />
+    </div>
+  {/if}
   <div class="grid grid-cols-4 grid-rows-1 gap-2">
     {#if loadChartError}
       <p class="text-red-500">{loadChartError}</p>
@@ -304,6 +321,7 @@
             >
           {:else if editMode === EditMode.DASH}
             <ConfirmButton
+              class="mt-auto rounded"
               initText="Delete"
               confirmText="Confirm Delete"
               onconfirm={() => {
@@ -388,6 +406,20 @@
           editMode = EditMode.DASH;
         }}>Edit</button
       >
+    </div>
+  {:else if editMode === EditMode.DASH}
+    <div class="flex justify-center my-2">
+      <button
+        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        onclick={() => {
+          editMode = EditMode.DISPLAY;
+        }}>Back</button
+      >
+      <ConfirmButton
+        initText="Delete Dashboard"
+        confirmText="Confirm Delete"
+        onconfirm={removeDashboard}
+      />
     </div>
   {/if}
 {:else}
