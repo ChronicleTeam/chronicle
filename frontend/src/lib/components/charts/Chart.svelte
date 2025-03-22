@@ -10,17 +10,26 @@
     type FieldKind,
     type AxisField,
   } from "$lib/types.d.js";
-  import { Chart as ChartGraphic } from "chart.js/auto";
+  import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
   import { onMount } from "svelte";
   let { dashboard, chart }: { dashboard: Dashboard; chart: Chart } = $props();
 
+  const ChartKindMap = new Map([
+    [ChartKind.Bar, "bar"],
+    [ChartKind.Line, "line"],
+  ]);
+
   let chartData: ChartData | null = $state(null);
+  $inspect(chartData);
   let error = $state("");
 
   let g: any;
   $effect(() => {
     if (chartData) {
-      if (chartData.chart.chart_kind === ChartKind.Bar) {
+      if (
+        chartData.chart.chart_kind === ChartKind.Bar ||
+        chartData.chart.chart_kind === ChartKind.Line
+      ) {
         let xAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.X);
         let yAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.Y);
         let colorAxis = chartData.axes.find(
@@ -36,20 +45,26 @@
           (a) => a.axis.axis_kind === AxisKind.Label,
         );
         if (!xAxis || !yAxis) return;
+        $inspect(
+          xAxis,
+          yAxis,
+          chartData.cells.map((row: Cells) => row[yAxis.axis.axis_id]),
+        );
         new ChartGraphic(g, {
-          type: "bar",
+          type: ChartKindMap.get(
+            chartData.chart.chart_kind,
+          ) as keyof ChartTypeRegistry,
           data: {
             labels: chartData.cells.map(
-              (row: Cells) => row[xAxis.axis.field_id ?? -1]?.toString() ?? "",
+              (row: Cells) => row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
             ),
             datasets: [
               {
+                label: "data",
                 data: chartData.cells.map(
-                  (row: Cells) => row[yAxis.axis.field_id],
+                  (row: Cells) => row[yAxis.axis.axis_id],
                 ),
-                backgroundColor: colorAxis
-                  ? chartData.cells.map((row: Cells) => `rgba(0.2)`)
-                  : undefined,
+                tension: 0.1,
               },
             ],
           },
