@@ -264,7 +264,7 @@
       {#each charts as chart}
         <div
           class={[
-            "rounded-lg bg-gray-100 p-3 flex flex-col w-48",
+            "rounded-lg bg-gray-100 p-3 flex flex-col w-96",
             col_start[chart.x],
             row_start[chart.y],
             col_span[chart.w],

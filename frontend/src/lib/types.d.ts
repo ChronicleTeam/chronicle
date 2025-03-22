@@ -319,5 +319,5 @@ export type AxisField = {
 export type ChartData = {
   chart: Chart;
   axes: AxisField[];
-  cells: Cells;
+  cells: Cells[];
 }
