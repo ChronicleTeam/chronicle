@@ -19,6 +19,7 @@
     type AxisField,
     type FieldKind,
     type ChartData,
+    Aggregate,
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
 
@@ -386,6 +387,15 @@
           <select bind:value={editedAxisFields[i].axis.axis_kind}>
             {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
               <option>{kind}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <p>Aggregate:</p>
+          <select bind:value={editedAxisFields[i].axis.aggregate}>
+            <option value={null}>None</option>
+            {#each Object.values(Aggregate) as agg}
+              <option>{agg}</option>
             {/each}
           </select>
         </div>

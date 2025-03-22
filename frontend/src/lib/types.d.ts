@@ -298,6 +298,7 @@ export type Axis = {
   chart_id: number;
   field_id: number;
   axis_kind: AxisKind;
+  aggregate?: Aggregate;
 }
 
 export enum AxisKind {
@@ -308,6 +309,14 @@ export enum AxisKind {
   Tooltip = "Tooltip",
   Label = "Label",
   Detail = "Detail",
+}
+
+export enum Aggregate {
+  Sum = "Sum",
+  Average = "Average",
+  Min = "Min",
+  Max = "Max",
+  Count = "Count",
 }
 
 export type AxisField = {
