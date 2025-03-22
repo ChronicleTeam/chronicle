@@ -19,6 +19,7 @@
     type AxisField,
     type FieldKind,
     type ChartData,
+    Aggregate,
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
 
@@ -264,7 +265,7 @@
       {#each charts as chart}
         <div
           class={[
-            "rounded-lg bg-gray-100 p-3 flex flex-col w-48",
+            "rounded-lg bg-gray-100 p-3 flex flex-col ",
             col_start[chart.x],
             row_start[chart.y],
             col_span[chart.w],
@@ -306,7 +307,7 @@
       {#if newChart}
         <div
           class={[
-            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3 w-48",
+            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3 ",
             col_start[newChart.x],
             row_start[newChart.y],
             col_span[newChart.w],
@@ -345,7 +346,7 @@
       {#each freeSpaces as space}
         <button
           class={[
-            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg w-48",
+            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg ",
             col_start[space[0]],
             row_start[space[1]],
           ]}
@@ -386,6 +387,15 @@
           <select bind:value={editedAxisFields[i].axis.axis_kind}>
             {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
               <option>{kind}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <p>Aggregate:</p>
+          <select bind:value={editedAxisFields[i].axis.aggregate}>
+            <option value={null}>None</option>
+            {#each Object.values(Aggregate) as agg}
+              <option>{agg}</option>
             {/each}
           </select>
         </div>

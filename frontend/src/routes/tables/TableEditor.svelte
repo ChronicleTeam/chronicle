@@ -294,7 +294,9 @@
     <thead>
       <tr>
         {#each table.fields as field}
-          <th class="bg-gray-200 p-1 border-2 border-gray-400">{field.name}</th>
+          <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
+            >{field.name}</th
+          >
         {/each}
       </tr>
     </thead>
