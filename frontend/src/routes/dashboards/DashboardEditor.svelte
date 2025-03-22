@@ -422,6 +422,11 @@
             {/each}
           </select>
         </div>
+        <ConfirmButton
+          initText="Delete"
+          confirmText="Confirm Delete"
+          onconfirm={() => editedAxisFields.splice(i, 1)}
+        />
       </div>
     {/each}
   </div>
