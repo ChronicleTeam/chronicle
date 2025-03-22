@@ -264,7 +264,7 @@
       {#each charts as chart}
         <div
           class={[
-            "rounded-lg bg-gray-100 p-3 flex flex-col w-96",
+            "rounded-lg bg-gray-100 p-3 flex flex-col ",
             col_start[chart.x],
             row_start[chart.y],
             col_span[chart.w],
@@ -306,7 +306,7 @@
       {#if newChart}
         <div
           class={[
-            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3 w-48",
+            "rounded-lg bg-gray-100 flex flex-col gap-3 p-3 ",
             col_start[newChart.x],
             row_start[newChart.y],
             col_span[newChart.w],
@@ -345,7 +345,7 @@
       {#each freeSpaces as space}
         <button
           class={[
-            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg w-48",
+            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg ",
             col_start[space[0]],
             row_start[space[1]],
           ]}
