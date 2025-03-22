@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    deleteChart,
     getChartData,
     getCharts,
     getTableData,
@@ -8,6 +9,7 @@
     putAxes,
   } from "$lib/api";
   import ChartComponent from "$lib/components/charts/Chart.svelte";
+  import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
     type Dashboard,
     type Chart,
@@ -234,6 +236,17 @@
       });
   };
 
+  const removeChart = (c: Chart) => {
+    deleteChart(dashboard, c)
+      .then(() => {
+        loadCharts();
+        editChartError = "";
+      })
+      .catch((e) => {
+        editChartError = e.body.toString();
+      });
+  };
+
   const saveAxisFields = (chart: Chart, axes: AxisField[]) =>
     putAxes(
       dashboard,
@@ -284,10 +297,20 @@
             <p>Source Table: <span class="text-red-500">(Not Found)</span></p>
           {/await}
           <ChartComponent {dashboard} {chart} />
-          <button
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
-            onclick={() => editChart(chart)}>Edit</button
-          >
+          {#if editMode === EditMode.DISPLAY}
+            <button
+              class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
+              onclick={() => editChart(chart)}>Edit</button
+            >
+          {:else if editMode === EditMode.DASH}
+            <ConfirmButton
+              initText="Delete"
+              confirmText="Confirm Delete"
+              onconfirm={() => {
+                removeChart(chart);
+              }}
+            />
+          {/if}
           {#if editChartError}
             <p class="text-red-500">{editChartError}</p>
           {/if}
