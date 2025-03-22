@@ -83,6 +83,11 @@
                 },
               },
             },
+            plugins: {
+              legend: {
+                display: false,
+              },
+            },
           },
         });
       }
