@@ -64,7 +64,8 @@ curl -X PATCH $ADDR/tables/1/fields/order \
 curl -X POST $ADDR/tables/excel \
     -F "file=@test.xlsx"
 
-curl -X GET -o export.xlsx $ADDR/tables/1/excel \
+curl -X GET  $ADDR/tables/1/excel \
+    -o export.xlsx \
     -F "dummy="
 
 
@@ -73,3 +74,6 @@ curl -X GET -o export.xlsx $ADDR/tables/1/excel \
 
 curl -X POST $ADDR/tables/csv \
     -F "file=@test.csv"
+
+curl -X GET $ADDR/tables/1/csv \
+    -o export.csv
