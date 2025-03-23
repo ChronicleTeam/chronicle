@@ -30,7 +30,8 @@ pub fn router() -> Router<ApiState> {
             .route("/{table-id}/data", get(get_table_data))
             .route("/excel", post(import_table_from_excel))
             .route("/{table-id}/excel", get(export_table_to_excel))
-            .route("/csv", post(import_table_from_csv)),
+            .route("/csv", post(import_table_from_csv))
+            .route("/{table-id}/csv", get(export_table_to_csv)),
     )
 }
 
@@ -182,7 +183,7 @@ async fn export_table_to_excel(
         .await?
         .to_api_result()?;
 
-    let spreadsheet = if let Some(field) = multipart.next_field().await.into_anyhow()? {
+    let mut spreadsheet = if let Some(field) = multipart.next_field().await.into_anyhow()? {
         let data = field.bytes().await.into_anyhow()?;
         if data.is_empty() {
             umya_spreadsheet::new_file_empty_worksheet()
@@ -196,8 +197,7 @@ async fn export_table_to_excel(
     let mut buffer = Vec::new();
     let data = Cursor::new(&mut buffer);
 
-    let spreadsheet =
-        io::export_table_to_excel(spreadsheet, db::get_table_data(&pool, table_id).await?);
+    io::export_table_to_excel(&mut spreadsheet, db::get_table_data(&pool, table_id).await?);
 
     writer::xlsx::write_writer(&spreadsheet, data).into_anyhow()?;
 
@@ -218,7 +218,7 @@ async fn import_table_from_csv(
     let data = field.bytes().await.into_anyhow()?;
     let csv_reader = csv::Reader::from_reader(Cursor::new(data));
 
-    let create_table = io::import_table_from_csv(csv_reader, &name)?;
+    let create_table = io::import_table_from_csv(csv_reader, &name).into_anyhow()?;
 
     let mut tx = pool.begin().await?;
 
@@ -242,4 +242,22 @@ async fn import_table_from_csv(
         fields,
         entries,
     }))
+}
+
+async fn export_table_to_csv(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<Vec<u8>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let mut buffer = Vec::new();
+    let csv_writer = csv::Writer::from_writer(Cursor::new(&mut buffer));
+
+    io::export_table_to_csv(csv_writer, db::get_table_data(&pool, table_id).await?)
+        .into_anyhow()?;
+
+    Ok(buffer)
 }

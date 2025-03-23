@@ -5,7 +5,12 @@ use crate::{
     },
     Id,
 };
-use std::collections::{HashMap, HashSet};
+use itertools::Itertools;
+use num_traits::ToBytes;
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
 use umya_spreadsheet::Spreadsheet;
 
 const EXCEL_IMPORT_TABLE_DESCRIPTION: &str = "This table was imported from Excel";
@@ -65,13 +70,13 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
 }
 
 pub fn export_table_to_excel(
-    mut spreadsheet: Spreadsheet,
+    spreadsheet: &mut Spreadsheet,
     TableData {
         table,
         fields,
         entries,
     }: TableData,
-) -> Spreadsheet {
+) {
     let mut sheet_name = table.name.clone();
 
     let mut i = 1;
@@ -130,14 +135,12 @@ pub fn export_table_to_excel(
             };
         }
     }
-
-    spreadsheet
 }
 
 pub fn import_table_from_csv<R>(
     mut csv_reader: csv::Reader<R>,
     name: &str,
-) -> anyhow::Result<CreateTableData>
+) -> csv::Result<CreateTableData>
 where
     R: std::io::Read,
 {
@@ -178,7 +181,7 @@ where
                 })
                 .collect())
         })
-        .collect::<anyhow::Result<_>>()?;
+        .collect::<csv::Result<_>>()?;
 
     Ok(CreateTableData {
         table,
@@ -187,3 +190,46 @@ where
     })
 }
 
+pub fn export_table_to_csv<W>(
+    mut csv_writer: csv::Writer<W>,
+    TableData {
+        table,
+        fields,
+        entries,
+    }: TableData,
+) -> csv::Result<()>
+where
+    W: io::Write,
+{
+    csv_writer.write_record(
+        fields
+            .iter()
+            .sorted_by_key(|field| field.ordering)
+            .map(|field| field.name.clone()),
+    )?;
+
+    let fields: HashMap<_, _> = fields
+        .into_iter()
+        .map(|field| (field.field_id, field))
+        .collect();
+
+    for entry in entries {
+        csv_writer.write_record(
+            entry
+                .cells
+                .into_iter()
+                .sorted_by_key(|(field_id, _)| fields.get(&field_id).unwrap().ordering)
+                .map(|(_, cell)| match cell {
+                    Cell::Integer(v) => v.to_string(),
+                    Cell::Float(v) => v.to_string(),
+                    Cell::Decimal(v) => v.to_string(),
+                    Cell::Boolean(v) => v.to_string(),
+                    Cell::DateTime(v) => v.to_rfc3339(),
+                    Cell::String(v) => v,
+                    Cell::Null => String::new(),
+                }),
+        )?;
+    }
+
+    Ok(())
+}
