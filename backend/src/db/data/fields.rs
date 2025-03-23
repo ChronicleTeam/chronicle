@@ -12,7 +12,7 @@ use crate::{
 use itertools::Itertools;
 use sqlx::{types::Json, Acquire, PgExecutor, Postgres, QueryBuilder, Row};
 use std::{collections::HashMap, mem::discriminant};
-use tracing::{debug, info};
+use tracing::debug;
 
 pub async fn create_field(
     conn: impl Acquire<'_, Database = Postgres>,

@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use umya_spreadsheet::Spreadsheet;
 
 const EXCEL_IMPORT_TABLE_DESCRIPTION: &str = "This table was imported from Excel";
+const CSV_IMPORT_TABLE_DESCRIPTION: &str = "This table was imported from CSV";
 
 pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData> {
     let mut tables: Vec<CreateTableData> = Vec::new();
@@ -19,8 +20,6 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
             description: EXCEL_IMPORT_TABLE_DESCRIPTION.to_string(),
         };
         let mut fields: Vec<CreateField> = Vec::new();
-        let mut entries: Vec<Vec<Cell>> = Vec::new();
-
         let (columns, rows) = sheet.get_highest_column_and_row();
 
         let mut fields_names = HashSet::new();
@@ -29,7 +28,7 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
             let mut name = original_name.clone();
             let mut count = 1;
             while fields_names.contains(&name) {
-                name = format!("{original_name}{count}");
+                name = format!("{original_name} ({count})");
                 count += 1;
             }
             fields_names.insert(name.clone());
@@ -40,19 +39,20 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
             });
         }
 
-        for row in 2..=rows {
-            let mut entry: Vec<Cell> = Vec::new();
-            for col in 1..=columns {
-                let value = sheet.get_value((col, row));
-                let value = if value.is_empty() {
-                    Cell::Null
-                } else {
-                    Cell::String(value)
-                };
-                entry.push(value);
-            }
-            entries.push(entry);
-        }
+        let entries: Vec<Vec<Cell>> = (2..=rows)
+            .map(|row| {
+                (1..columns)
+                    .map(|col| {
+                        let value = sheet.get_value((col, row));
+                        if value.is_empty() {
+                            Cell::Null
+                        } else {
+                            Cell::String(value)
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
 
         tables.push(CreateTableData {
             table,
@@ -133,3 +133,57 @@ pub fn export_table_to_excel(
 
     spreadsheet
 }
+
+pub fn import_table_from_csv<R>(
+    mut csv_reader: csv::Reader<R>,
+    name: &str,
+) -> anyhow::Result<CreateTableData>
+where
+    R: std::io::Read,
+{
+    let table = CreateTable {
+        name: name.to_string(),
+        description: CSV_IMPORT_TABLE_DESCRIPTION.to_string(),
+    };
+
+    let mut fields: Vec<CreateField> = Vec::new();
+
+    let mut fields_names = HashSet::new();
+    for original_name in csv_reader.headers()? {
+        let mut name = original_name.to_string();
+        let mut count = 1;
+        while fields_names.contains(&name) {
+            name = format!("{original_name} ({count})");
+            count += 1;
+        }
+        fields_names.insert(name.clone());
+
+        fields.push(CreateField {
+            name,
+            field_kind: FieldKind::Text { is_required: false },
+        });
+    }
+
+    let entries: Vec<Vec<Cell>> = csv_reader
+        .records()
+        .map(|record| {
+            Ok(record?
+                .into_iter()
+                .map(|value| {
+                    if value.is_empty() {
+                        Cell::Null
+                    } else {
+                        Cell::String(value.to_string())
+                    }
+                })
+                .collect())
+        })
+        .collect::<anyhow::Result<_>>()?;
+
+    Ok(CreateTableData {
+        table,
+        fields,
+        entries,
+    })
+}
+

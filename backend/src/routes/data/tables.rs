@@ -8,8 +8,6 @@ use crate::{
 };
 use axum::{
     extract::{Multipart, Path, State},
-    http::{header, StatusCode},
-    response::{IntoResponse, Response},
     routing::{get, patch, post},
     Json, Router,
 };
@@ -31,7 +29,8 @@ pub fn router() -> Router<ApiState> {
             .route("/{table-id}", patch(update_table).delete(delete_table))
             .route("/{table-id}/data", get(get_table_data))
             .route("/excel", post(import_table_from_excel))
-            .route("/{table-id}/excel", get(export_table_to_excel)),
+            .route("/{table-id}/excel", get(export_table_to_excel))
+            .route("/csv", post(import_table_from_csv)),
     )
 }
 
@@ -203,4 +202,44 @@ async fn export_table_to_excel(
     writer::xlsx::write_writer(&spreadsheet, data).into_anyhow()?;
 
     Ok(buffer)
+}
+
+async fn import_table_from_csv(
+    State(ApiState { pool, .. }): State<ApiState>,
+    mut multipart: Multipart,
+) -> ApiResult<Json<TableData>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+
+    let Some(field) = multipart.next_field().await.unwrap() else {
+        return Err(ApiError::BadRequest);
+    };
+
+    let name = field.file_name().unwrap_or("CSV Import").to_string();
+    let data = field.bytes().await.into_anyhow()?;
+    let csv_reader = csv::Reader::from_reader(Cursor::new(data));
+
+    let create_table = io::import_table_from_csv(csv_reader, &name)?;
+
+    let mut tx = pool.begin().await?;
+
+    let table = db::create_table(tx.as_mut(), user_id, create_table.table).await?;
+    let fields = db::create_fields(tx.as_mut(), table.table_id, create_table.fields).await?;
+    let entries = db::create_entries(
+        tx.as_mut(),
+        table.table_id,
+        fields
+            .iter()
+            .map(|field| FieldMetadata::from_field(field.clone()))
+            .collect_vec(),
+        create_table.entries,
+    )
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(Json(TableData {
+        table,
+        fields,
+        entries,
+    }))
 }
