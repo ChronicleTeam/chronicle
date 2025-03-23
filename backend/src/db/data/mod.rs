@@ -13,11 +13,13 @@ use sqlx::{postgres::PgRow, Row};
 pub use {entries::*, fields::*, tables::*};
 
 fn field_columns<'a, T: IntoIterator<Item = &'a FieldIdentifier>>(
+    with_parent: bool,
     field_idents: T,
 ) -> impl Iterator<Item = String> + use<'a, T> {
     field_idents.into_iter().map(|x| x.to_string()).chain(
         ["entry_id", "created_at", "updated_at"]
-            .iter()
+            .into_iter()
+            .chain(if with_parent { Some("parent_id") } else { None })
             .map(|x| x.to_string()),
     )
 }
@@ -25,6 +27,10 @@ fn field_columns<'a, T: IntoIterator<Item = &'a FieldIdentifier>>(
 fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entry> {
     Ok(Entry {
         entry_id: row.get("entry_id"),
+        parent_id: row.try_get("parent_id").or_else(|e| match e {
+            sqlx::Error::ColumnNotFound(_) => Ok(None),
+            e => Err(e),
+        })?,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
         cells: fields

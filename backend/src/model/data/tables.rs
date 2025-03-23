@@ -11,6 +11,7 @@ use super::{CreateField, Entry, Field};
 pub struct Table {
     pub table_id: Id,
     pub user_id: Id,
+    pub parent_id: Option<Id>,
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,
@@ -20,6 +21,7 @@ pub struct Table {
 /// Create table request.
 #[derive(Debug, Deserialize)]
 pub struct CreateTable {
+    pub parent_id: Option<Id>,
     pub name: String,
     pub description: String,
 }
@@ -37,6 +39,7 @@ pub struct TableData {
     pub table: Table,
     pub fields: Vec<Field>,
     pub entries: Vec<Entry>,
+    pub children: Vec<TableData>,
 }
 
 #[derive(Debug)]

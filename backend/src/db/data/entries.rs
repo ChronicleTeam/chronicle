@@ -13,20 +13,30 @@ use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 pub async fn create_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
-    entry: Vec<(Cell, FieldMetadata)>,
+    parent_id: Option<Id>,
+    cells: Vec<(Cell, FieldMetadata)>,
 ) -> sqlx::Result<Entry> {
     let mut tx = conn.begin().await?;
 
-    let (entry, fields): (Vec<_>, Vec<_>) = entry.into_iter().unzip();
+    let (entry, fields): (Vec<_>, Vec<_>) = cells.into_iter().unzip();
 
     let field_idents = fields
         .iter()
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let parameters = (1..=entry.len()).map(|i| format!("${i}")).join(", ");
-    let insert_columns = field_idents.iter().join(", ");
-    let return_columns = field_columns(&field_idents).join(", ");
+    let parameters = (1..=entry.len())
+        .map(|i| format!("${i}"))
+        .chain(parent_id.map(|_| format!("${}", entry.len() + 1)))
+        .join(", ");
+
+    let insert_columns = field_idents
+        .iter()
+        .map(|x| x.to_string())
+        .chain(parent_id.map(|_| "parent_id".to_string()))
+        .join(", ");
+
+    let return_columns = field_columns(parent_id.is_some(), &field_idents).join(", ");
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
@@ -42,6 +52,10 @@ pub async fn create_entry(
 
     for cell in entry {
         insert_query = cell.bind(insert_query);
+    }
+    
+    if let Some(parent_id) = parent_id {
+        insert_query = insert_query.bind(parent_id);
     }
 
     let row = insert_query.fetch_one(tx.as_mut()).await?;
@@ -72,7 +86,7 @@ pub async fn create_entries(
         .collect_vec();
 
     let insert_columns = field_idents.iter().join(", ");
-    let return_columns = field_columns(&field_idents).join(", ");
+    let return_columns = field_columns(false, &field_idents).join(", ");
 
     let rows = QueryBuilder::new(format!(r#"INSERT INTO {table_ident} ({insert_columns})"#))
         .push_values(entries, |mut builder, entry| {
@@ -120,9 +134,20 @@ pub async fn update_entry(
         .map(|(i, field_ident)| format!("{field_ident} = ${}", i + 2))
         .join(", ");
 
-    let return_columns = field_columns(&field_idents).join(", ");
-
     let table_ident = TableIdentifier::new(table_id, "data_table");
+
+    let parent_id: Option<Id> = sqlx::query_scalar(&format!(
+        r#"
+            SELECT parent_id
+            FROM {table_ident}
+            WHERE table_id = $1
+        "#
+    ))
+    .bind(table_id)
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    let return_columns = field_columns(parent_id.is_some(), &field_idents).join(", ");
 
     let update_query = format!(
         r#"

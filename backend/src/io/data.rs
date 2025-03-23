@@ -20,6 +20,7 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
 
     for sheet in spreadsheet.get_sheet_collection() {
         let table = CreateTable {
+            parent_id: None,
             name: sheet.get_name().to_string(),
             description: EXCEL_IMPORT_TABLE_DESCRIPTION.to_string(),
         };
@@ -74,6 +75,7 @@ pub fn export_table_to_excel(
         table,
         fields,
         entries,
+        ..
     }: TableData,
 ) {
     let mut sheet_name = table.name.clone();
@@ -139,6 +141,7 @@ where
     R: std::io::Read,
 {
     let table = CreateTable {
+        parent_id: None,
         name: name.to_string(),
         description: CSV_IMPORT_TABLE_DESCRIPTION.to_string(),
     };
@@ -190,6 +193,7 @@ pub fn export_table_to_csv<W>(
         table: _,
         fields,
         entries,
+        ..
     }: TableData,
 ) -> csv::Result<()>
 where

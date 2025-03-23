@@ -27,6 +27,7 @@ pub fn router() -> Router<ApiState> {
         Router::new()
             .route("/", post(create_table).get(get_tables))
             .route("/{table-id}", patch(update_table).delete(delete_table))
+            .route("/{table-id}/children", get(get_table_children))
             .route("/{table-id}/data", get(get_table_data))
             .route("/excel", post(import_table_from_excel))
             .route("/{table-id}/excel", get(export_table_to_excel))
@@ -107,6 +108,19 @@ async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<
     Ok(Json(tables))
 }
 
+async fn get_table_children(
+    State(ApiState { pool, .. }): State<ApiState>,
+    Path(table_id): Path<Id>,
+) -> ApiResult<Json<Vec<Table>>> {
+    let user_id = db::debug_get_user_id(&pool).await?;
+    db::check_table_relation(&pool, user_id, table_id)
+        .await?
+        .to_api_result()?;
+
+    let tables = db::get_table_children(&pool, table_id).await?;
+    Ok(Json(tables))
+}
+
 /// Get all the meta data, fields, and entries of a table.
 ///
 /// Used for displaying the table in the user interface.
@@ -165,6 +179,7 @@ async fn import_table_from_excel(
             table,
             fields,
             entries,
+            children: Vec::new()
         })
     }
 
@@ -241,6 +256,7 @@ async fn import_table_from_csv(
         table,
         fields,
         entries,
+        children: Vec::new(),
     }))
 }
 

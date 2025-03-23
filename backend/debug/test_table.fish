@@ -18,41 +18,54 @@ curl -X POST $ADDR/tables/1/fields \
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c1", "2": 1}'
+    -d '{"cells": {"1": "c1", "2": 1}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c1", "2": 2}'
+    -d '{"cells": {"1": "c1", "2": 2}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c1", "2": 3}'
+    -d '{"cells": {"1": "c1", "2": 3}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c1", "2": 4}'
+    -d '{"cells": {"1": "c1", "2": 4}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c1", "2": 5}'
+    -d '{"cells": {"1": "c1", "2": 5}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c2", "2": 10}'
+    -d '{"cells": {"1": "c2", "2": 10}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c2", "2": 15}'
+    -d '{"cells": {"1": "c2", "2": 15}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c2", "2": 20}'
+    -d '{"cells": {"1": "c2", "2": 20}}'
 
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c3", "2": 123}'
+    -d '{"cells": {"1": "c3", "2": 123}}'
 
 curl -X POST $ADDR/tables/1/entries \
     -H "Content-Type: application/json" \
-    -d '{"1": "c3", "2": 321}'
+    -d '{"cells": {"1": "c3", "2": 321}}'
+
+curl -X POST $ADDR/tables \
+    -H "Content-Type: application/json" \
+    -d '{"parent_id": 1, "name": "Child Table", "description": ""}'
+
+
+curl -X POST $ADDR/tables/2/fields \
+    -H "Content-Type: application/json" \
+    -d '{"name": "Field", "field_kind": {"type": "Text", "is_required": true}}'
+
+curl -X POST $ADDR/tables/2/entries \
+    -H "Content-Type: application/json" \
+    -d '{"parent_id": 1, "cells": {"3": "test"}}'

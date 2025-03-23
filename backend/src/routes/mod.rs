@@ -46,7 +46,7 @@ use tracing::info;
 /// shared database connection ([`PgPool`]).
 #[derive(Clone)]
 struct ApiState {
-    config: Arc<Config>,
+    _config: Arc<Config>,
     pool: PgPool,
 }
 
@@ -74,7 +74,7 @@ fn create_app(api_state: ApiState) -> Router {
 /// Creates the application [`Router`] and serves it on the specified IP address and port.
 pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
     let api_state = ApiState {
-        config: Arc::new(config),
+        _config: Arc::new(config),
         pool,
     };
 

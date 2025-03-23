@@ -19,10 +19,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use serde::{Serialize, Serializer};
 use sqlx::{
-    postgres::{PgArgumentBuffer, PgArguments, PgRow},
-    query::Query,
-    query_builder::Separated,
-    Encode, Postgres, Row,
+    postgres::{PgArgumentBuffer, PgArguments, PgRow}, query::Query, query_builder::Separated, Encode, Postgres, QueryBuilder, Row
 };
 use std::str::FromStr;
 use viz::Aggregate;
@@ -100,6 +97,19 @@ impl Cell {
             Cell::Null => builder.push_bind(None::<bool>),
         };
     }
+
+    pub fn push_bind_builder<'q>(self, builder: &mut QueryBuilder<'_, Postgres>) {
+        match self {
+            Cell::Integer(v) => builder.push_bind(v),
+            Cell::Float(v) => builder.push_bind(v),
+            Cell::Decimal(v) => builder.push_bind(v),
+            Cell::Boolean(v) => builder.push_bind(v),
+            Cell::DateTime(v) => builder.push_bind(v),
+            Cell::String(v) => builder.push_bind(v),
+            Cell::Null => builder.push_bind(None::<bool>),
+        };
+    }
+
 
     /// Get the `Cell` from this PostgreSQL row into the proper type based on `FieldKind`.
     pub fn from_field_row(row: &PgRow, index: &str, field_kind: &FieldKind) -> sqlx::Result<Self> {
