@@ -49,18 +49,25 @@ pub fn router() -> Router<ApiState> {
 async fn create_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
-    Json(CreateEntry(entry)): Json<CreateEntry>,
+    Json(create_entry): Json<CreateEntry>,
 ) -> ApiResult<Json<Entry>> {
     let user_id = db::debug_get_user_id(&pool).await?;
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
 
+    if let Some(entry_parent_id) = create_entry.parent_id {
+        let table_parent_id = db::get_table_parent_id(&pool, table_id).await?;
+        db::check_entry_relation(&pool, table_parent_id, entry_parent_id)
+            .await?
+            .to_api_result()?;
+    }
+
     let fields = db::get_fields_metadata(&pool, table_id).await?;
 
-    let entry = convert_entry(entry, fields)?;
+    let cells = convert_cells(create_entry.cells, fields)?;
 
-    let entry = db::create_entry(&pool, table_id, entry).await?;
+    let entry = db::create_entry(&pool, table_id, create_entry.parent_id, cells).await?;
 
     Ok(Json(entry))
 }
@@ -80,7 +87,7 @@ async fn create_entry(
 async fn update_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
-    Json(UpdateEntry(entry)): Json<UpdateEntry>,
+    Json(UpdateEntry { cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
     let user_id = db::debug_get_user_id(&pool).await?;
     db::check_table_relation(&pool, user_id, table_id)
@@ -92,7 +99,7 @@ async fn update_entry(
 
     let fields = db::get_fields_metadata(&pool, table_id).await?;
 
-    let entry = convert_entry(entry, fields)?;
+    let entry = convert_cells(cells, fields)?;
 
     let entry = db::update_entry(&pool, table_id, entry_id, entry).await?;
 
@@ -123,16 +130,14 @@ async fn delete_entry(
     Ok(())
 }
 
-/// Convert an input entry from a request to a [`CellMap`] and
-/// performs validation on each value in the entry.
-fn convert_entry(
-    mut entry: HashMap<Id, Value>,
+fn convert_cells(
+    mut raw_cells: HashMap<Id, Value>,
     fields: Vec<FieldMetadata>,
 ) -> ApiResult<Vec<(Cell, FieldMetadata)>> {
     let (new_entry, mut error_messages): (Vec<_>, Vec<_>) = fields
         .into_iter()
         .map(|field| {
-            let json_value = entry.remove(&field.field_id).unwrap_or(Value::Null);
+            let json_value = raw_cells.remove(&field.field_id).unwrap_or(Value::Null);
             Ok((
                 json_to_cell(json_value, &field.field_kind)
                     .map_err(|message| ErrorMessage::new(field.field_id.to_string(), message))?,
@@ -142,7 +147,7 @@ fn convert_entry(
         .partition_result();
 
     error_messages.extend(
-        entry
+        raw_cells
             .keys()
             .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID)),
     );
@@ -250,10 +255,9 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
                 Err(INVALID_TYPE)
             }
         }
-        (
-            Value::String(value),
-            FieldKind::Text { .. } | FieldKind::WebLink { .. }
-        ) => Ok(Cell::String(value)),
+        (Value::String(value), FieldKind::Text { .. } | FieldKind::WebLink { .. }) => {
+            Ok(Cell::String(value))
+        }
         (Value::Bool(value), FieldKind::Checkbox) => Ok(Cell::Boolean(value)),
         (Value::Number(value), FieldKind::Enumeration { values, .. }) => {
             if let Some(value) = value.as_i64() {

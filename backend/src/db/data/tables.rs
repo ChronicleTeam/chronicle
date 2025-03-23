@@ -2,28 +2,34 @@ use super::{entry_from_row, field_columns};
 use crate::{
     db::Relation,
     model::data::{
-        CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData,
-        TableIdentifier, UpdateTable,
+        CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
+        UpdateTable,
     },
     Id,
 };
+use futures::future::join_all;
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
 
 pub async fn create_table(
     conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
-    CreateTable { name, description }: CreateTable,
+    CreateTable {
+        parent_id,
+        name,
+        description,
+    }: CreateTable,
 ) -> sqlx::Result<Table> {
     let mut tx = conn.begin().await?;
 
     let table: Table = sqlx::query_as(
         r#"
-            INSERT INTO meta_table (user_id, name, description)
-            VALUES ($1, $2, $3) 
+            INSERT INTO meta_table (user_id, parent_id, name, description)
+            VALUES ($1, $2, $3, $4) 
             RETURNING
                 table_id,
                 user_id,
+                parent_id,
                 name,
                 description,
                 created_at,
@@ -31,17 +37,25 @@ pub async fn create_table(
         "#,
     )
     .bind(user_id)
+    .bind(parent_id)
     .bind(name)
     .bind(description)
     .fetch_one(tx.as_mut())
     .await?;
 
     let table_ident = TableIdentifier::new(table.table_id, "data_table");
+    let parent_id_column = if let Some(parent_id) = table.parent_id {
+        let parent_ident = TableIdentifier::new(parent_id, "data_table");
+        format!("parent_id INT NOT NULL REFERENCES {parent_ident}(entry_id),")
+    } else {
+        String::new()
+    };
 
     sqlx::query(&format!(
         r#"
             CREATE TABLE {table_ident} (
                 entry_id SERIAL PRIMARY KEY,
+                {parent_id_column}
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ
             )
@@ -74,6 +88,7 @@ pub async fn update_table(
             RETURNING
                 table_id,
                 user_id,
+                parent_id,
                 name,
                 description,
                 created_at,
@@ -109,7 +124,7 @@ pub async fn delete_table(
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
-    sqlx::query(&format!(r#"DROP TABLE {table_ident}"#))
+    sqlx::query(&format!(r#"DROP TABLE {table_ident} CASCADE"#))
         .execute(tx.as_mut())
         .await?;
 
@@ -118,12 +133,26 @@ pub async fn delete_table(
     Ok(())
 }
 
+pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Id> {
+    sqlx::query_scalar(
+        r#"
+            SELECT parent_id
+            FROM meta_table
+            WHERE table_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_one(executor)
+    .await
+}
+
 pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<Table>> {
     sqlx::query_as(
         r#"
             SELECT
                 table_id,
                 user_id,
+                parent_id,
                 name,
                 description,
                 created_at,
@@ -137,6 +166,29 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
     .await
 }
 
+pub async fn get_table_children(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<Vec<Table>> {
+    sqlx::query_as(
+        r#"
+            SELECT
+                table_id,
+                user_id,
+                parent_id,
+                name,
+                description,
+                created_at,
+                updated_at
+            FROM meta_table
+            WHERE parent_id = $1
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await
+}
+
 pub async fn get_table_data(
     executor: impl PgExecutor<'_> + Copy,
     table_id: Id,
@@ -146,6 +198,7 @@ pub async fn get_table_data(
             SELECT 
                 table_id,
                 user_id,
+                parent_id,
                 name,
                 description,
                 created_at,
@@ -182,7 +235,7 @@ pub async fn get_table_data(
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let select_columns = field_columns(&field_idents).join(", ");
+    let select_columns = field_columns(table.parent_id.is_some(), &field_idents).join(", ");
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let entries = sqlx::query::<Postgres>(&format!(
@@ -214,10 +267,31 @@ pub async fn get_table_data(
     })
     .try_collect()?;
 
+    let children_ids = sqlx::query_scalar(
+        r#"
+            SELECT table_id
+            FROM meta_table
+            WHERE parent_id = $1
+         "#,
+    )
+    .bind(table_id)
+    .fetch_all(executor)
+    .await?;
+
+    let children = join_all(
+        children_ids
+            .into_iter()
+            .map(|child_id| get_table_data(executor, child_id)),
+    )
+    .await
+    .into_iter()
+    .try_collect()?;
+
     Ok(TableData {
         table,
         fields,
         entries,
+        children,
     })
 }
 

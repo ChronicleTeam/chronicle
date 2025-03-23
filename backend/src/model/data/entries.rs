@@ -2,14 +2,13 @@ use crate::{model::Cell, Id};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use serde_with::serde_as;
 use std::collections::HashMap;
 
 /// Table entry response.
-#[serde_as]
 #[derive(Debug, Serialize)]
 pub struct Entry {
     pub entry_id: Id,
+    pub parent_id: Option<Id>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 
@@ -18,10 +17,14 @@ pub struct Entry {
 }
 
 /// Create entry request. Keys map to field IDs.
-#[serde_as]
 #[derive(Debug, Deserialize)]
-pub struct CreateEntry(pub HashMap<Id, Value>);
+pub struct CreateEntry{
+    pub parent_id: Option<Id>,
+    pub cells: HashMap<Id, Value>,
+}
 
 /// Update entry request. Keys map to field IDs.
 #[derive(Debug, Deserialize)]
-pub struct UpdateEntry(pub HashMap<Id, Value>);
+pub struct UpdateEntry{
+    pub cells: HashMap<Id, Value>,
+}
