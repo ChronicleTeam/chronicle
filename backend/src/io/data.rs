@@ -6,7 +6,6 @@ use crate::{
     Id,
 };
 use itertools::Itertools;
-use num_traits::ToBytes;
 use std::{
     collections::{HashMap, HashSet},
     io,
@@ -113,25 +112,20 @@ pub fn export_table_to_excel(
             let col = field.ordering as u32 + 1;
             let sheet_cell = sheet.get_cell_mut((col, row));
 
-            match (&field.field_kind.0, cell) {
-                (FieldKind::Text { .. } | FieldKind::WebLink { .. }, Cell::String(v)) => {
-                    sheet_cell.set_value_string(v)
+            match cell {
+                Cell::String(v) => sheet_cell.set_value_string(v),
+                Cell::Integer(v) => {
+                    if let FieldKind::Enumeration { values, .. } = &field.field_kind.0 {
+                        sheet_cell.set_value_string(values.get(&v).unwrap())
+                    } else {
+                        sheet_cell.set_value_number(v as f64)
+                    }
                 }
-                (FieldKind::Integer { .. } | FieldKind::Progress { .. }, Cell::Integer(v)) => {
-                    sheet_cell.set_value_number(v as f64)
-                }
-                (FieldKind::Float { .. }, Cell::Float(v)) => sheet_cell.set_value_number(v),
-                (FieldKind::Money { .. }, Cell::Decimal(v)) => {
-                    sheet_cell.set_value_string(v.to_string())
-                }
-                (FieldKind::DateTime { .. }, Cell::DateTime(v)) => {
-                    sheet_cell.set_value_string(v.to_rfc3339())
-                }
-                (FieldKind::Checkbox, Cell::Boolean(v)) => sheet_cell.set_value_bool(v),
-                (FieldKind::Enumeration { values, .. }, Cell::Integer(v)) => {
-                    sheet_cell.set_value_string(values.get(&v).unwrap())
-                }
-                _ => unreachable!(),
+                Cell::Float(v) => sheet_cell.set_value_number(v),
+                Cell::Decimal(v) => sheet_cell.set_value_string(v.to_string()),
+                Cell::DateTime(v) => sheet_cell.set_value_string(v.to_rfc3339()),
+                Cell::Boolean(v) => sheet_cell.set_value_bool(v),
+                Cell::Null => unreachable!(),
             };
         }
     }
@@ -193,7 +187,7 @@ where
 pub fn export_table_to_csv<W>(
     mut csv_writer: csv::Writer<W>,
     TableData {
-        table,
+        table: _,
         fields,
         entries,
     }: TableData,
@@ -219,8 +213,16 @@ where
                 .cells
                 .into_iter()
                 .sorted_by_key(|(field_id, _)| fields.get(&field_id).unwrap().ordering)
-                .map(|(_, cell)| match cell {
-                    Cell::Integer(v) => v.to_string(),
+                .map(|(field_id, cell)| match cell {
+                    Cell::Integer(v) => {
+                        if let FieldKind::Enumeration { values, .. } =
+                            &fields.get(&field_id).unwrap().field_kind.0
+                        {
+                            values.get(&v).unwrap().clone()
+                        } else {
+                            v.to_string()
+                        }
+                    }
                     Cell::Float(v) => v.to_string(),
                     Cell::Decimal(v) => v.to_string(),
                     Cell::Boolean(v) => v.to_string(),
