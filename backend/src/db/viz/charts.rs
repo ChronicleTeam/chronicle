@@ -12,7 +12,6 @@ use crate::{
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
-use umya_spreadsheet::drawing::charts::AxisId;
 
 pub async fn create_chart(
     conn: impl Acquire<'_, Database = Postgres>,
