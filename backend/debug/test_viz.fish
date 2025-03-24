@@ -25,7 +25,7 @@ set json '[
     {
         "field_id": 2,
         "axis_kind": "Y",
-        "aggregate": "Sum"
+        "aggregate": "Average"
     },
     {
         "field_id": 2,
@@ -35,8 +35,13 @@ set json '[
 ]'
 
 
-curl -X PUT $ADDR/dashboards/1/charts/1/axes \
+curl -X PUT $ADDR/dashboards/1/charts/2/axes \
     -H "Content-Type: application/json" \
     -d "$json"
 
-curl -X GET $ADDR/dashboards/1/charts/1/data
+
+function test-chart-data
+    curl -X GET $ADDR/dashboards/1/charts/1/data &
+
+    curl -X GET $ADDR/dashboards/1/charts/2/data
+end

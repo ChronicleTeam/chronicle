@@ -40,7 +40,7 @@ async fn create_table(app: &mut Router, name: &str, description: &str) -> i64 {
 async fn test_create_table(pool: PgPool) {
     setup_tracing();
     let mut app = create_app(ApiState {
-        config: Config::parse().into(),
+        _config: Config::parse().into(),
         pool: pool.clone(),
     });
 
@@ -97,7 +97,7 @@ async fn create_field(app: &mut Router, table_id: i64, name: &str, field_kind: V
 async fn test_create_field(pool: PgPool) {
     setup_tracing();
     let mut app = create_app(ApiState {
-        config: Config::parse().into(),
+        _config: Config::parse().into(),
         pool: pool.clone(),
     });
 

@@ -7,13 +7,15 @@ use axum::{
     Json,
 };
 use sqlx::error::DatabaseError;
-use std::{borrow::Cow, collections::HashMap};
-
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
 
 /// Main return type for the API.
 /// See [`ApiError`] for details on usage.
 pub type ApiResult<T> = std::result::Result<T, ApiError>;
-
 
 /// A message returned as JSON for [`ApiError::UnprocessableEntity`].
 /// The `key` should refer to the offending JSON key and the `message`
@@ -48,7 +50,7 @@ impl ErrorMessage {
 /// Errors should be meaningful are parsable by the front-end.
 /// However, errors caused by problems with the back-end or database
 /// should not eplain the actual cause to the front-end.
-/// 
+///
 /// `anyhow::Error` and `sqlx::Error` types can be coerced into `ApiError` by using
 /// the `?` operator or `Into::into`
 #[derive(thiserror::Error, Debug)]
@@ -73,7 +75,7 @@ pub enum ApiError {
     #[error("error in the request body")]
     UnprocessableEntity(HashMap<Cow<'static, str>, Cow<'static, str>>),
 
-    /// Automatically returns `500 Internal Server Error` on a `sqlx::Error`.
+    /// Returns `500 Internal Server Error` on a `sqlx::Error`.
     #[error("an error occurred with the database")]
     Sqlx(#[from] sqlx::Error),
 
@@ -84,7 +86,7 @@ pub enum ApiError {
 
 impl ApiError {
     /// Create an `ApiError::UnprocessableEntity` from a collection of [`ErrorMessage`]
-    /// 
+    ///
     /// This is a convience to manually creating the error.
     pub fn unprocessable_entity(errors: impl IntoIterator<Item = ErrorMessage>) -> Self {
         Self::UnprocessableEntity(HashMap::from_iter(
@@ -153,7 +155,7 @@ where
     E: Into<ApiError>,
 {
     /// Maps a database contraint `sqlx::Error` to an ApiError.
-    /// 
+    ///
     /// This is useful for checking expected database contrainst errors and returning an appropriate response.
     fn on_constraint(
         self,
@@ -166,5 +168,31 @@ where
             }
             e => e,
         })
+    }
+}
+
+pub trait IntoAnyhow<T> {
+    fn into_anyhow(self) -> Result<T, anyhow::Error>;
+}
+
+impl<T, E> IntoAnyhow<T> for Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn into_anyhow(self) -> Result<T, anyhow::Error> {
+        self.map_err(anyhow::Error::from)
+    }
+}
+
+pub trait IntoMessage<T> {
+    fn into_msg(self) -> Result<T, anyhow::Error>;
+}
+
+impl<T, E> IntoMessage<T> for Result<T, E>
+where
+    E: Display + Debug + Send + Sync + 'static,
+{
+    fn into_msg(self) -> Result<T, anyhow::Error> {
+        self.map_err(anyhow::Error::msg)
     }
 }

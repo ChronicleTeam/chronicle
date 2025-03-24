@@ -135,7 +135,7 @@ export type Table = {
   created_at: Date;
   updated_at?: Date;
 };
-export type DataTable = {
+export type TableData = {
   table: Table;
   fields: Field[];
   entries: Entry[];
@@ -267,11 +267,24 @@ export type InputParameters =
   };
 
 // Charts
+
+export type Dashboard = {
+  dashboard_id: number;
+  user_id: number;
+  name: string;
+  description: string;
+}
+
 export type Chart = {
   chart_id: number;
   dashboard_id: number;
-  title: string;
+  table_id: number;
+  name: string;
   chart_kind: ChartKind;
+  w: number,
+  h: number,
+  x: number,
+  y: number
 }
 
 export enum ChartKind {
@@ -285,6 +298,7 @@ export type Axis = {
   chart_id: number;
   field_id: number;
   axis_kind: AxisKind;
+  aggregate?: Aggregate;
 }
 
 export enum AxisKind {
@@ -295,4 +309,24 @@ export enum AxisKind {
   Tooltip = "Tooltip",
   Label = "Label",
   Detail = "Detail",
+}
+
+export enum Aggregate {
+  Sum = "Sum",
+  Average = "Average",
+  Min = "Min",
+  Max = "Max",
+  Count = "Count",
+}
+
+export type AxisField = {
+  axis: Axis;
+  field_name: string;
+  field_kind: FieldKind;
+}
+
+export type ChartData = {
+  chart: Chart;
+  axes: AxisField[];
+  cells: Cells[];
 }

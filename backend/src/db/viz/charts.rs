@@ -2,9 +2,15 @@ use std::collections::HashMap;
 
 use crate::{
     db::Relation,
-    model::{viz::{AxisField, AxisIdentifier, Chart, ChartData, ChartIdentifier, CreateChart, UpdateChart}, Cell},
+    model::{
+        viz::{
+            AxisField, AxisIdentifier, Chart, ChartData, ChartIdentifier, CreateChart, UpdateChart,
+        },
+        Cell,
+    },
     Id,
 };
+use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
 
 pub async fn create_chart(
@@ -38,7 +44,6 @@ pub async fn create_chart(
     .bind(chart_kind)
     .fetch_one(tx.as_mut())
     .await?;
-
 
     let chart_ident = ChartIdentifier::new(chart.chart_id, "data_view");
     // A view which always returns zero rows
@@ -151,8 +156,6 @@ pub async fn get_charts(
     .await
 }
 
-
-
 pub async fn get_chart_data(
     executor: impl PgExecutor<'_> + Copy,
     chart_id: Id,
@@ -198,9 +201,18 @@ pub async fn get_chart_data(
     .await?;
 
     let chart_ident = ChartIdentifier::new(chart_id, "data_view");
-    let rows = sqlx::query(&format!(r#"SELECT * FROM {chart_ident}"#))
-        .fetch_all(executor)
-        .await?;
+    let select_columns = axes
+        .iter()
+        .map(|axis_field| AxisIdentifier::new(axis_field.axis.axis_id))
+        .join(", ");
+    let rows = sqlx::query(&format!(
+        r#"
+            SELECT {select_columns}
+            FROM {chart_ident}
+        "#
+    ))
+    .fetch_all(executor)
+    .await?;
 
     let mut cells: Vec<HashMap<Id, Cell>> = Vec::new();
 
@@ -231,7 +243,6 @@ pub async fn get_chart_data(
 
     Ok(ChartData { chart, axes, cells })
 }
-
 
 pub async fn check_chart_relation(
     executor: impl PgExecutor<'_>,

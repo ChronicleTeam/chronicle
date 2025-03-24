@@ -1,6 +1,6 @@
 <script lang="ts">
   import {
-    type DataTable,
+    type TableData,
     type Field,
     type Cell,
     type TextKind,
@@ -23,13 +23,14 @@
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
-    putTable,
+    patchTable,
     getFields,
     postField,
-    putField,
+    patchField,
     deleteField,
     type APIError,
   } from "$lib/api";
+  import { onMount } from "svelte";
 
   let { table_prop, on_save, delete_table } = $props();
 
@@ -69,7 +70,7 @@
   //
 
   // the unmodified table, as it was fetched from the server
-  let originalTable: DataTable = $state({
+  let originalTable: TableData = $state({
     table: table_prop,
     fields: [],
     entries: [],
@@ -732,7 +733,7 @@
       table.table.description !== originalTable.table.description
     )
       promises.push(
-        putTable(table.table)
+        patchTable(table.table)
           .then((response: Table) => {
             originalTable.table.name = response.name;
             originalTable.table.description = response.description;
@@ -770,7 +771,7 @@
     // modify existing fields
     moddedFields.forEach((field) => {
       promises.push(
-        putField(field)
+        patchField(field)
           .then((response: Field) => {
             originalTable.fields[
               originalTable.fields.findIndex(
@@ -820,12 +821,14 @@
   // Startup
   //
 
-  loadFields();
+  onMount(() => {
+    loadFields();
 
-  updateAllOptionalCheckboxes();
+    updateAllOptionalCheckboxes();
 
-  table.fields.forEach((f) => {
-    fieldErrors[f.field_id] = "";
+    table.fields.forEach((f) => {
+      fieldErrors[f.field_id] = "";
+    });
   });
 </script>
 
