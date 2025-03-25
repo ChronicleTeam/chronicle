@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    deleteChart,
     getChartData,
     getCharts,
     getTableData,
@@ -8,6 +9,7 @@
     putAxes,
   } from "$lib/api";
   import ChartComponent from "$lib/components/charts/Chart.svelte";
+  import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
     type Dashboard,
     type Chart,
@@ -23,7 +25,13 @@
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
 
-  let { dashboard }: { dashboard: Dashboard } = $props();
+  let {
+    dashboard,
+    removeDashboard,
+  }: {
+    dashboard: Dashboard;
+    removeDashboard: () => void;
+  } = $props();
 
   //
   // Constants
@@ -159,7 +167,7 @@
       axis_id: j,
       chart_id: c.chart_id,
       field_id: -1,
-      axis_kind: kinds[i],
+      axis_kind: c.chart_kind === ChartKind.Table ? AxisKind.Label : kinds[i],
     };
   };
 
@@ -234,6 +242,17 @@
       });
   };
 
+  const removeChart = (c: Chart) => {
+    deleteChart(dashboard, c)
+      .then(() => {
+        loadCharts();
+        editChartError = "";
+      })
+      .catch((e) => {
+        editChartError = e.body.toString();
+      });
+  };
+
   const saveAxisFields = (chart: Chart, axes: AxisField[]) =>
     putAxes(
       dashboard,
@@ -258,6 +277,17 @@
 </script>
 
 {#if editMode === EditMode.DISPLAY || editMode === EditMode.DASH}
+  {#if editMode === EditMode.DISPLAY}
+    <div class="flex flex-col items-center">
+      <h2 class="font-bold text-xl">{dashboard.name}</h2>
+      <p>{dashboard.description}</p>
+    </div>
+  {:else if editMode === EditMode.DASH}
+    <div class="flex flex-col items-center">
+      <input bind:value={dashboard.name} />
+      <input bind:value={dashboard.description} />
+    </div>
+  {/if}
   <div class="grid grid-cols-4 grid-rows-1 gap-2">
     {#if loadChartError}
       <p class="text-red-500">{loadChartError}</p>
@@ -273,7 +303,6 @@
           ]}
         >
           <p class="font-bold text-center">{chart.name}</p>
-          <p>Kind: {chart.chart_kind}</p>
           {#await asyncTables then tables}
             <p>
               Source Table: {tables.find(
@@ -284,10 +313,21 @@
             <p>Source Table: <span class="text-red-500">(Not Found)</span></p>
           {/await}
           <ChartComponent {dashboard} {chart} />
-          <button
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
-            onclick={() => editChart(chart)}>Edit</button
-          >
+          {#if editMode === EditMode.DISPLAY}
+            <button
+              class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
+              onclick={() => editChart(chart)}>Edit</button
+            >
+          {:else if editMode === EditMode.DASH}
+            <ConfirmButton
+              class="mt-auto rounded"
+              initText="Delete"
+              confirmText="Confirm Delete"
+              onconfirm={() => {
+                removeChart(chart);
+              }}
+            />
+          {/if}
           {#if editChartError}
             <p class="text-red-500">{editChartError}</p>
           {/if}
@@ -366,6 +406,20 @@
         }}>Edit</button
       >
     </div>
+  {:else if editMode === EditMode.DASH}
+    <div class="flex justify-center my-2">
+      <button
+        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        onclick={() => {
+          editMode = EditMode.DISPLAY;
+        }}>Back</button
+      >
+      <ConfirmButton
+        initText="Delete Dashboard"
+        confirmText="Confirm Delete"
+        onconfirm={removeDashboard}
+      />
+    </div>
   {/if}
 {:else}
   <input class="mb-2" bind:value={charts[curChartIdx].name} />
@@ -382,14 +436,16 @@
             {/if}
           </select>
         </div>
-        <div class="flex gap-2">
-          <p>Kind:</p>
-          <select bind:value={editedAxisFields[i].axis.axis_kind}>
-            {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
-              <option>{kind}</option>
-            {/each}
-          </select>
-        </div>
+        {#if charts[curChartIdx].chart_kind !== ChartKind.Table}
+          <div class="flex gap-2">
+            <p>Kind:</p>
+            <select bind:value={editedAxisFields[i].axis.axis_kind}>
+              {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
+                <option>{kind}</option>
+              {/each}
+            </select>
+          </div>
+        {/if}
         <div class="flex gap-2">
           <p>Aggregate:</p>
           <select bind:value={editedAxisFields[i].axis.aggregate}>
@@ -399,11 +455,16 @@
             {/each}
           </select>
         </div>
+        <ConfirmButton
+          initText="Delete"
+          confirmText="Confirm Delete"
+          onconfirm={() => editedAxisFields.splice(i, 1)}
+        />
       </div>
     {/each}
   </div>
   <div class="flex gap-2">
-    {#if editedAxisFields.length < Object.values(AxisKind).length}
+    {#if editedAxisFields.length < Object.values(AxisKind).length || charts[curChartIdx].chart_kind === ChartKind.Table}
       <button
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         onclick={() => {
