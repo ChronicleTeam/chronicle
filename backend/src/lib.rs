@@ -1,13 +1,25 @@
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod extractor;
 pub mod io;
 pub mod model;
 pub mod routes;
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use std::sync::Arc;
 
-type Id = i32;
+use config::Config;
+use sqlx::PgPool;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::Uuid;
+
+type Id = Uuid;
+
+#[derive(Clone)]
+struct ApiContext {
+    config: Arc<Config>,
+    db: PgPool,
+}
 
 /// Sets up tracing for debuging and monitoring.
 /// Does nothing if called more than once.

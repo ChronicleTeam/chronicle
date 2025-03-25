@@ -73,7 +73,9 @@ pub enum ApiError {
 
     /// Returns `422 Unprocessable Entity`
     #[error("error in the request body")]
-    UnprocessableEntity(HashMap<Cow<'static, str>, Cow<'static, str>>),
+    UnprocessableEntity {
+        errors: HashMap<Cow<'static, str>, Vec<Cow<'static, str>>>,
+    },
 
     /// Returns `500 Internal Server Error` on a `sqlx::Error`.
     #[error("an error occurred with the database")]
@@ -88,10 +90,21 @@ impl ApiError {
     /// Create an `ApiError::UnprocessableEntity` from a collection of [`ErrorMessage`]
     ///
     /// This is a convience to manually creating the error.
-    pub fn unprocessable_entity(errors: impl IntoIterator<Item = ErrorMessage>) -> Self {
-        Self::UnprocessableEntity(HashMap::from_iter(
-            errors.into_iter().map(|msg| (msg.key, msg.message)),
-        ))
+    pub fn unprocessable_entity<K, V>(errors: impl IntoIterator<Item = (K, V)>) -> Self
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        let mut error_map = HashMap::new();
+
+        for (key, val) in errors {
+            error_map
+                .entry(key.into())
+                .or_insert_with(Vec::new)
+                .push(val.into());
+        }
+
+        Self::UnprocessableEntity { errors: error_map }
     }
 
     /// Maps `ApiError` variants to `StatusCode`s
@@ -110,7 +123,7 @@ impl ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response<Body> {
         match self {
-            Self::UnprocessableEntity(errors) => {
+            Self::UnprocessableEntity { errors } => {
                 return (StatusCode::UNPROCESSABLE_ENTITY, Json(errors)).into_response();
             }
             Self::Unauthorized => {
