@@ -130,6 +130,29 @@
     }
   });
 
+  //
+  // Table stuff
+  //
+
+  let selectedColumn = $state({ axis_id: -1, ascending: true });
+  let sortingMethod = $derived((rowA: Cells, rowB: Cells) =>
+    selectedColumn.axis_id in rowA && selectedColumn.axis_id in rowB
+      ? selectedColumn.ascending
+        ? (rowA[selectedColumn.axis_id] ?? 1) >
+          (rowB[selectedColumn.axis_id] ?? 1)
+          ? 1
+          : -1
+        : (rowA[selectedColumn.axis_id] ?? 1) <
+            (rowB[selectedColumn.axis_id] ?? 1)
+          ? 1
+          : -1
+      : true,
+  );
+  let tableCells = $derived(chartData.cells.toSorted(sortingMethod));
+  //
+  // Startup
+  //
+
   onMount(() => {
     getChartData(dashboard, chart)
       .then((r: ChartData) => {
@@ -148,7 +171,39 @@
     <canvas bind:this={g}></canvas>
   </div>
 {:else if chartData}
-  {#each chartData.axes as axis}
-    <p>{axis.axis.axis_kind}: {axis.field_name}</p>
-  {/each}
+  <table class="border border-black">
+    <thead>
+      <tr>
+        {#each chartData.axes as axis}
+          <th
+            class="border border-black bg-white select-none"
+            onclick={() => {
+              if (selectedColumn.axis_id === axis.axis.axis_id) {
+                selectedColumn.ascending = !selectedColumn.ascending;
+              } else {
+                selectedColumn.axis_id = axis.axis.axis_id;
+                selectedColumn.ascending = true;
+              }
+            }}
+            >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
+              ? selectedColumn.ascending
+                ? " ↑"
+                : " ↓"
+              : ""}</th
+          >
+        {/each}
+      </tr>
+    </thead>
+    <tbody>
+      {#each tableCells as row}
+        <tr>
+          {#each chartData.axes as axis}
+            <td class="p-2 border border-black">
+              {row[axis.axis.axis_id]}
+            </td>
+          {/each}
+        </tr>
+      {/each}
+    </tbody>
+  </table>
 {/if}

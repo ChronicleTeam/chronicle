@@ -167,7 +167,7 @@
       axis_id: j,
       chart_id: c.chart_id,
       field_id: -1,
-      axis_kind: kinds[i],
+      axis_kind: c.chart_kind === ChartKind.Table ? AxisKind.Label : kinds[i],
     };
   };
 
@@ -303,7 +303,6 @@
           ]}
         >
           <p class="font-bold text-center">{chart.name}</p>
-          <p>Kind: {chart.chart_kind}</p>
           {#await asyncTables then tables}
             <p>
               Source Table: {tables.find(
@@ -437,14 +436,16 @@
             {/if}
           </select>
         </div>
-        <div class="flex gap-2">
-          <p>Kind:</p>
-          <select bind:value={editedAxisFields[i].axis.axis_kind}>
-            {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
-              <option>{kind}</option>
-            {/each}
-          </select>
-        </div>
+        {#if charts[curChartIdx].chart_kind !== ChartKind.Table}
+          <div class="flex gap-2">
+            <p>Kind:</p>
+            <select bind:value={editedAxisFields[i].axis.axis_kind}>
+              {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
+                <option>{kind}</option>
+              {/each}
+            </select>
+          </div>
+        {/if}
         <div class="flex gap-2">
           <p>Aggregate:</p>
           <select bind:value={editedAxisFields[i].axis.aggregate}>
@@ -463,7 +464,7 @@
     {/each}
   </div>
   <div class="flex gap-2">
-    {#if editedAxisFields.length < Object.values(AxisKind).length}
+    {#if editedAxisFields.length < Object.values(AxisKind).length || charts[curChartIdx].chart_kind === ChartKind.Table}
       <button
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         onclick={() => {
