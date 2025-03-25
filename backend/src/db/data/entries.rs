@@ -53,7 +53,7 @@ pub async fn create_entry(
     for cell in entry {
         insert_query = cell.bind(insert_query);
     }
-    
+
     if let Some(parent_id) = parent_id {
         insert_query = insert_query.bind(parent_id);
     }
@@ -134,20 +134,23 @@ pub async fn update_entry(
         .map(|(i, field_ident)| format!("{field_ident} = ${}", i + 2))
         .join(", ");
 
-    let table_ident = TableIdentifier::new(table_id, "data_table");
-
-    let parent_id: Option<Id> = sqlx::query_scalar(&format!(
+    let with_parent: bool = sqlx::query_scalar(&format!(
         r#"
-            SELECT parent_id
-            FROM {table_ident}
-            WHERE table_id = $1
+            SELECT EXISTS (
+                SELECT 1
+                FROM meta_table
+                WHERE table_id = $1
+                    AND parent_id IS NOT NULL
+            )
         "#
     ))
     .bind(table_id)
     .fetch_one(tx.as_mut())
     .await?;
 
-    let return_columns = field_columns(parent_id.is_some(), &field_idents).join(", ");
+    let return_columns = field_columns(with_parent, &field_idents).join(", ");
+
+    let table_ident = TableIdentifier::new(table_id, "data_table");
 
     let update_query = format!(
         r#"
