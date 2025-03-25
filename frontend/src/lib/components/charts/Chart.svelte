@@ -9,11 +9,17 @@
     type Cells,
     type FieldKind,
     type AxisField,
+    FieldType,
   } from "$lib/types.d.js";
   import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
   import { onMount } from "svelte";
   let { dashboard, chart }: { dashboard: Dashboard; chart: Chart } = $props();
-
+  const SORTABLE_FIELDS = [
+    FieldType.Integer,
+    FieldType.Decimal,
+    FieldType.Progress,
+    FieldType.DateTime,
+  ];
   let chartData: ChartData | null = $state(null);
   $inspect(chartData);
   let error = $state("");
@@ -88,17 +94,28 @@
             });
             break;
           case ChartKind.Line:
+            let sortedCells = chartData.cells;
+            if (SORTABLE_FIELDS.some((t) => xAxis.field_kind.type === t)) {
+              sortedCells = chartData.cells.toSorted(
+                (rowA: Cells, rowB: Cells) => {
+                  return (rowA[xAxis.axis.axis_id] ?? 1) >
+                    (rowB[xAxis.axis.axis_id] ?? 1)
+                    ? 1
+                    : -1;
+                },
+              );
+            }
             new ChartGraphic(g, {
               type: "line",
               data: {
-                labels: chartData.cells.map(
+                labels: sortedCells.map(
                   (row: Cells) =>
                     row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
                 ),
                 datasets: [
                   {
                     label: "data",
-                    data: chartData.cells.map(
+                    data: sortedCells.map(
                       (row: Cells) => row[yAxis.axis.axis_id],
                     ),
                     tension: 0.1,
