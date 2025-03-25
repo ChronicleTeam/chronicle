@@ -8,6 +8,12 @@ edition = "2021"
 axum = { version = "0.8", features = ["multipart"] }
 axum-macros = "0.5"
 
+# Cloud deployment with shuttle.dev
+shuttle-runtime = "0.53"
+shuttle-axum = "0.53"
+shuttle-shared-db = { version = "0.53", features = ["postgres", "sqlx"]}
+
+
 # Async runtime
 tokio = { version = "1.43", features = ["full"] }
 futures = "0.3"
@@ -70,3 +76,4 @@ num-traits = "0.2"
 
 [dev-dependencies]
 mime = "0.3"
+cargo-shuttle = "0.53.0"

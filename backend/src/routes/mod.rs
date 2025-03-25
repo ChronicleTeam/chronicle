@@ -29,16 +29,13 @@ mod viz;
 mod tests;
 
 use crate::config::Config;
-use anyhow::Result;
 use axum::Router;
 use sqlx::PgPool;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
-use tokio::net::TcpListener;
+use std::{sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
-use tracing::info;
 
 /// Global state for the API.
 ///
@@ -53,7 +50,7 @@ struct ApiState {
 /// Create the application [`Router`].
 /// It puts all routes under the `/api` path, it sets important
 /// middleware layers for the back-end, and it attaches the [`ApiState`]
-fn create_app(api_state: ApiState) -> Router {
+pub fn create_app(config: Config, pool: PgPool) -> Router {
     Router::new()
         .nest(
             "/api",
@@ -68,23 +65,8 @@ fn create_app(api_state: ApiState) -> Router {
             CatchPanicLayer::new(),
             CorsLayer::permissive(),
         ))
-        .with_state(api_state)
-}
-
-/// Creates the application [`Router`] and serves it on the specified IP address and port.
-pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
-    let api_state = ApiState {
-        _config: Arc::new(config),
-        pool,
-    };
-
-    let app = create_app(api_state);
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = TcpListener::bind(addr).await?;
-    info!("Backend running on http://{}", addr);
-
-    axum::serve(listener, app).await?;
-
-    Ok(addr)
+        .with_state(ApiState {
+            _config: Arc::new(config),
+            pool,
+        })
 }
