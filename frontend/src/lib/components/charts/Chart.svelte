@@ -14,11 +14,6 @@
   import { onMount } from "svelte";
   let { dashboard, chart }: { dashboard: Dashboard; chart: Chart } = $props();
 
-  const ChartKindMap = new Map([
-    [ChartKind.Bar, "bar"],
-    [ChartKind.Line, "line"],
-  ]);
-
   let chartData: ChartData | null = $state(null);
   $inspect(chartData);
   let error = $state("");
@@ -26,10 +21,8 @@
   let g: any;
   $effect(() => {
     if (chartData) {
-      if (
-        chartData.chart.chart_kind === ChartKind.Bar ||
-        chartData.chart.chart_kind === ChartKind.Line
-      ) {
+      if (chartData.chart.chart_kind === ChartKind.Table) {
+      } else {
         let xAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.X);
         let yAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.Y);
         let colorAxis = chartData.axes.find(
@@ -50,46 +43,72 @@
           yAxis,
           chartData.cells.map((row: Cells) => row[yAxis.axis.axis_id]),
         );
-        new ChartGraphic(g, {
-          type: ChartKindMap.get(
-            chartData.chart.chart_kind,
-          ) as keyof ChartTypeRegistry,
-          data: {
-            labels: chartData.cells.map(
-              (row: Cells) => row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
-            ),
-            datasets: [
-              {
-                label: "data",
-                data: chartData.cells.map(
-                  (row: Cells) => row[yAxis.axis.axis_id],
+
+        let options = {
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: xAxis.field_name,
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: yAxis.field_name,
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              display: false,
+            },
+          },
+        };
+
+        switch (chartData.chart.chart_kind) {
+          case ChartKind.Bar:
+            new ChartGraphic(g, {
+              type: "bar",
+              data: {
+                labels: chartData.cells.map(
+                  (row: Cells) =>
+                    row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
                 ),
-                tension: 0.1,
+                datasets: [
+                  {
+                    label: "data",
+                    data: chartData.cells.map(
+                      (row: Cells) => row[yAxis.axis.axis_id],
+                    ),
+                  },
+                ],
               },
-            ],
-          },
-          options: {
-            scales: {
-              x: {
-                title: {
-                  display: true,
-                  text: xAxis.field_name,
-                },
+              options,
+            });
+            break;
+          case ChartKind.Line:
+            new ChartGraphic(g, {
+              type: "line",
+              data: {
+                labels: chartData.cells.map(
+                  (row: Cells) =>
+                    row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
+                ),
+                datasets: [
+                  {
+                    label: "data",
+                    data: chartData.cells.map(
+                      (row: Cells) => row[yAxis.axis.axis_id],
+                    ),
+                    tension: 0.1,
+                  },
+                ],
               },
-              y: {
-                title: {
-                  display: true,
-                  text: yAxis.field_name,
-                },
-              },
-            },
-            plugins: {
-              legend: {
-                display: false,
-              },
-            },
-          },
-        });
+              options,
+            });
+            break;
+        }
       }
     }
   });
