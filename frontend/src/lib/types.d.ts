@@ -144,6 +144,7 @@ export type TableData = {
 // Entry
 export type Entry = {
   entry_id: number;
+  parent_id: number | null;
   cells: Cells;
 };
 
