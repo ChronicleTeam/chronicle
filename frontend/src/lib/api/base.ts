@@ -1,6 +1,5 @@
 import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
-
-const API_URL = "http://localhost:8000/api";
+import { PUBLIC_API_URL as API_URL } from "$env/static/public";
 
 //
 // General resources
@@ -42,7 +41,7 @@ export const PUT = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fe
   body: JSON.stringify(jsonBody)
 }).then(handleResponse<T>);
 
-export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL +endpoint, {
+export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
   method: "PATCH",
   headers: {
     "Content-Type": "application/json",
@@ -74,7 +73,7 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
         .catch((e) => response.statusText),
     } as APIError
 
-    if(typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
+    if (typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
     throw err
   }
 };
