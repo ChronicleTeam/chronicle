@@ -172,7 +172,7 @@ async fn set_field_order(
     );
 
     if error_messages.len() > 0 {
-        return Err(ApiError::unprocessable_entity(error_messages));
+        // return Err(ApiError::unprocessable_entity(error_messages));
     }
 
     db::set_field_order(&pool, order).await?;
@@ -240,6 +240,6 @@ where
     {
         Ok(())
     } else {
-        Err(ApiError::unprocessable_entity([INVALID_RANGE]))
+        Err(ApiError::unprocessable_entity([("Range", "INVALID_RANGE")]))
     }
 }

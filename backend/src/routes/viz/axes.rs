@@ -57,16 +57,17 @@ async fn set_axes(
     let axes = axes
         .into_iter()
         .map(|axis| {
-            let field_kind = &field_kinds
-                .get(&axis.field_id)
-                .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?;
+            let field_kind =
+                &field_kinds
+                    .get(&axis.field_id)
+                    .ok_or(ApiError::unprocessable_entity([(
+                        "Field",
+                        "FIELD_NOT_FOUND",
+                    )]))?;
 
             if let Some(aggregate) = &axis.aggregate {
                 validate_axis(&aggregate, field_kind).map_err(|message| {
-                    ApiError::unprocessable_entity([ErrorMessage::new(
-                        axis.field_id.to_string(),
-                        message,
-                    )])
+                    ApiError::unprocessable_entity([(axis.field_id.to_string(), message)])
                 })?;
             }
 

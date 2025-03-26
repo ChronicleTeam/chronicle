@@ -153,7 +153,7 @@ fn convert_cells(
     );
 
     if error_messages.len() > 0 {
-        return Err(ApiError::unprocessable_entity(error_messages));
+        // return Err(ApiError::unprocessable_entity(error_messages));
     }
 
     Ok(new_entry)
