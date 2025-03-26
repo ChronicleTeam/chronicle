@@ -5,6 +5,7 @@
     getCharts,
     getTableData,
     getTables,
+    patchChart,
     postChart,
     putAxes,
   } from "$lib/api";
@@ -126,7 +127,9 @@
   let editedAxisFields = $state([] as AxisField[]);
   let curChartTableData: TableData | null = $state(null);
   let editChartError = $state("");
-  let editAxesError = $state("");
+
+  let saveChartError = $state("");
+  let saveAxesError = $state("");
   $inspect(editedAxisFields);
 
   //
@@ -235,7 +238,7 @@
           throw { body: "Could not get Chart data" };
 
         editChartError = "";
-        editAxesError = "";
+        saveAxesError = "";
       })
       .catch((e) => {
         editChartError = e.body.toString();
@@ -253,19 +256,32 @@
       });
   };
 
-  const saveAxisFields = (chart: Chart, axes: AxisField[]) =>
-    putAxes(
+  const saveChartWithAxisFields = (chart: Chart, axes: AxisField[]) => {
+    let chartPromise = patchChart(dashboard, chart)
+      .then(() => {
+        saveChartError = "";
+      })
+      .catch((e) => {
+        saveChartError = e.body.toString();
+        throw Error();
+      });
+    let axisPromise = putAxes(
       dashboard,
       chart,
       axes.map((af) => af.axis),
     )
       .then(() => {
-        cancelEditChart();
-        editAxesError = "";
+        saveAxesError = "";
       })
       .catch((e) => {
-        editAxesError = e.body.toString();
+        saveAxesError = e.body.toString();
+        throw Error();
       });
+
+    Promise.all([chartPromise, axisPromise]).then(() => {
+      cancelEditChart();
+    });
+  };
 
   //
   // Startup
@@ -423,6 +439,7 @@
   {/if}
 {:else}
   <input class="mb-2" bind:value={charts[curChartIdx].name} />
+  <p class="text-red-500">{saveChartError}</p>
   <div class="flex gap-3">
     {#each editedAxisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">
@@ -479,7 +496,7 @@
     <button
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
       onclick={() => {
-        saveAxisFields(charts[curChartIdx], editedAxisFields);
+        saveChartWithAxisFields(charts[curChartIdx], editedAxisFields);
       }}>Save</button
     >
     <button
@@ -488,5 +505,5 @@
       >Cancel</button
     >
   </div>
-  {#if editAxesError}<p class="text-red-500">{editAxesError}</p>{/if}
+  {#if saveAxesError}<p class="text-red-500">{saveAxesError}</p>{/if}
 {/if}
