@@ -6,6 +6,7 @@
     getTableData,
     getTables,
     patchChart,
+    patchDashboard,
     postChart,
     putAxes,
   } from "$lib/api";
@@ -128,6 +129,9 @@
   let curChartTableData: TableData | null = $state(null);
   let editChartError = $state("");
 
+  let dashboardMetadataChanged = $state(false);
+  let saveDashboardError = $state("");
+
   let saveChartError = $state("");
   let saveAxesError = $state("");
   $inspect(editedAxisFields);
@@ -186,11 +190,26 @@
     curChartIdx = -1;
     editedAxisFields = [];
     curChartTableData = null;
+    saveChartError = "";
+    saveAxesError = "";
+    dashboardMetadataChanged = false;
   };
 
   //
   // API
   //
+
+  const saveDashboard = () =>
+    patchDashboard(dashboard)
+      .then((r) => {
+        dashboard.name = r.name;
+        dashboard.description = r.description;
+        dashboardMetadataChanged = false;
+        saveDashboardError = "";
+      })
+      .catch((e) => {
+        saveDashboardError = e.body.toString();
+      });
 
   const loadCharts = () =>
     getCharts(dashboard)
@@ -300,8 +319,36 @@
     </div>
   {:else if editMode === EditMode.DASH}
     <div class="flex flex-col items-center">
-      <input bind:value={dashboard.name} />
-      <input bind:value={dashboard.description} />
+      <input
+        bind:value={() => dashboard.name,
+        (s) => {
+          dashboardMetadataChanged = true;
+          dashboard.name = s;
+        }}
+      />
+      <input
+        bind:value={() => dashboard.description,
+        (s) => {
+          dashboardMetadataChanged = true;
+          dashboard.description = s;
+        }}
+      />
+      <div class="flex gap-2">
+        <ConfirmButton
+          initText="Delete Dashboard"
+          confirmText="Confirm Delete"
+          onconfirm={removeDashboard}
+        />
+        {#if dashboardMetadataChanged}
+          <button
+            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+            onclick={saveDashboard}>Save Title and Description</button
+          >
+        {/if}
+      </div>
+      {#if saveDashboardError}
+        <p class="text-red-500">{saveDashboardError}</p>
+      {/if}
     </div>
   {/if}
   <div class="grid grid-cols-4 grid-rows-1 gap-2">
@@ -430,11 +477,6 @@
           editMode = EditMode.DISPLAY;
         }}>Back</button
       >
-      <ConfirmButton
-        initText="Delete Dashboard"
-        confirmText="Confirm Delete"
-        onconfirm={removeDashboard}
-      />
     </div>
   {/if}
 {:else}
