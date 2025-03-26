@@ -22,6 +22,7 @@
 //! necessary.
 
 mod data;
+mod extractor;
 mod users;
 mod viz;
 
@@ -46,7 +47,7 @@ use tracing::info;
 /// shared database connection ([`PgPool`]).
 #[derive(Clone)]
 struct ApiState {
-    _config: Arc<Config>,
+    config: Arc<Config>,
     pool: PgPool,
 }
 
@@ -74,7 +75,7 @@ fn create_app(api_state: ApiState) -> Router {
 /// Creates the application [`Router`] and serves it on the specified IP address and port.
 pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
     let api_state = ApiState {
-        _config: Arc::new(config),
+        config: Arc::new(config),
         pool,
     };
 
