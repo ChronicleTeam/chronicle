@@ -39,9 +39,9 @@ export const deleteField = async (field: Field): Promise<void> => DELETE(`/table
 // Entry methods
 export const getTableData = async (table: Table): Promise<TableData> => GET<TableData>(`/tables/${table.table_id}/data`).then(hydrateJSONTableData);
 
-export const postEntry = async (table: Table, entry: Entry): Promise<Entry> => POST<Entry>(`/tables/${table.table_id}/entries`, entry.cells);
+export const postEntry = async (table: Table, entry: Entry): Promise<Entry> => POST<Entry>(`/tables/${table.table_id}/entries`, {parent_id: entry.parent_id, cells: entry.cells});
 
-export const patchEntry = async (table: Table, entry: Entry): Promise<Entry> => PATCH<Entry>(`/tables/${table.table_id}/entries/${entry.entry_id}`, entry.cells);
+export const patchEntry = async (table: Table, entry: Entry): Promise<Entry> => PATCH<Entry>(`/tables/${table.table_id}/entries/${entry.entry_id}`, { cells: entry.cells });
 
 export const deleteEntry = async (table: Table, entry: Entry): Promise<void> => DELETE(`/tables/${table.table_id}/entries/${entry.entry_id}`);
 

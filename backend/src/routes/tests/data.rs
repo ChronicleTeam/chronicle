@@ -39,10 +39,10 @@ async fn create_table(app: &mut Router, name: &str, description: &str) -> i64 {
 #[sqlx::test]
 async fn test_create_table(pool: PgPool) {
     setup_tracing();
-    let mut app = create_app(ApiState {
-        _config: Config::parse().into(),
-        pool: pool.clone(),
-    });
+    let mut app = create_app(
+        Config::parse().into(),
+        pool.clone(),
+    );
 
     let name = "Test Table";
     let description = "This is a test table";
@@ -96,10 +96,10 @@ async fn create_field(app: &mut Router, table_id: i64, name: &str, field_kind: V
 #[sqlx::test]
 async fn test_create_field(pool: PgPool) {
     setup_tracing();
-    let mut app = create_app(ApiState {
-        _config: Config::parse().into(),
-        pool: pool.clone(),
-    });
+    let mut app = create_app(
+        Config::parse().into(),
+        pool.clone(),
+    );
 
     let table_id = create_table(&mut app, "Test Table", "This is a test table").await;
 

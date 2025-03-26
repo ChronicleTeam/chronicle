@@ -9,16 +9,17 @@
     type Cells,
     type FieldKind,
     type AxisField,
+    FieldType,
   } from "$lib/types.d.js";
   import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
   import { onMount } from "svelte";
   let { dashboard, chart }: { dashboard: Dashboard; chart: Chart } = $props();
-
-  const ChartKindMap = new Map([
-    [ChartKind.Bar, "bar"],
-    [ChartKind.Line, "line"],
-  ]);
-
+  const SORTABLE_FIELDS = [
+    FieldType.Integer,
+    FieldType.Decimal,
+    FieldType.Progress,
+    FieldType.DateTime,
+  ];
   let chartData: ChartData | null = $state(null);
   $inspect(chartData);
   let error = $state("");
@@ -26,10 +27,8 @@
   let g: any;
   $effect(() => {
     if (chartData) {
-      if (
-        chartData.chart.chart_kind === ChartKind.Bar ||
-        chartData.chart.chart_kind === ChartKind.Line
-      ) {
+      if (chartData.chart.chart_kind === ChartKind.Table) {
+      } else {
         let xAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.X);
         let yAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.Y);
         let colorAxis = chartData.axes.find(
@@ -50,49 +49,109 @@
           yAxis,
           chartData.cells.map((row: Cells) => row[yAxis.axis.axis_id]),
         );
-        new ChartGraphic(g, {
-          type: ChartKindMap.get(
-            chartData.chart.chart_kind,
-          ) as keyof ChartTypeRegistry,
-          data: {
-            labels: chartData.cells.map(
-              (row: Cells) => row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
-            ),
-            datasets: [
-              {
-                label: "data",
-                data: chartData.cells.map(
-                  (row: Cells) => row[yAxis.axis.axis_id],
+
+        let options = {
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: xAxis.field_name,
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: yAxis.field_name,
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              display: false,
+            },
+          },
+        };
+
+        switch (chartData.chart.chart_kind) {
+          case ChartKind.Bar:
+            new ChartGraphic(g, {
+              type: "bar",
+              data: {
+                labels: chartData.cells.map(
+                  (row: Cells) =>
+                    row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
                 ),
-                tension: 0.1,
+                datasets: [
+                  {
+                    label: "data",
+                    data: chartData.cells.map(
+                      (row: Cells) => row[yAxis.axis.axis_id],
+                    ),
+                  },
+                ],
               },
-            ],
-          },
-          options: {
-            scales: {
-              x: {
-                title: {
-                  display: true,
-                  text: xAxis.field_name,
+              options,
+            });
+            break;
+          case ChartKind.Line:
+            let sortedCells = chartData.cells;
+            if (SORTABLE_FIELDS.some((t) => xAxis.field_kind.type === t)) {
+              sortedCells = chartData.cells.toSorted(
+                (rowA: Cells, rowB: Cells) => {
+                  return (rowA[xAxis.axis.axis_id] ?? 1) >
+                    (rowB[xAxis.axis.axis_id] ?? 1)
+                    ? 1
+                    : -1;
                 },
+              );
+            }
+            new ChartGraphic(g, {
+              type: "line",
+              data: {
+                labels: sortedCells.map(
+                  (row: Cells) =>
+                    row[xAxis.axis.axis_id ?? -1]?.toString() ?? "",
+                ),
+                datasets: [
+                  {
+                    label: "data",
+                    data: sortedCells.map(
+                      (row: Cells) => row[yAxis.axis.axis_id],
+                    ),
+                    tension: 0.1,
+                  },
+                ],
               },
-              y: {
-                title: {
-                  display: true,
-                  text: yAxis.field_name,
-                },
-              },
-            },
-            plugins: {
-              legend: {
-                display: false,
-              },
-            },
-          },
-        });
+              options,
+            });
+            break;
+        }
       }
     }
   });
+
+  //
+  // Table stuff
+  //
+
+  let selectedColumn = $state({ axis_id: -1, ascending: true });
+  let sortingMethod = $derived((rowA: Cells, rowB: Cells) =>
+    selectedColumn.axis_id in rowA && selectedColumn.axis_id in rowB
+      ? selectedColumn.ascending
+        ? (rowA[selectedColumn.axis_id] ?? 1) >
+          (rowB[selectedColumn.axis_id] ?? 1)
+          ? 1
+          : -1
+        : (rowA[selectedColumn.axis_id] ?? 1) <
+            (rowB[selectedColumn.axis_id] ?? 1)
+          ? 1
+          : -1
+      : true,
+  );
+  let tableCells = $derived(chartData.cells.toSorted(sortingMethod));
+  //
+  // Startup
+  //
 
   onMount(() => {
     getChartData(dashboard, chart)
@@ -112,7 +171,39 @@
     <canvas bind:this={g}></canvas>
   </div>
 {:else if chartData}
-  {#each chartData.axes as axis}
-    <p>{axis.axis.axis_kind}: {axis.field_name}</p>
-  {/each}
+  <table class="border border-black">
+    <thead>
+      <tr>
+        {#each chartData.axes as axis}
+          <th
+            class="border border-black bg-white select-none"
+            onclick={() => {
+              if (selectedColumn.axis_id === axis.axis.axis_id) {
+                selectedColumn.ascending = !selectedColumn.ascending;
+              } else {
+                selectedColumn.axis_id = axis.axis.axis_id;
+                selectedColumn.ascending = true;
+              }
+            }}
+            >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
+              ? selectedColumn.ascending
+                ? " ↑"
+                : " ↓"
+              : ""}</th
+          >
+        {/each}
+      </tr>
+    </thead>
+    <tbody>
+      {#each tableCells as row}
+        <tr>
+          {#each chartData.axes as axis}
+            <td class="p-2 border border-black">
+              {row[axis.axis.axis_id]}
+            </td>
+          {/each}
+        </tr>
+      {/each}
+    </tbody>
+  </table>
 {/if}

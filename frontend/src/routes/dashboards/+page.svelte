@@ -2,7 +2,12 @@
   import D3Chart from "$lib/components/charts/D3Chart.svelte";
   import ChartJsChart from "$lib/components/charts/ChartJSChart.svelte";
   import { type Dashboard } from "$lib/types.d.js";
-  import { getDashboards, postDashboard, type APIError } from "$lib/api";
+  import {
+    deleteDashboard,
+    getDashboards,
+    postDashboard,
+    type APIError,
+  } from "$lib/api";
   import DashboardEditor from "./DashboardEditor.svelte";
 
   let asyncDashboards: Promise<Dashboard[]> = $state(getDashboards());
@@ -23,6 +28,21 @@
       .catch((e: APIError) => {
         addDashError = "Error: " + (e.body as { [key: string]: string }).name;
       });
+
+  let removeDashboardError = $state("");
+  const removeDashboard = () => {
+    if (curDash) {
+      deleteDashboard(curDash)
+        .then(() => {
+          asyncDashboards = getDashboards();
+          curDash = null;
+          removeDashboardError = "";
+        })
+        .catch((e) => {
+          removeDashboardError = e.body.toString();
+        });
+    }
+  };
 
   $inspect(curDash);
 </script>
@@ -102,7 +122,10 @@
       </div>
     {:else}
       {#key curDash}
-        <DashboardEditor dashboard={curDash} />
+        <DashboardEditor dashboard={curDash} {removeDashboard} />
+        {#if removeDashboardError}
+          <p class=" text-red-500">{removeDashboardError}</p>
+        {/if}
       {/key}
     {/if}
   </div>

@@ -30,16 +30,13 @@ mod viz;
 mod tests;
 
 use crate::config::Config;
-use anyhow::Result;
 use axum::Router;
 use sqlx::PgPool;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
-use tokio::net::TcpListener;
+use std::{sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
-use tracing::info;
 
 /// Global state for the API.
 ///
@@ -54,7 +51,7 @@ struct ApiState {
 /// Create the application [`Router`].
 /// It puts all routes under the `/api` path, it sets important
 /// middleware layers for the back-end, and it attaches the [`ApiState`]
-fn create_app(api_state: ApiState) -> Router {
+pub fn create_app(config: Config, pool: PgPool) -> Router {
     Router::new()
         .nest(
             "/api",

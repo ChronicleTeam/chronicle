@@ -1,30 +1,18 @@
-use chronicle::{config::Config, routes, setup_tracing};
-use clap::Parser;
-use sqlx::{migrate::Migrator, postgres::PgPoolOptions};
-use std::time::Duration;
+use chronicle::{config::Config, routes};
+use sqlx::{migrate::Migrator, PgPool};
 
-static MIGRATOR: Migrator = sqlx::migrate!(); // Points to the migrations folder
+static MIGRATOR: Migrator = sqlx::migrate!();
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    setup_tracing();
+#[shuttle_runtime::main]
+async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
 
     // Load database URL from .env for development
     #[cfg(debug_assertions)]
     dotenvy::dotenv().ok();
 
-    // Parse configs from environment variables
-    let config = Config::try_parse()?;
+    MIGRATOR.run(&pool).await.unwrap();
 
-    let pool = PgPoolOptions::new()
-        .max_connections(50)
-        .acquire_timeout(Duration::from_secs(3))
-        .connect(&config.database_url)
-        .await?;
+    let router = routes::create_app(Config { database_url: String::new() }, pool);
 
-    MIGRATOR.run(&pool).await?;
-
-    routes::serve(config, pool).await?;
-
-    Ok(())
+    Ok(router.into())
 }
