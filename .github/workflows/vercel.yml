@@ -1,8 +1,10 @@
 name: Deploy to vercel
+
 on:
   push:
     branches:
       - main
+      
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -14,7 +16,7 @@ jobs:
           projectName: chronicle
           envVariableKeys: PUBLIC_API_URL
         env:
-          PUBLIC_API_URL: ${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
       - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
