@@ -1,5 +1,5 @@
 import { GET, POST, PUT, DELETE, PATCH, } from "./base.js";
-import { type Dashboard, type Chart, type ChartData, type AxisField, type Axis, } from "../types.d.js"
+import { type Dashboard, type Chart, type ChartData, type AxisField, type Axis, type Cells, FieldType } from "../types.d.js"
 
 // Dashboard methods
 
@@ -25,6 +25,15 @@ export const getChartData = async (d: Dashboard, c: Chart): Promise<ChartData> =
   c.axes = c.axes.map((a: AxisField) => {
     a.axis.aggregate = a.axis.aggregate ?? undefined;
     return a;
+  });
+
+  c.axes.forEach((a: AxisField) => {
+    if (a.field_kind.type === FieldType.DateTime) {
+      c.cells = c.cells.map((row: Cells) => {
+        row[a.axis.axis_id] = (new Date(row[a.axis.axis_id] as string));
+        return row;
+      })
+    }
   });
 
   return c;
