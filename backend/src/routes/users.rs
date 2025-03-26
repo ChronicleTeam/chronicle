@@ -4,6 +4,7 @@ use argon2::{
     Argon2, PasswordHash,
 };
 use axum::{
+    extract::State,
     routing::{get, post},
     Extension, Json, Router,
 };
@@ -12,12 +13,10 @@ use uuid::Uuid;
 
 use crate::{
     error::{ApiError, ApiResult, OnConstraint},
-    extractor::AuthUser,
     model::users::{LoginUser, NewUser, UpdateUserModel, User, UserBody},
-    ApiContext,
 };
 
-use super::ApiState;
+use super::{extractor::AuthUser, ApiState};
 
 pub fn router() -> Router<ApiState> {
     // By having each module responsible for setting up its own routing,
@@ -30,12 +29,12 @@ pub fn router() -> Router<ApiState> {
 }
 
 async fn create_user(
-    ctx: Extension<ApiContext>,
+    ctx: Extension<ApiState>,
     Json(req): Json<UserBody<NewUser>>,
 ) -> ApiResult<Json<UserBody<User>>> {
     let password_hash = hash_password(req.user.password).await?;
 
-    let mut tx = ctx.db.begin().await?;
+    let mut tx = ctx.pool.begin().await?;
 
     let user: User = sqlx::query_as(
         r#"
@@ -83,7 +82,7 @@ struct TempLoginUser {
 }
 // https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints#authentication
 async fn login_user(
-    ctx: Extension<ApiContext>,
+    State(ctx): State<ApiState>,
     Json(req): Json<UserBody<LoginUser>>,
 ) -> ApiResult<Json<UserBody<User>>> {
     let user: TempLoginUser = sqlx::query_as(
@@ -93,7 +92,7 @@ async fn login_user(
         "#,
     )
     .bind(req.user.email)
-    .fetch_optional(&ctx.db)
+    .fetch_optional(&ctx.pool)
     .await?
     .ok_or(ApiError::unprocessable_entity([(
         "email",
@@ -120,12 +119,12 @@ async fn login_user(
 // https://realworld-docs.netlify.app/docs/specs/backend-specs/endpoints#get-current-user
 async fn get_current_user(
     auth_user: AuthUser,
-    ctx: Extension<ApiContext>,
+    ctx: Extension<ApiState>,
 ) -> ApiResult<Json<UserBody<User>>> {
     let user: User =
         sqlx::query_as(r#"SELECT email, username, bio, image from "user" WHERE user_id = $1"#)
             .bind(auth_user.user_id)
-            .fetch_one(&ctx.db)
+            .fetch_one(&ctx.pool)
             .await?;
 
     Ok(Json(UserBody {
@@ -150,7 +149,7 @@ async fn get_current_user(
 // However, we have a spec to follow so `PUT` it is.
 async fn update_user(
     auth_user: AuthUser,
-    ctx: Extension<ApiContext>,
+    ctx: Extension<ApiState>,
     Json(req): Json<UserBody<UpdateUserModel>>,
 ) -> ApiResult<Json<UserBody<User>>> {
     if req.user == UpdateUserModel::default() {
@@ -185,7 +184,7 @@ async fn update_user(
     .bind(req.user.bio)
     .bind(req.user.image)
     .bind(auth_user.user_id)
-    .fetch_one(&ctx.db)
+    .fetch_one(&ctx.pool)
     .await
     .on_constraint("user_username_key", |_| {
         ApiError::unprocessable_entity([("username", "username taken")])

@@ -1,8 +1,7 @@
 use crate::config::Config;
 use crate::error::ApiError;
-use crate::ApiContext;
 use async_trait::async_trait;
-use axum::{extract::FromRequestParts, Extension};
+use axum::extract::FromRequestParts;
 
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
@@ -14,6 +13,8 @@ use jwt::{SignWithKey, VerifyWithKey};
 use sha2::Sha384;
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+use super::ApiState;
 
 const DEFAULT_SESSION_LENGTH: time::Duration = time::Duration::weeks(2);
 
@@ -45,9 +46,9 @@ struct AuthUserClaims {
 }
 
 impl AuthUser {
-    pub fn to_jwt(&self, ctx: &ApiContext) -> String {
+    pub fn to_jwt(&self, ctx: &ApiState) -> String {
         type HmacSha384 = Hmac<Sha384>;
-        let hmac = HmacSha384::new_from_slice(ctx.config.hmac_key.as_bytes())
+        let hmac = HmacSha384::new_from_slice(ctx._config.hmac_key.as_bytes())
             .expect("HMAC-SHA-384 can accept any key length");
 
         AuthUserClaims {
