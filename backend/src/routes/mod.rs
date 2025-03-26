@@ -58,7 +58,10 @@ pub fn create_app(api_state: ApiState) -> Router {
     Router::new()
         .nest(
             "/api",
-            Router::new().merge(data::router()).merge(viz::router()),
+            Router::new()
+                .merge(data::router())
+                .merge(viz::router())
+                .merge(users::router()),
         )
         // Enables logging. Use `RUST_LOG=tower_http=debug`
         .layer((
