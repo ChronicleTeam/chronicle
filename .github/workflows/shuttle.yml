@@ -1,4 +1,4 @@
-name: Shuttle Deploy
+name: Deploy to Shuttle
 
 on:
   push:
