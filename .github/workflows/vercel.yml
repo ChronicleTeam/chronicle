@@ -17,6 +17,9 @@ jobs:
           envVariableKeys: PUBLIC_API_URL
         env:
           PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
+          TARGET_PUBLIC_API_URL: production
+          TYPE_PUBLIC_API_URL: plain
+          
       - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
