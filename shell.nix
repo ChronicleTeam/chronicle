@@ -16,6 +16,7 @@ mkShell rec {
     rustup
     nodejs
     nodePackages.npm
+    nodePackages.vercel
     unstable.cargo-shuttle
   ];
 
