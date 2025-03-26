@@ -18,6 +18,7 @@ mkShell rec {
     nodePackages.npm
     nodePackages.vercel
     unstable.cargo-shuttle
+    postgresql_17
   ];
 
   RUSTUP_TOOLCHAIN = rustToolchain;
