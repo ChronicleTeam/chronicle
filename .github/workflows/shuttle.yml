@@ -13,7 +13,7 @@ jobs:
       - uses: shuttle-hq/deploy-action@v2
         with:
           shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
-          project-id: proj_01JQ81AQ8BH11FJ33F9HDC1SZ2
+          project-id: proj_01JQA2ZYYZM86EA2K577Z1B260
           working-directory: "backend"
           cargo-shuttle-version: "0.53"
           extra-args: --allow-dirty --debug
