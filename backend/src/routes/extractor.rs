@@ -48,7 +48,7 @@ struct AuthUserClaims {
 impl AuthUser {
     pub fn to_jwt(&self, ctx: &ApiState) -> String {
         type HmacSha384 = Hmac<Sha384>;
-        let hmac = HmacSha384::new_from_slice(ctx.config.hmac_key.as_bytes())
+        let hmac = HmacSha384::new_from_slice(ctx._config.hmac_key.as_bytes())
             .expect("HMAC-SHA-384 can accept any key length");
 
         AuthUserClaims {

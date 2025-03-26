@@ -30,28 +30,31 @@ mod viz;
 mod tests;
 
 use crate::config::Config;
+use anyhow::Result;
 use axum::Router;
 use sqlx::PgPool;
-use std::{sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
+use tokio::net::TcpListener;
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
+use tracing::info;
 
 /// Global state for the API.
 ///
 /// Contains the configuration ([`Config`]) and the
 /// shared database connection ([`PgPool`]).
 #[derive(Clone)]
-struct ApiState {
-    config: Arc<Config>,
-    pool: PgPool,
+pub struct ApiState {
+    pub _config: Arc<Config>,
+    pub pool: PgPool,
 }
 
 /// Create the application [`Router`].
 /// It puts all routes under the `/api` path, it sets important
 /// middleware layers for the back-end, and it attaches the [`ApiState`]
-pub fn create_app(config: Config, pool: PgPool) -> Router {
+pub fn create_app(api_state: ApiState) -> Router {
     Router::new()
         .nest(
             "/api",
@@ -72,7 +75,7 @@ pub fn create_app(config: Config, pool: PgPool) -> Router {
 /// Creates the application [`Router`] and serves it on the specified IP address and port.
 pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
     let api_state = ApiState {
-        config: Arc::new(config),
+        _config: Arc::new(config),
         pool,
     };
 
