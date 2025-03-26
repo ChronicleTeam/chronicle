@@ -1,5 +1,5 @@
-import { GET, POST, PATCH, DELETE, hydrateJSONTableData} from "./base.js";
-import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
+import { GET, POST, PATCH, DELETE, hydrateJSONTableData } from "./base.js";
+import { type Table, type TableData, type Field, type Entry, } from "../types.d.js";
 
 //
 // Data Management
@@ -39,7 +39,7 @@ export const deleteField = async (field: Field): Promise<void> => DELETE(`/table
 // Entry methods
 export const getTableData = async (table: Table): Promise<TableData> => GET<TableData>(`/tables/${table.table_id}/data`).then(hydrateJSONTableData);
 
-export const postEntry = async (table: Table, entry: Entry): Promise<Entry> => POST<Entry>(`/tables/${table.table_id}/entries`, {parent_id: entry.parent_id, cells: entry.cells});
+export const postEntry = async (table: Table, entry: Entry): Promise<Entry> => POST<Entry>(`/tables/${table.table_id}/entries`, { parent_id: entry.parent_id, cells: entry.cells });
 
 export const patchEntry = async (table: Table, entry: Entry): Promise<Entry> => PATCH<Entry>(`/tables/${table.table_id}/entries/${entry.entry_id}`, { cells: entry.cells });
 

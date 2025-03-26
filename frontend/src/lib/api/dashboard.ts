@@ -1,5 +1,5 @@
-import { GET, POST, PUT, DELETE, hydrateJSONTableData} from "./base.js";
-import {type Dashboard , type Chart, type ChartData} from "../types.d.ts"
+import { GET, POST, PUT, DELETE, PATCH, } from "./base.js";
+import { type Dashboard, type Chart, type ChartData, type AxisField, type Axis, } from "../types.d.js"
 
 // Dashboard methods
 
@@ -21,11 +21,12 @@ export const deleteDashboard = async (d: Dashboard): Promise<void> => DELETE(`/d
 
 export const getCharts = async (d: Dashboard): Promise<Chart[]> => GET<Chart[]>(`/dashboards/${d.dashboard_id}/charts`);
 
-export const getChartData = async (d: Dashboard, c: Chart): Promise<ChartData> => GET<CharData>(`/dashboards/${d.dashboard_id}/charts/${c.chart_id}/data`).then((c: CharData) => {
-  c.axes = c.axes.map(a => {
-    a.aggregate = a.aggregate ?? undefined;
+export const getChartData = async (d: Dashboard, c: Chart): Promise<ChartData> => GET<ChartData>(`/dashboards/${d.dashboard_id}/charts/${c.chart_id}/data`).then((c: ChartData) => {
+  c.axes = c.axes.map((a: AxisField) => {
+    a.axis.aggregate = a.axis.aggregate ?? undefined;
     return a;
-  })
+  });
+
   return c;
 });
 
@@ -35,8 +36,8 @@ export const postChart = async (d: Dashboard, c: Chart): Promise<Chart> => POST<
   chart_kind: c.chart_kind
 });
 
-export const patchChart = async (d: Dashboard, c: Chart): Promise<Chart> => PATCH<Chart>(`/dashboards/${d.dashboards}/charts/${c.chart_id}`, {
-  title: c.title,
+export const patchChart = async (d: Dashboard, c: Chart): Promise<Chart> => PATCH<Chart>(`/dashboards/${d.dashboard_id}/charts/${c.chart_id}`, {
+  name: c.name,
   chart_kind: c.chart_kind
 });
 
