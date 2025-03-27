@@ -28,7 +28,7 @@ async fn create_dashboard(
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_dashboard): Json<CreateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     let dashboard = db::create_dashboard(&pool, user_id, create_dashboard).await?;
 
@@ -41,7 +41,7 @@ async fn update_dashboard(
     Path(dashboard_id): Path<Id>,
     Json(update_dashboard): Json<UpdateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -57,7 +57,7 @@ async fn delete_dashboard(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -72,7 +72,7 @@ async fn get_dashboards(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
 ) -> ApiResult<Json<Vec<Dashboard>>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     let dashboards = db::get_dashboards(&pool, user_id).await?;
 

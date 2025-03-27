@@ -29,7 +29,7 @@ async fn set_axes(
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(SetAxes(axes)): Json<SetAxes>,
 ) -> ApiResult<Json<Vec<Axis>>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
