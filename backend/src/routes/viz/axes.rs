@@ -1,6 +1,6 @@
 use crate::{
     db,
-    error::{ApiError, ApiResult, ErrorMessage},
+    error::{ApiError, ApiResult},
     model::{
         data::FieldKind,
         viz::{Aggregate, Axis, SetAxes},
@@ -16,8 +16,7 @@ use axum::{
 use itertools::Itertools;
 use std::collections::HashMap;
 
-const FIELD_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("field_id", "Field not found");
-
+const FIELD_NOT_FOUND: &str = "Field not found";
 const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
 pub fn router() -> Router<ApiState> {
@@ -61,8 +60,8 @@ async fn set_axes(
                 &field_kinds
                     .get(&axis.field_id)
                     .ok_or(ApiError::unprocessable_entity([(
-                        "Field",
-                        "FIELD_NOT_FOUND",
+                        axis.field_id.to_string(),
+                        FIELD_NOT_FOUND,
                     )]))?;
 
             if let Some(aggregate) = &axis.aggregate {

@@ -1,6 +1,5 @@
-use sqlx::PgExecutor;
-
 use crate::Id;
+use sqlx::PgExecutor;
 
 // TESTING
 pub async fn debug_get_user_id(executor: impl PgExecutor<'_>) -> sqlx::Result<Id> {

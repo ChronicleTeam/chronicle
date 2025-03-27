@@ -10,13 +10,13 @@ use crate::{
 use sqlx::{Acquire, Postgres, QueryBuilder};
 
 pub async fn set_axes(
-    conn: impl Acquire<'_, Database = Postgres> + Clone,
+    conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,
     table_id: Id,
     field_kinds: &HashMap<Id, FieldKind>,
     axes: Vec<CreateAxis>,
 ) -> sqlx::Result<Vec<Axis>> {
-    let mut tx = conn.clone().begin().await?;
+    let mut tx = conn.begin().await?;
 
     sqlx::query(
         r#"

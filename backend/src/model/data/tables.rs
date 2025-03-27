@@ -49,11 +49,6 @@ pub struct CreateTableData {
     pub entries: Vec<Vec<Cell>>
 }
 
-pub enum TableFileFormat {
-    Excel,
-    Csv,
-}
-
 
 #[derive(Debug)]
 pub struct TableIdentifier {

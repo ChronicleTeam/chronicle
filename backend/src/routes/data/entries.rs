@@ -1,7 +1,7 @@
 use super::ApiState;
 use crate::{
     db,
-    error::{ApiError, ApiResult, ErrorMessage},
+    error::{ApiError, ApiResult},
     model::{
         data::{CreateEntry, Entry, FieldKind, FieldMetadata, UpdateEntry},
         Cell,
@@ -140,7 +140,7 @@ fn convert_cells(
             let json_value = raw_cells.remove(&field.field_id).unwrap_or(Value::Null);
             Ok((
                 json_to_cell(json_value, &field.field_kind)
-                    .map_err(|message| ErrorMessage::new(field.field_id.to_string(), message))?,
+                    .map_err(|message| (field.field_id.to_string(), message))?,
                 field,
             ))
         })
@@ -149,11 +149,11 @@ fn convert_cells(
     error_messages.extend(
         raw_cells
             .keys()
-            .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID)),
+            .map(|field_id| (field_id.to_string(), INVALID_FIELD_ID)),
     );
 
     if error_messages.len() > 0 {
-        // return Err(ApiError::unprocessable_entity(error_messages));
+        return Err(ApiError::unprocessable_entity(error_messages));
     }
 
     Ok(new_entry)

@@ -11,7 +11,7 @@ axum-macros = "0.5"
 # Cloud deployment with shuttle.dev
 shuttle-runtime = "0.53"
 shuttle-axum = "0.53"
-shuttle-shared-db = { version = "0.53", features = ["postgres", "sqlx"]}
+shuttle-shared-db = { version = "0.53", features = ["postgres", "sqlx"] }
 
 
 # Async runtime
@@ -39,6 +39,11 @@ tower-http = { version = "0.6", features = [
   "trace",
   "cors",
 ] }
+tower-sessions = { version = "0.14", default-features = false, features = [
+  "signed",
+] }
+tower-sessions-sqlx-store = { version = "0.15", features = ["postgres"] }
+time = "0.3"
 
 # Configuration
 clap = { version = "4.5", features = ["derive", "env"] }
@@ -73,15 +78,12 @@ csv = "1.3"
 
 # Number conversions
 num-traits = "0.2"
-uuid = { version = "1.16.0", features = ["serde"] }
-hmac = "0.12.1"
-jwt = "0.16.0"
-sha2 = "0.10.8"
-async-trait = "0.1.88"
-time = "0.3.41"
-log = "0.4.27"
-rand = "0.9.0"
-argon2 = "0.5.3"
+
+# User authentication and authorization
+axum-login = "0.17"
+password-auth = "1.0"
+async-trait = "0.1"
+# axum-messages = "0.8"
 
 [dev-dependencies]
 mime = "0.3"

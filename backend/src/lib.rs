@@ -4,11 +4,11 @@ pub mod error;
 pub mod io;
 pub mod model;
 pub mod routes;
+pub mod users;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use uuid::Uuid;
 
-type Id = Uuid;
+type Id = i32;
 
 /// Sets up tracing for debuging and monitoring.
 /// Does nothing if called more than once.

@@ -15,10 +15,7 @@ use axum::{
 };
 use itertools::Itertools;
 
-const INVALID_RANGE: ErrorMessage =
-    ErrorMessage::new_static("range", "Range start bound is greater than end bound");
-// const FIELD_NAME_CONFLICT: ErrorMessage =
-//     ErrorMessage::new_static("name", "Field name already used for this table");
+const INVALID_RANGE: ErrorMessage = ("range", "Range start bound is greater than end bound");
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
@@ -156,9 +153,9 @@ async fn set_field_order(
         .filter_map(|(idx, (field_id, ordering))| {
             let key = field_id.to_string();
             if !field_ids.remove(field_id) {
-                Some(ErrorMessage::new(key, FIELD_ID_NOT_FOUND))
+                Some((key, FIELD_ID_NOT_FOUND))
             } else if idx as i32 != *ordering {
-                Some(ErrorMessage::new(key, INVALID_ORDERING))
+                Some((key, INVALID_ORDERING))
             } else {
                 None
             }
@@ -168,11 +165,11 @@ async fn set_field_order(
     error_messages.extend(
         field_ids
             .into_iter()
-            .map(|field_id| ErrorMessage::new(field_id.to_string(), FIELD_ID_MISSING)),
+            .map(|field_id| (field_id.to_string(), FIELD_ID_MISSING)),
     );
 
     if error_messages.len() > 0 {
-        // return Err(ApiError::unprocessable_entity(error_messages));
+        return Err(ApiError::unprocessable_entity(error_messages));
     }
 
     db::set_field_order(&pool, order).await?;
@@ -240,6 +237,6 @@ where
     {
         Ok(())
     } else {
-        Err(ApiError::unprocessable_entity([("Range", "INVALID_RANGE")]))
+        Err(ApiError::unprocessable_entity([INVALID_RANGE]))
     }
 }
