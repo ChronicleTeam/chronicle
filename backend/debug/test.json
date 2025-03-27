@@ -1,6 +1,180 @@
 {
-  "parent_id": 1,
-  "cells": {
-    "3": "test"
-  }
+  "table": {
+    "table_id": 5,
+    "user_id": 3,
+    "parent_id": null,
+    "name": "Test Table",
+    "description": "This is a test table",
+    "created_at": "2025-03-27T22:52:52.327336Z",
+    "updated_at": null
+  },
+  "fields": [
+    {
+      "field_id": 1,
+      "table_id": 5,
+      "name": "Field",
+      "ordering": 0,
+      "field_kind": {
+        "type": "Text",
+        "is_required": true
+      },
+      "created_at": "2025-03-27T23:05:36.109666Z",
+      "updated_at": null
+    },
+    {
+      "field_id": 2,
+      "table_id": 5,
+      "name": "Field (1)",
+      "ordering": 1,
+      "field_kind": {
+        "type": "Integer",
+        "is_required": true,
+        "range_start": null,
+        "range_end": null
+      },
+      "created_at": "2025-03-27T23:05:38.969577Z",
+      "updated_at": null
+    }
+  ],
+  "entries": [
+    {
+      "entry_id": 1,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.871020Z",
+      "updated_at": null,
+      "cells": {
+        "2": 1,
+        "1": "c1"
+      }
+    },
+    {
+      "entry_id": 2,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.887636Z",
+      "updated_at": null,
+      "cells": {
+        "2": 2,
+        "1": "c1"
+      }
+    },
+    {
+      "entry_id": 3,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.900170Z",
+      "updated_at": null,
+      "cells": {
+        "1": "c1",
+        "2": 3
+      }
+    },
+    {
+      "entry_id": 4,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.912337Z",
+      "updated_at": null,
+      "cells": {
+        "2": 4,
+        "1": "c1"
+      }
+    },
+    {
+      "entry_id": 5,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.923816Z",
+      "updated_at": null,
+      "cells": {
+        "1": "c1",
+        "2": 5
+      }
+    },
+    {
+      "entry_id": 6,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.935084Z",
+      "updated_at": null,
+      "cells": {
+        "1": "c2",
+        "2": 10
+      }
+    },
+    {
+      "entry_id": 7,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.947023Z",
+      "updated_at": null,
+      "cells": {
+        "1": "c2",
+        "2": 15
+      }
+    },
+    {
+      "entry_id": 8,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.959561Z",
+      "updated_at": null,
+      "cells": {
+        "1": "c2",
+        "2": 20
+      }
+    },
+    {
+      "entry_id": 9,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.970824Z",
+      "updated_at": null,
+      "cells": {
+        "1": "c3",
+        "2": 123
+      }
+    },
+    {
+      "entry_id": 10,
+      "parent_id": null,
+      "created_at": "2025-03-27T23:05:43.981929Z",
+      "updated_at": null,
+      "cells": {
+        "2": 321,
+        "1": "c3"
+      }
+    }
+  ],
+  "children": [
+    {
+      "table": {
+        "table_id": 8,
+        "user_id": 3,
+        "parent_id": 5,
+        "name": "Child Table",
+        "description": "",
+        "created_at": "2025-03-27T23:06:04.469284Z",
+        "updated_at": null
+      },
+      "fields": [
+        {
+          "field_id": 3,
+          "table_id": 8,
+          "name": "Field",
+          "ordering": 0,
+          "field_kind": {
+            "type": "Text",
+            "is_required": true
+          },
+          "created_at": "2025-03-27T23:06:13.811994Z",
+          "updated_at": null
+        }
+      ],
+      "entries": [
+        {
+          "entry_id": 1,
+          "parent_id": 1,
+          "created_at": "2025-03-27T23:06:16.625131Z",
+          "updated_at": null,
+          "cells": {
+            "3": "test"
+          }
+        }
+      ],
+      "children": []
+    }
+  ]
 }

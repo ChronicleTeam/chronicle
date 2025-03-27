@@ -1,7 +1,7 @@
 
-set ADDR 'http://localhost:3000/api'
+set ADDR 'http://localhost:8000/api'
 
-curl -X POST $ADDR/dashboards \
+curl -b cookies.txt -X POST $ADDR/dashboards \
     -H "Content-Type: application/json" \
     -d '{"name": "Test dashboard", "description": "Some description"}'
 
@@ -12,7 +12,7 @@ set json '{
     "chart_kind": "Bar"
 }'
 
-curl -X POST $ADDR/dashboards/1/charts \
+curl -b cookies.txt -X POST $ADDR/dashboards/1/charts \
     -H "Content-Type: application/json" \
     -d "$json"
 
@@ -35,13 +35,13 @@ set json '[
 ]'
 
 
-curl -X PUT $ADDR/dashboards/1/charts/2/axes \
+curl -b cookies.txt -X PUT $ADDR/dashboards/1/charts/2/axes \
     -H "Content-Type: application/json" \
     -d "$json"
 
 
 function test-chart-data
-    curl -X GET $ADDR/dashboards/1/charts/1/data &
+    curl -b cookies.txt -X GET $ADDR/dashboards/1/charts/1/data &
 
-    curl -X GET $ADDR/dashboards/1/charts/2/data
+    curl -b cookies.txt -X GET $ADDR/dashboards/1/charts/2/data
 end
