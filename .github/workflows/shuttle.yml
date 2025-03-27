@@ -17,3 +17,6 @@ jobs:
           working-directory: "backend"
           cargo-shuttle-version: "0.53"
           extra-args: --allow-dirty --debug
+          secrets: |
+            DEFAULT_USER = '${{ secrets.DEFAULT_USER }}'
+            DEFAULT_PASSWORD = '${{ secrets.DEFAULT_PASSWORD }}'
