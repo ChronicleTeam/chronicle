@@ -129,7 +129,6 @@ async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> s
         })
     }) {
         if !backend.exists(&creds).await? {
-            info!("Registering user {}", creds.username);
             _ = backend.create_user(creds).await?;
         }
     }
