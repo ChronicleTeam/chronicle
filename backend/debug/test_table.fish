@@ -1,10 +1,11 @@
 #!/bin/bash
 
-set ADDR 'http://localhost:3000/api'
+set ADDR 'http://localhost:8000/api'
 
 curl -X POST $ADDR/tables \
     -H "Content-Type: application/json" \
-    -d '{"name": "Test Table", "description": "This is a test table"}'
+    -d '{"name": "Test Table", "description": "This is a test table"}' \
+    -b cookies.txt
 
 
 curl -X POST $ADDR/tables/1/fields \
