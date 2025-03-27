@@ -2,3 +2,4 @@ target/
 /target
 .shuttle*
 Secrets*.toml
+cookies.txt

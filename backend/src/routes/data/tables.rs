@@ -4,6 +4,7 @@ use crate::{
     error::{ApiError, ApiResult, IntoAnyhow},
     io,
     model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
+    users::AuthSession,
     Id,
 };
 use axum::{
@@ -11,6 +12,7 @@ use axum::{
     routing::{get, patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 use itertools::Itertools;
 use std::io::Cursor;
 use umya_spreadsheet::{
@@ -42,10 +44,11 @@ pub fn router() -> Router<ApiState> {
 /// - [`ApiError::Unauthorized`]: User not authenticated
 ///
 async fn create_table(
+    auth_session: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_table): Json<CreateTable>,
 ) -> ApiResult<Json<Table>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = auth_session.user.ok_or(ApiError::Forbidden)?.id();
 
     let table = db::create_table(&pool, user_id, create_table).await?;
 
@@ -179,7 +182,7 @@ async fn import_table_from_excel(
             table,
             fields,
             entries,
-            children: Vec::new()
+            children: Vec::new(),
         })
     }
 

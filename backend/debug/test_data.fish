@@ -1,4 +1,4 @@
-set ADDR 'http://localhost:3000/api'
+set ADDR 'http://localhost:8000/api'
 
 set json '{
     "name": "Enum field",
@@ -24,21 +24,26 @@ curl -X PATCH $ADDR/tables/1/fields/order \
     -d "$json"
 
 
+# Import excel
 curl -X POST $ADDR/tables/excel \
-    -F "file=@test.xlsx"
+    -F "file=@data/test.xlsx"
 
+# Export excel without existing spreadsheet
 curl -X GET  $ADDR/tables/1/excel \
-    -o export.xlsx \
+    -o data/export.xlsx \
     -F "dummy="
 
+# Export excel with existing spreadsheet
+curl -X GET $ADDR/tables/1/excel \
+    -o data/export.xlsx \
+    -F "file=@data/test.xlsx" 
 
-curl -X GET -o export.xlsx $ADDR/tables/1/excel \
-    -F "file=@test.xlsx" 
-
+# Import CSV
 curl -X POST $ADDR/tables/csv \
-    -F "file=@test.csv"
+    -F "file=@data/import.csv"
 
+# Export CSV
 curl -X GET $ADDR/tables/1/csv \
-    -o export.csv
+    -o data/export.csv
 
 

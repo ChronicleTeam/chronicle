@@ -10,7 +10,6 @@
 //! - FromRow: Convert from an SQL query.
 
 pub mod data;
-pub mod users;
 pub mod viz;
 
 use chrono::{DateTime, Utc};
