@@ -29,7 +29,7 @@ mod viz;
 mod tests;
 
 use crate::{
-    config::Config, error::IntoAnyhow, users::{Backend, Credentials}
+    config::Config, users::{Backend, Credentials}
 };
 use anyhow::Result;
 use axum::Router;
@@ -129,6 +129,7 @@ async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> s
         })
     }) {
         if !backend.exists(&creds).await? {
+            info!("Registering user {}", creds.username);
             _ = backend.create_user(creds).await?;
         }
     }
