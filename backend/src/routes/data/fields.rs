@@ -2,10 +2,7 @@ use std::collections::HashSet;
 
 use super::ApiState;
 use crate::{
-    db,
-    error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
-    Id,
+    db, error::{ApiError, ApiResult, ErrorMessage}, model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField}, users::AuthSession, Id
 };
 use anyhow::anyhow;
 use axum::{
@@ -13,6 +10,7 @@ use axum::{
     routing::{patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 use itertools::Itertools;
 
 const INVALID_RANGE: ErrorMessage = ("range", "Range start bound is greater than end bound");
@@ -40,11 +38,13 @@ pub fn router() -> Router<ApiState> {
 ///     - [`INVALID_RANGE`]
 ///
 async fn create_field(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -66,11 +66,13 @@ async fn create_field(
 ///     - [`INVALID_RANGE`]
 ///
 async fn update_field(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -93,10 +95,12 @@ async fn update_field(
 /// - [`ApiError::NotFound`]: Table or field not found
 ///
 async fn delete_field(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -117,10 +121,12 @@ async fn delete_field(
 /// - [`ApiError::NotFound`]: Table not found
 ///
 async fn get_fields(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -131,12 +137,13 @@ async fn get_fields(
 }
 
 async fn set_field_order(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
-
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;

@@ -1,15 +1,12 @@
 use crate::{
-    db,
-    error::ApiResult,
-    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
-    routes::ApiState,
-    Id,
+    db, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, routes::ApiState, users::AuthSession, Id
 };
 use axum::{
     extract::{Path, State},
     routing::{patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 
 // const DASHBOARD_NAME_CONFLICT: ErrorMessage =
 //     ErrorMessage::new_static("name", "Dashboard name already used");
@@ -27,10 +24,11 @@ pub fn router() -> Router<ApiState> {
 }
 
 async fn create_dashboard(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_dashboard): Json<CreateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     let dashboard = db::create_dashboard(&pool, user_id, create_dashboard).await?;
 
@@ -38,11 +36,12 @@ async fn create_dashboard(
 }
 
 async fn update_dashboard(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
     Json(update_dashboard): Json<UpdateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -54,10 +53,11 @@ async fn update_dashboard(
 }
 
 async fn delete_dashboard(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -69,9 +69,10 @@ async fn delete_dashboard(
 }
 
 async fn get_dashboards(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
 ) -> ApiResult<Json<Vec<Dashboard>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     let dashboards = db::get_dashboards(&pool, user_id).await?;
 
