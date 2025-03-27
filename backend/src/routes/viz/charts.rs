@@ -1,15 +1,12 @@
 use crate::{
-    db,
-    error::ApiResult,
-    model::viz::{Chart, ChartData, CreateChart, UpdateChart},
-    routes::ApiState,
-    Id,
+    db, error::{ApiError, ApiResult}, model::viz::{Chart, ChartData, CreateChart, UpdateChart}, routes::ApiState, users::AuthSession, Id
 };
 use axum::{
     extract::{Path, State},
     routing::{get, patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 
 pub fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -22,16 +19,16 @@ pub fn router() -> Router<ApiState> {
 }
 
 async fn create_chart(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
     Json(create_chart): Json<CreateChart>,
 ) -> ApiResult<Json<Chart>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
         .to_api_result()?;
-
     db::check_table_relation(&pool, user_id, create_chart.table_id)
         .await?
         .to_api_result()?;
@@ -42,16 +39,16 @@ async fn create_chart(
 }
 
 async fn update_chart(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(update_chart): Json<UpdateChart>,
 ) -> ApiResult<Json<Chart>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
         .to_api_result()?;
-
     db::check_chart_relation(&pool, dashboard_id, chart_id)
         .await?
         .to_api_result()?;
@@ -62,15 +59,15 @@ async fn update_chart(
 }
 
 async fn delete_chart(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
         .to_api_result()?;
-
     db::check_chart_relation(&pool, dashboard_id, chart_id)
         .await?
         .to_api_result()?;
@@ -81,10 +78,11 @@ async fn delete_chart(
 }
 
 async fn get_charts(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Chart>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -98,16 +96,15 @@ async fn get_charts(
 
 
 async fn get_chart_data(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<Json<ChartData>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Forbidden)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
         .to_api_result()?;
-
-
     db::check_chart_relation(&pool, dashboard_id, chart_id)
         .await?
         .to_api_result()?;

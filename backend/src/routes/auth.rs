@@ -78,7 +78,7 @@ async fn login(
     }))
 }
 pub async fn logout(mut auth_session: AuthSession) -> ApiResult<()> {
-    let _ = auth_session.logout().await.into_anyhow()?;
+    _ = auth_session.logout().await.into_anyhow()?;
 
     Ok(())
 }

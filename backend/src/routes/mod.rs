@@ -28,12 +28,16 @@ mod viz;
 #[cfg(test)]
 mod tests;
 
-use crate::{config::Config, users::Backend};
+use crate::{
+    config::Config, error::IntoAnyhow, users::{Backend, Credentials}
+};
 use anyhow::Result;
 use axum::Router;
 use axum_login::{tower_sessions::ExpiredDeletion, AuthManagerLayerBuilder};
+use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
-use std::{sync::Arc, time::Duration};
+use tracing::info;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
@@ -54,7 +58,10 @@ pub struct ApiState {
 /// Create the application [`Router`].
 /// It puts all routes under the `/api` path, it sets important
 /// middleware layers for the back-end, and it attaches the [`ApiState`]
-pub async fn create_app(api_state: ApiState) -> Result<Router, Box<dyn std::error::Error>> {
+pub async fn create_app(
+    api_state: ApiState,
+    secrets: SecretStore,
+) -> Result<Router, Box<dyn std::error::Error>> {
     let session_store = PostgresStore::new(api_state.pool.clone());
     session_store.migrate().await?;
 
@@ -77,7 +84,11 @@ pub async fn create_app(api_state: ApiState) -> Result<Router, Box<dyn std::erro
     // This combines the session layer with our backend to establish the auth
     // service which will provide the auth session as a request extension.
     let backend = Backend::new(api_state.pool.clone());
-    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
+
+    tokio::spawn(async move {
+        register_default_users(backend, secrets).await.unwrap()
+    });
 
     Ok(Router::new()
         .nest(
@@ -98,20 +109,29 @@ pub async fn create_app(api_state: ApiState) -> Result<Router, Box<dyn std::erro
         .with_state(api_state))
 }
 
-// /// Creates the application [`Router`] and serves it on the specified IP address and port.
-// pub async fn serve(config: Config, pool: PgPool) -> Result<SocketAddr> {
-//     let api_state = ApiState {
-//         config: Arc::new(config),
-//         pool,
-//     };
+async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> sqlx::Result<()> {
+    let mut usernames: HashMap<String, String> = HashMap::new();
+    let mut passwords: HashMap<String, String> = HashMap::new();
+    for (key, value) in secrets {
+        if key.ends_with("USERNAME") {
+            let key = key.replace("USERNAME", "");
+            usernames.insert(key, value);
+        } else if key.ends_with("PASSWORD") {
+            let key = key.replace("PASSWORD", "");
+            passwords.insert(key, value);
+        }
+    }
 
-//     let app = create_app(api_state);
+    for creds in usernames.into_iter().filter_map(|(key, username)| {
+        Some(Credentials {
+            username,
+            password: passwords.remove(&key)?,
+        })
+    }) {
+        if !backend.exists(&creds).await? {
+            _ = backend.create_user(creds).await?;
+        }
+    }
 
-//     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-//     let listener = TcpListener::bind(addr).await?;
-//     info!("Backend running on http://{}", addr);
-
-//     axum::serve(listener, app).await?;
-
-//     Ok(addr)
-// }
+    Ok(())
+}
