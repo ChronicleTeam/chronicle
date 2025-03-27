@@ -31,7 +31,7 @@ mod tests;
 use crate::{config::Config, users::Backend};
 use anyhow::Result;
 use axum::Router;
-use axum_login::{login_required, tower_sessions::ExpiredDeletion, AuthManagerLayerBuilder};
+use axum_login::{tower_sessions::ExpiredDeletion, AuthManagerLayerBuilder};
 use sqlx::PgPool;
 use std::{sync::Arc, time::Duration};
 use tower_http::{
@@ -68,7 +68,7 @@ pub async fn create_app(api_state: ApiState) -> Result<Router, Box<dyn std::erro
     let key = Key::generate();
 
     let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
+        .with_secure(true)
         .with_expiry(Expiry::OnInactivity(time::Duration::days(1)))
         .with_signed(key);
 
