@@ -45,7 +45,7 @@ use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
-use tower_sessions::{cookie::Key, Expiry, SessionManagerLayer};
+use tower_sessions::{cookie::{Key, SameSite}, Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
 
 /// Global state for the API.
@@ -79,6 +79,7 @@ pub async fn create_app(
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(true)
+        .with_same_site(SameSite::None)
         .with_expiry(Expiry::OnInactivity(time::Duration::days(1)))
         .with_signed(key);
 
