@@ -15,7 +15,7 @@ const INVALID_CREDENTIALS: ErrorMessage = ("user", "Invalid credentials");
 
 pub fn router() -> Router<ApiState> {
     Router::new()
-        .route("/register", post(register))
+        // .route("/register", post(register))
         .route("/login", post(login))
         .route("/logout", get(logout))
         .route("/user", get(get_user))
