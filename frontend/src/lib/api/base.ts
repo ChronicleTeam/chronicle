@@ -1,6 +1,7 @@
+import { env } from "$env/dynamic/public";
 import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = env.PUBLIC_API_URL;
 
 //
 // General resources
