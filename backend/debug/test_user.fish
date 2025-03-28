@@ -10,5 +10,5 @@ curl -X POST $ADDR/login \
     -d "username=test@example.com&password=test123" \
     -c cookies.txt -b cookies.txt
 
-curl -X GET $ADDR/logout \
-    -b cookies.txt
+curl -b cookies.txt -X GET $ADDR/logout
+    
