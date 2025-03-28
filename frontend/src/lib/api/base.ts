@@ -60,6 +60,7 @@ export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => 
 
 export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL + endpoint, {
   method: "DELETE",
+  credentials: "include",
 }).then(response => {
   if (response.ok) {
     return
