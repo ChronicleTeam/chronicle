@@ -116,7 +116,7 @@ export type FieldKind =
   | FileKind;
 
 export const typeToStr = (t: FieldType): string => {
-  switch(t){
+  switch (t) {
     case FieldType.Decimal:
       return "Decimal";
     case FieldType.DateTime:
@@ -241,7 +241,7 @@ export type InputParameters =
   | {
     label: string;
     type: "select";
-    selectOptions: string[] | {[key: string | number]: string};
+    selectOptions: string[] | { [key: string | number]: string };
     bindSetter: (val: any) => void;
     bindGetter: () => string | boolean | number;
     min?: undefined;
@@ -330,4 +330,17 @@ export type ChartData = {
   chart: Chart;
   axes: AxisField[];
   cells: Cells[];
+}
+
+
+// User
+
+export type Credentials = {
+  username: string,
+  password: string
+}
+
+export type User = {
+  user_id: number,
+  username: string
 }
