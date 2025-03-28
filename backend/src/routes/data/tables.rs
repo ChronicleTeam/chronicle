@@ -92,7 +92,9 @@ async fn delete_table(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
+    info!("OK");
     let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    info!("AUTHORIZED");
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -144,8 +146,6 @@ async fn get_table_data(
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<TableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.id();
-
-    info!("User is logged in");
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
