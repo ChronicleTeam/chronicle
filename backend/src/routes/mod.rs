@@ -36,7 +36,6 @@ use axum::Router;
 use axum_login::{tower_sessions::ExpiredDeletion, AuthManagerLayerBuilder};
 use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
-use tracing::info;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,

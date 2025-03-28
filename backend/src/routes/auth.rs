@@ -1,7 +1,8 @@
 use super::ApiState;
 use crate::{
     error::{ApiError, ApiResult, ErrorMessage, IntoAnyhow},
-    users::{AuthSession, Credentials}, Id,
+    users::{AuthSession, Credentials},
+    Id,
 };
 use axum::{
     routing::{get, post},
@@ -12,12 +13,12 @@ use serde::Serialize;
 
 const INVALID_CREDENTIALS: ErrorMessage = ("user", "Invalid credentials");
 
-
 pub fn router() -> Router<ApiState> {
     Router::new()
         .route("/register", post(register))
         .route("/login", post(login))
         .route("/logout", get(logout))
+        .route("/user", get(get_user))
 }
 
 #[derive(Debug, Serialize)]
@@ -26,12 +27,10 @@ struct UserResponse {
     pub username: String,
 }
 
-
 async fn register(
     mut auth_session: AuthSession,
     Form(creds): Form<Credentials>,
 ) -> ApiResult<Json<UserResponse>> {
-
     if auth_session.user.is_some() {
         return Err(ApiError::BadRequest);
     }
@@ -54,7 +53,6 @@ async fn login(
     mut auth_session: AuthSession,
     Form(creds): Form<Credentials>,
 ) -> ApiResult<Json<UserResponse>> {
-
     if auth_session.user.is_some() {
         return Err(ApiError::BadRequest);
     }
@@ -81,4 +79,13 @@ pub async fn logout(mut auth_session: AuthSession) -> ApiResult<()> {
     _ = auth_session.logout().await.into_anyhow()?;
 
     Ok(())
+}
+
+async fn get_user(
+    AuthSession { user, .. }: AuthSession,
+) -> ApiResult<Json<Option<UserResponse>>> {
+    Ok(Json(user.map(|user| UserResponse {
+        user_id: user.id(),
+        username: user.username,
+    })))
 }
