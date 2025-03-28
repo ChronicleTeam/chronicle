@@ -42,11 +42,8 @@ use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tower_http::{
-    catch_panic::CatchPanicLayer,
-    compression::CompressionLayer,
-    cors::{Any, CorsLayer},
-    timeout::TimeoutLayer,
-    trace::TraceLayer,
+    catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
+    timeout::TimeoutLayer, trace::TraceLayer,
 };
 use tower_sessions::{cookie::Key, Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
@@ -92,7 +89,7 @@ pub async fn create_app(
     let backend = Backend::new(api_state.pool.clone());
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-    let allowed_origin = secrets.get("ALLOWED_ORIGIN").unwrap();
+    let allowed_origin = secrets.get("ALLOWED_ORIGIN").expect("ALLOWED_ORIGIN secret must be set");
 
     tokio::spawn(async move { register_default_users(backend, secrets).await.unwrap() });
 
