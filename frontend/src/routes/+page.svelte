@@ -2,7 +2,10 @@
   import { goto } from "$app/navigation";
   import type { APIError } from "$lib/api";
   import type { Credentials } from "$lib/types";
-  import { login } from "$lib/user.svelte";
+  import { login, user } from "$lib/user.svelte";
+  import { onMount } from "svelte";
+
+  const SUCCESS_REDIRECT = "/tables";
 
   let credentials: Credentials = $state({
     username: "",
@@ -16,7 +19,7 @@
       // Send login request
       await login(credentials);
       error = "";
-      goto("/tables"); // Redirect to tables page on success
+      goto(SUCCESS_REDIRECT); // Redirect to tables page on success
     } catch (e) {
       console.error("Login error:", e);
       error = (e as unknown as APIError).body.toString();
@@ -30,6 +33,12 @@
   function goToTables() {
     goto("/tables");
   }
+
+  onMount(() => {
+    user().then((u) => {
+      if (u) goto(SUCCESS_REDIRECT);
+    });
+  });
 </script>
 
 <div
