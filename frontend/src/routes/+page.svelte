@@ -96,13 +96,7 @@
         Register
       </button>
 
-      <button
-        type="button"
-        onclick={goToTables}
-        class="w-full mt-3 py-2 bg-gray-300 text-black hover:bg-gray-400 rounded-md transition-all duration-300"
-      >
-        Go to tables
-      </button>
+      
     </form>
   </div>
 </div>
