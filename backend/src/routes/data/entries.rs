@@ -1,18 +1,16 @@
 use super::ApiState;
 use crate::{
-    db,
-    error::{ApiError, ApiResult, ErrorMessage},
-    model::{
+    db, error::{ApiError, ApiResult}, model::{
         data::{CreateEntry, Entry, FieldKind, FieldMetadata, UpdateEntry},
         Cell,
-    },
-    Id,
+    }, users::AuthSession, Id
 };
 use axum::{
     extract::{Path, State},
     routing::{patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
@@ -47,11 +45,13 @@ pub fn router() -> Router<ApiState> {
 ///     - [`INVALID_FIELD_ID`]
 ///
 async fn create_entry(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(create_entry): Json<CreateEntry>,
 ) -> ApiResult<Json<Entry>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -85,11 +85,13 @@ async fn create_entry(
 ///     - [`INVALID_FIELD_ID`]
 ///
 async fn update_entry(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry { cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -114,10 +116,12 @@ async fn update_entry(
 /// - [`ApiError::NotFound`]: Table or entry not found
 ///
 async fn delete_entry(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -140,7 +144,7 @@ fn convert_cells(
             let json_value = raw_cells.remove(&field.field_id).unwrap_or(Value::Null);
             Ok((
                 json_to_cell(json_value, &field.field_kind)
-                    .map_err(|message| ErrorMessage::new(field.field_id.to_string(), message))?,
+                    .map_err(|message| (field.field_id.to_string(), message))?,
                 field,
             ))
         })
@@ -149,7 +153,7 @@ fn convert_cells(
     error_messages.extend(
         raw_cells
             .keys()
-            .map(|field_id| ErrorMessage::new(field_id.to_string(), INVALID_FIELD_ID)),
+            .map(|field_id| (field_id.to_string(), INVALID_FIELD_ID)),
     );
 
     if error_messages.len() > 0 {

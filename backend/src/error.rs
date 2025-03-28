@@ -17,34 +17,8 @@ use std::{
 /// See [`ApiError`] for details on usage.
 pub type ApiResult<T> = std::result::Result<T, ApiError>;
 
-/// A message returned as JSON for [`ApiError::UnprocessableEntity`].
-/// The `key` should refer to the offending JSON key and the `message`
-/// explains the cause of the error.
-pub struct ErrorMessage {
-    pub key: Cow<'static, str>,
-    pub message: Cow<'static, str>,
-}
 
-impl ErrorMessage {
-    /// Constructor for const declarations.
-    pub const fn new_static(key: &'static str, message: &'static str) -> Self {
-        ErrorMessage {
-            key: Cow::Borrowed(key),
-            message: Cow::Borrowed(message),
-        }
-    }
-
-    pub fn new<K, V>(key: K, message: V) -> Self
-    where
-        K: Into<Cow<'static, str>>,
-        V: Into<Cow<'static, str>>,
-    {
-        ErrorMessage {
-            key: key.into(),
-            message: message.into(),
-        }
-    }
-}
+pub type ErrorMessage = (&'static str, &'static str);
 
 /// Custom `Error` type for use by route handlers.
 /// Errors should be meaningful are parsable by the front-end.
@@ -71,9 +45,15 @@ pub enum ApiError {
     #[error("request path not found")]
     NotFound,
 
+    /// Returns `409 Conflict`
+    #[error("request path not found")]
+    Conflict,
+
     /// Returns `422 Unprocessable Entity`
     #[error("error in the request body")]
-    UnprocessableEntity(HashMap<Cow<'static, str>, Cow<'static, str>>),
+    UnprocessableEntity {
+        errors: HashMap<Cow<'static, str>, Vec<Cow<'static, str>>>,
+    },
 
     /// Returns `500 Internal Server Error` on a `sqlx::Error`.
     #[error("an error occurred with the database")]
@@ -88,10 +68,21 @@ impl ApiError {
     /// Create an `ApiError::UnprocessableEntity` from a collection of [`ErrorMessage`]
     ///
     /// This is a convience to manually creating the error.
-    pub fn unprocessable_entity(errors: impl IntoIterator<Item = ErrorMessage>) -> Self {
-        Self::UnprocessableEntity(HashMap::from_iter(
-            errors.into_iter().map(|msg| (msg.key, msg.message)),
-        ))
+    pub fn unprocessable_entity<K, V>(errors: impl IntoIterator<Item = (K, V)>) -> Self
+    where
+        K: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        let mut error_map = HashMap::new();
+
+        for (key, val) in errors {
+            error_map
+                .entry(key.into())
+                .or_insert_with(Vec::new)
+                .push(val.into());
+        }
+
+        Self::UnprocessableEntity { errors: error_map }
     }
 
     /// Maps `ApiError` variants to `StatusCode`s
@@ -101,8 +92,11 @@ impl ApiError {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::NotFound => StatusCode::NOT_FOUND,
+            Self::Conflict => StatusCode::CONFLICT,
             Self::UnprocessableEntity { .. } => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::Sqlx(_) | Self::Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Sqlx(_) | Self::Anyhow(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 }
@@ -110,7 +104,7 @@ impl ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response<Body> {
         match self {
-            Self::UnprocessableEntity(errors) => {
+            Self::UnprocessableEntity { errors } => {
                 return (StatusCode::UNPROCESSABLE_ENTITY, Json(errors)).into_response();
             }
             Self::Unauthorized => {
@@ -124,15 +118,12 @@ impl IntoResponse for ApiError {
                 )
                     .into_response();
             }
-
             Self::Sqlx(ref e) => {
                 tracing::error!("SQLx error: {:?}", e);
             }
-
             Self::Anyhow(ref e) => {
                 tracing::error!("Anyhow error: {:?}", e);
             }
-
             // Other errors get mapped normally.
             _ => (),
         }

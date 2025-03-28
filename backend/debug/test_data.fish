@@ -1,4 +1,6 @@
-set ADDR 'http://localhost:3000/api'
+set ADDR 'http://localhost:8000/api'
+
+curl -b cookies.txt -X GET $ADDR/tables/1/data -v
 
 set json '{
     "name": "Enum field",
@@ -19,26 +21,31 @@ set json '{
   "2": 0
 }'
 
-curl -X PATCH $ADDR/tables/1/fields/order \
+curl -b cookies.txt -X PATCH $ADDR/tables/1/fields/order \
     -H "Content-Type: application/json" \
     -d "$json"
 
 
-curl -X POST $ADDR/tables/excel \
-    -F "file=@test.xlsx"
+# Import excel
+curl -b cookies.txt -X POST $ADDR/tables/excel \
+    -F "file=@data/test.xlsx"
 
-curl -X GET  $ADDR/tables/1/excel \
-    -o export.xlsx \
+# Export excel without existing spreadsheet
+curl -b cookies.txt -X GET  $ADDR/tables/1/excel \
+    -o data/export.xlsx \
     -F "dummy="
 
+# Export excel with existing spreadsheet
+curl -b cookies.txt -X GET $ADDR/tables/1/excel \
+    -o data/export.xlsx \
+    -F "file=@data/test.xlsx" 
 
-curl -X GET -o export.xlsx $ADDR/tables/1/excel \
-    -F "file=@test.xlsx" 
+# Import CSV
+curl -b cookies.txt -X POST $ADDR/tables/csv \
+    -F "file=@data/import.csv"
 
-curl -X POST $ADDR/tables/csv \
-    -F "file=@test.csv"
-
-curl -X GET $ADDR/tables/1/csv \
-    -o export.csv
+# Export CSV
+curl -b cookies.txt -X GET $ADDR/tables/1/csv \
+    -o data/export.csv
 
 

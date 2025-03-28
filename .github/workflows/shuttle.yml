@@ -1,0 +1,23 @@
+name: Deploy to Shuttle
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shuttle-hq/deploy-action@v2
+        with:
+          shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
+          project-id: proj_01JQA2ZYYZM86EA2K577Z1B260
+          working-directory: "backend"
+          cargo-shuttle-version: "0.53"
+          extra-args: --allow-dirty --debug
+          secrets: |
+            ALLOWED_ORIGIN = '${{ secrets.ALLOWED_ORIGIN }}'
+            DEFAULT_USERNAME = '${{ secrets.DEFAULT_USERNAME }}'
+            DEFAULT_PASSWORD = '${{ secrets.DEFAULT_PASSWORD }}'

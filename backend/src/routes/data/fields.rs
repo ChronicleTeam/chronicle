@@ -2,10 +2,7 @@ use std::collections::HashSet;
 
 use super::ApiState;
 use crate::{
-    db,
-    error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
-    Id,
+    db, error::{ApiError, ApiResult, ErrorMessage}, model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField}, users::AuthSession, Id
 };
 use anyhow::anyhow;
 use axum::{
@@ -13,12 +10,10 @@ use axum::{
     routing::{patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 use itertools::Itertools;
 
-const INVALID_RANGE: ErrorMessage =
-    ErrorMessage::new_static("range", "Range start bound is greater than end bound");
-// const FIELD_NAME_CONFLICT: ErrorMessage =
-//     ErrorMessage::new_static("name", "Field name already used for this table");
+const INVALID_RANGE: ErrorMessage = ("range", "Range start bound is greater than end bound");
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
@@ -43,11 +38,13 @@ pub fn router() -> Router<ApiState> {
 ///     - [`INVALID_RANGE`]
 ///
 async fn create_field(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -69,11 +66,13 @@ async fn create_field(
 ///     - [`INVALID_RANGE`]
 ///
 async fn update_field(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -96,10 +95,12 @@ async fn update_field(
 /// - [`ApiError::NotFound`]: Table or field not found
 ///
 async fn delete_field(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -120,10 +121,12 @@ async fn delete_field(
 /// - [`ApiError::NotFound`]: Table not found
 ///
 async fn get_fields(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -134,12 +137,13 @@ async fn get_fields(
 }
 
 async fn set_field_order(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
-
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -156,9 +160,9 @@ async fn set_field_order(
         .filter_map(|(idx, (field_id, ordering))| {
             let key = field_id.to_string();
             if !field_ids.remove(field_id) {
-                Some(ErrorMessage::new(key, FIELD_ID_NOT_FOUND))
+                Some((key, FIELD_ID_NOT_FOUND))
             } else if idx as i32 != *ordering {
-                Some(ErrorMessage::new(key, INVALID_ORDERING))
+                Some((key, INVALID_ORDERING))
             } else {
                 None
             }
@@ -168,7 +172,7 @@ async fn set_field_order(
     error_messages.extend(
         field_ids
             .into_iter()
-            .map(|field_id| ErrorMessage::new(field_id.to_string(), FIELD_ID_MISSING)),
+            .map(|field_id| (field_id.to_string(), FIELD_ID_MISSING)),
     );
 
     if error_messages.len() > 0 {

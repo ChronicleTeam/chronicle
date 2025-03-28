@@ -5,8 +5,14 @@ edition = "2021"
 
 [dependencies]
 # Web framework
-axum = { version = "0.8", features = ["multipart"] }
+axum = { version = "0.8", features = ["multipart", "tower-log"] }
 axum-macros = "0.5"
+
+# Cloud deployment with shuttle.dev
+shuttle-runtime = "0.53"
+shuttle-axum = "0.53"
+shuttle-shared-db = { version = "0.53", features = ["postgres", "sqlx"] }
+
 
 # Async runtime
 tokio = { version = "1.43", features = ["full"] }
@@ -33,6 +39,11 @@ tower-http = { version = "0.6", features = [
   "trace",
   "cors",
 ] }
+tower-sessions = { version = "0.14", default-features = false, features = [
+  "signed",
+] }
+tower-sessions-sqlx-store = { version = "0.15", features = ["postgres"] }
+time = "0.3"
 
 # Configuration
 clap = { version = "4.5", features = ["derive", "env"] }
@@ -68,5 +79,12 @@ csv = "1.3"
 # Number conversions
 num-traits = "0.2"
 
+# User authentication and authorization
+axum-login = "0.17"
+password-auth = "1.0"
+async-trait = "0.1"
+# axum-messages = "0.8"
+
 [dev-dependencies]
 mime = "0.3"
+cargo-shuttle = "0.53.0"

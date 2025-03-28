@@ -4,6 +4,7 @@ pub mod error;
 pub mod io;
 pub mod model;
 pub mod routes;
+pub mod users;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

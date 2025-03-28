@@ -1,23 +1,19 @@
 use crate::{
-    db,
-    error::{ApiError, ApiResult, ErrorMessage},
-    model::{
+    db, error::{ApiError, ApiResult}, model::{
         data::FieldKind,
         viz::{Aggregate, Axis, SetAxes},
-    },
-    routes::ApiState,
-    Id,
+    }, routes::ApiState, users::AuthSession, Id
 };
 use axum::{
     extract::{Path, State},
     routing::put,
     Json, Router,
 };
+use axum_login::AuthUser;
 use itertools::Itertools;
 use std::collections::HashMap;
 
-const FIELD_NOT_FOUND: ErrorMessage = ErrorMessage::new_static("field_id", "Field not found");
-
+const FIELD_NOT_FOUND: &str = "Field not found";
 const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
 pub fn router() -> Router<ApiState> {
@@ -28,16 +24,16 @@ pub fn router() -> Router<ApiState> {
 }
 
 async fn set_axes(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(SetAxes(axes)): Json<SetAxes>,
 ) -> ApiResult<Json<Vec<Axis>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
         .to_api_result()?;
-
     db::check_chart_relation(&pool, dashboard_id, chart_id)
         .await?
         .to_api_result()?;
@@ -57,16 +53,17 @@ async fn set_axes(
     let axes = axes
         .into_iter()
         .map(|axis| {
-            let field_kind = &field_kinds
-                .get(&axis.field_id)
-                .ok_or(ApiError::unprocessable_entity([FIELD_NOT_FOUND]))?;
+            let field_kind =
+                &field_kinds
+                    .get(&axis.field_id)
+                    .ok_or(ApiError::unprocessable_entity([(
+                        axis.field_id.to_string(),
+                        FIELD_NOT_FOUND,
+                    )]))?;
 
             if let Some(aggregate) = &axis.aggregate {
                 validate_axis(&aggregate, field_kind).map_err(|message| {
-                    ApiError::unprocessable_entity([ErrorMessage::new(
-                        axis.field_id.to_string(),
-                        message,
-                    )])
+                    ApiError::unprocessable_entity([(axis.field_id.to_string(), message)])
                 })?;
             }
 

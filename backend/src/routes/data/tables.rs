@@ -4,6 +4,7 @@ use crate::{
     error::{ApiError, ApiResult, IntoAnyhow},
     io,
     model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
+    users::AuthSession,
     Id,
 };
 use axum::{
@@ -11,7 +12,9 @@ use axum::{
     routing::{get, patch, post},
     Json, Router,
 };
+use axum_login::AuthUser;
 use itertools::Itertools;
+use tracing::info;
 use std::io::Cursor;
 use umya_spreadsheet::{
     reader::{self, xlsx},
@@ -42,10 +45,11 @@ pub fn router() -> Router<ApiState> {
 /// - [`ApiError::Unauthorized`]: User not authenticated
 ///
 async fn create_table(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_table): Json<CreateTable>,
 ) -> ApiResult<Json<Table>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     let table = db::create_table(&pool, user_id, create_table).await?;
 
@@ -60,11 +64,12 @@ async fn create_table(
 /// - [`ApiError::NotFound`]: Table not found
 ///
 async fn update_table(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     Json(update_table): Json<UpdateTable>,
 ) -> ApiResult<Json<Table>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -83,10 +88,14 @@ async fn update_table(
 /// - [`ApiError::NotFound`]: Table not found
 ///
 async fn delete_table(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    info!("OK");
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    info!("AUTHORIZED");
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -101,23 +110,30 @@ async fn delete_table(
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 ///
-async fn get_tables(State(ApiState { pool, .. }): State<ApiState>) -> ApiResult<Json<Vec<Table>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+async fn get_tables(
+    AuthSession { user, .. }: AuthSession,
+    State(ApiState { pool, .. }): State<ApiState>,
+) -> ApiResult<Json<Vec<Table>>> {
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     let tables = db::get_tables(&pool, user_id).await?;
+    
     Ok(Json(tables))
 }
 
 async fn get_table_children(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Table>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
 
     let tables = db::get_table_children(&pool, table_id).await?;
+
     Ok(Json(tables))
 }
 
@@ -125,10 +141,12 @@ async fn get_table_children(
 ///
 /// Used for displaying the table in the user interface.
 async fn get_table_data(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<TableData>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -139,10 +157,11 @@ async fn get_table_data(
 }
 
 async fn import_table_from_excel(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     mut multipart: Multipart,
 ) -> ApiResult<Json<Vec<TableData>>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     let Some(field) = multipart.next_field().await.unwrap() else {
         return Err(ApiError::BadRequest);
@@ -179,7 +198,7 @@ async fn import_table_from_excel(
             table,
             fields,
             entries,
-            children: Vec::new()
+            children: Vec::new(),
         })
     }
 
@@ -189,11 +208,13 @@ async fn import_table_from_excel(
 }
 
 async fn export_table_to_excel(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
     mut multipart: Multipart,
 ) -> ApiResult<Vec<u8>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -220,10 +241,11 @@ async fn export_table_to_excel(
 }
 
 async fn import_table_from_csv(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     mut multipart: Multipart,
 ) -> ApiResult<Json<TableData>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     let Some(field) = multipart.next_field().await.unwrap() else {
         return Err(ApiError::BadRequest);
@@ -261,10 +283,11 @@ async fn import_table_from_csv(
 }
 
 async fn export_table_to_csv(
+    AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Vec<u8>> {
-    let user_id = db::debug_get_user_id(&pool).await?;
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
