@@ -12,6 +12,7 @@ use crate::{
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
+use tracing::info;
 
 pub async fn create_chart(
     conn: impl Acquire<'_, Database = Postgres>,
@@ -259,9 +260,12 @@ pub async fn check_chart_relation(
     .bind(chart_id)
     .fetch_optional(executor)
     .await
-    .map(|id| match id {
-        None => Relation::Absent,
-        Some(id) if id == dashboard_id => Relation::Owned,
-        Some(_) => Relation::NotOwned,
+    .map(|id| {
+        info!("found dashboard_id {id:?} chart_id {chart_id}");
+        match id {
+            None => Relation::Absent,
+            Some(id) if id == dashboard_id => Relation::Owned,
+            Some(_) => Relation::NotOwned,
+        }
     })
 }
