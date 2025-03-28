@@ -12,3 +12,5 @@
     });
   });
 </script>
+
+<p>{message}</p>

@@ -82,7 +82,7 @@ export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL +
 // Helper methods
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (response.ok) {
-    return await response.json();
+    return await response.json().catch(() => { });
   } else {
     let err = {
       status: response.status,
