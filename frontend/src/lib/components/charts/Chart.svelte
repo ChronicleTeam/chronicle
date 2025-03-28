@@ -10,6 +10,7 @@
     type FieldKind,
     type AxisField,
     FieldType,
+    type Axis,
   } from "$lib/types.d.js";
   import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
   import { onMount } from "svelte";
@@ -44,11 +45,6 @@
           (a) => a.axis.axis_kind === AxisKind.Label,
         );
         if (!xAxis || !yAxis) return;
-        $inspect(
-          xAxis,
-          yAxis,
-          chartData.cells.map((row: Cells) => row[yAxis.axis.axis_id]),
-        );
 
         let options = {
           scales: {
@@ -131,6 +127,24 @@
   });
 
   //
+  // Helper method
+  //
+
+  const stringifyDates = (c: ChartData): ChartData => {
+    c.axes.forEach((a: AxisField) => {
+      if (a.field_kind.type === FieldType.DateTime) {
+        c.cells = c.cells.map((row: Cells) => {
+          row[a.axis.axis_id] =
+            `${(row[a.axis.axis_id] as Date).getFullYear()}-${(row[a.axis.axis_id] as Date).getMonth() + 1}-${(row[a.axis.axis_id] as Date).getUTCDate()}`;
+          return row;
+        });
+      }
+    });
+
+    return c;
+  };
+
+  //
   // Table stuff
   //
 
@@ -157,6 +171,7 @@
     getChartData(dashboard, chart)
       .then((r: ChartData) => {
         chartData = r;
+        chartData = stringifyDates(chartData);
       })
       .catch((e) => {
         error = e.body.toString();

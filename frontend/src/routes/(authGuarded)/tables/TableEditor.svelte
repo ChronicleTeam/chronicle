@@ -1,5 +1,6 @@
 <script lang="ts">
   import type {
+    Table,
     TableData,
     Field,
     Entry,
@@ -31,8 +32,11 @@
   } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
+  import TableEditor from "./TableEditor.svelte";
+  import FieldEditor from "./FieldEditor.svelte";
   import { onMount } from "svelte";
-  let { table_prop } = $props();
+  let { table_prop, entry_id }: { table_prop: Table; entry_id?: number } =
+    $props();
 
   //
   // Constants
@@ -42,6 +46,8 @@
     DISPLAY: 0,
     INSERT: 1,
     EDIT: 2,
+    CHILD: 3,
+    EDIT_CHILD: 4,
   };
 
   //
@@ -53,6 +59,7 @@
     table: table_prop,
     fields: [],
     entries: [],
+    children: [],
   } as TableData);
 
   // the index of the entry being edited (-1 if no entry is being edited)
@@ -83,6 +90,9 @@
     editableEntry = i;
   };
 
+  // for viewing a child table
+  let childTable: { table: TableData; entry_id: number } | null = $state(null);
+
   //
   // Helper methods
   //
@@ -90,6 +100,7 @@
   // generates a new entry object with default values
   const getNewEntry = (): Entry => {
     return {
+      parent_id: entry_id ?? null,
       entry_id: -1,
       cells: Object.fromEntries(
         table.fields.map((f: Field): [string, Cell] => {
@@ -241,6 +252,12 @@
   const loadTable = () => {
     getTableData(table_prop).then((response: TableData) => {
       response.fields.sort((f, g) => f.ordering - g.ordering);
+
+      if (entry_id) {
+        response.entries = response.entries.filter(
+          (e) => e.parent_id === entry_id,
+        );
+      }
       table = response;
     });
   };
@@ -288,90 +305,188 @@
   });
 </script>
 
-<div class="flex flex-col items-center justify-center gap-3">
-  <!-- Main table -->
-  <table class=" border border-gray-400 bg-white text-black w-full">
-    <thead>
-      <tr>
-        {#each table.fields as field}
-          <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
-            >{field.name}</th
-          >
-        {/each}
-      </tr>
-    </thead>
-    <tbody>
-      {#each table.entries as entry, i}
+{#if tableMode === TableMode.CHILD && childTable !== null}
+  <div class="flex items-center gap-2 mb-2">
+    <button
+      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+      onclick={() => {
+        tableMode = TableMode.DISPLAY;
+      }}>Back to <span class="font-bold">{table.table.name}</span></button
+    >
+    <h2 class="text-lg font-bold">{childTable.table.table.name}</h2>
+  </div>
+  <TableEditor
+    table_prop={childTable.table.table}
+    entry_id={childTable.entry_id}
+  />
+{:else if tableMode === TableMode.EDIT_CHILD && childTable !== null}
+  <FieldEditor
+    table_prop={childTable.table.table}
+    on_save={() => {
+      childTable = null;
+      tableMode = TableMode.DISPLAY;
+    }}
+    delete_table={() => {}}
+  />
+{:else}
+  <div class="flex flex-col items-center justify-center gap-3">
+    <!-- Main table -->
+    <table class=" border border-gray-400 bg-white text-black w-full">
+      <thead>
         <tr>
           {#each table.fields as field}
-            <td
-              class={[
-                "relative text-black border-2 border-gray-400 size-min p-2",
-                editableEntry === i ? "bg-blue-200" : "bg-white",
-              ]}
-              ondblclick={() => {
-                if (tableMode === TableMode.DISPLAY) editEntry(i);
-              }}
+            <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
+              >{field.name}</th
             >
-              <!-- Floating error bubble -->
-              {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
-                <div
-                  class="absolute bottom-full inset-x-0 flex flex-col items-center"
-                >
-                  <div
-                    class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm"
-                  >
-                    Error: {fieldErrors[field.field_id]}
-                  </div>
-                  <svg width="20" height="10">
-                    <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
-                  </svg>
-                </div>
-              {/if}
-
-              <!-- Table cell -->
-              <VariableInput
-                disabled={i !== editableEntry}
-                class={[
-                  "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
-                  editableEntry === i ? "bg-blue-200" : "bg-white",
-                ]}
-                params={cellToInputParams(i, field)}
-              />
-            </td>
+          {/each}
+          {#each table.children as child}
+            <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
+              >{child.table.name}
+              <button
+                class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+                onclick={() => {
+                  childTable = { table: child, entry_id: -1 };
+                  tableMode = TableMode.EDIT_CHILD;
+                }}
+              >
+                Edit</button
+              ></th
+            >
           {/each}
         </tr>
-      {/each}
-    </tbody>
-  </table>
-  <!-- Button cluster to confirm/cancel editing/creating entries -->
-  {#if tableMode === TableMode.INSERT || tableMode === TableMode.EDIT}
-    <div class="flex justify-center gap-3">
-      <button
-        onclick={tableMode === TableMode.INSERT ? createEntry : updateEntry}
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-        >Save</button
-      >
-      <button
-        onclick={cancelEntry}
-        class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-        >Cancel</button
-      >
-      {#if tableMode === TableMode.EDIT}
-        <ConfirmButton
-          initText="Delete Entry"
-          confirmText="Confirm Delete"
-          onconfirm={removeEntry}
-        />
-      {/if}
-    </div>
+      </thead>
+      <tbody>
+        {#each table.entries.filter( (e) => (entry_id != null ? e.parent_id === entry_id : true), ) as entry, i}
+          <tr>
+            {#each table.fields as field}
+              <td
+                class={[
+                  "relative text-black border-2 border-gray-400 size-min p-2",
+                  editableEntry === i ? "bg-blue-200" : "bg-white",
+                ]}
+                ondblclick={() => {
+                  if (tableMode === TableMode.DISPLAY) editEntry(i);
+                }}
+              >
+                <!-- Floating error bubble -->
+                {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
+                  <div
+                    class="absolute bottom-full inset-x-0 flex flex-col items-center"
+                  >
+                    <div
+                      class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm"
+                    >
+                      Error: {fieldErrors[field.field_id]}
+                    </div>
+                    <svg width="20" height="10">
+                      <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
+                    </svg>
+                  </div>
+                {/if}
 
-    <!-- Add row button -->
-  {:else if tableMode === TableMode.DISPLAY && table.fields.length > 0}
-    <button
-      onclick={insertEntry}
-      class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
-      >+ Add Row</button
-    >
-  {/if}
-</div>
+                <!-- Table cell -->
+                <VariableInput
+                  disabled={i !== editableEntry}
+                  class={[
+                    "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
+                    editableEntry === i ? "bg-blue-200" : "bg-white",
+                  ]}
+                  params={cellToInputParams(i, field)}
+                />
+              </td>
+            {/each}
+            {#each table.children as child}
+              <td
+                class={[
+                  "relative text-black border-2 border-gray-400 size-min p-2",
+                  editableEntry === i ? "bg-blue-200" : "bg-white",
+                ]}
+                onclick={() => {
+                  if (tableMode === TableMode.EDIT) {
+                    childTable = {
+                      table: child,
+                      entry_id: entry.entry_id,
+                    };
+
+                    tableMode = TableMode.CHILD;
+                  }
+                }}
+                ondblclick={() => {
+                  if (tableMode === TableMode.DISPLAY) {
+                    childTable = {
+                      table: child,
+                      entry_id: entry.entry_id,
+                    };
+                    tableMode = TableMode.CHILD;
+                  }
+                }}
+              >
+                <!-- Floating error bubble
+                {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
+                  <div
+                    class="absolute bottom-full inset-x-0 flex flex-col items-center"
+                  >
+                    <div
+                      class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm"
+                    >
+                      Error: {fieldErrors[field.field_id]}
+                    </div>
+                    <svg width="20" height="10">
+                      <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
+                    </svg>
+                  </div>
+                {/if}
+                -->
+
+                <!-- Table cell
+                <VariableInput
+                  disabled={i !== editableEntry}
+                  class={[
+                    "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
+                    editableEntry === i ? "bg-blue-200" : "bg-white",
+                  ]}
+                  params={cellToInputParams(i, field)}
+                />
+-->
+                <p>
+                  {child.entries.filter((e) => e.parent_id === entry.entry_id)
+                    .length} entries
+                </p>
+              </td>
+            {/each}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <!-- Button cluster to confirm/cancel editing/creating entries -->
+    {#if tableMode === TableMode.INSERT || tableMode === TableMode.EDIT}
+      <div class="flex justify-center gap-3">
+        <button
+          onclick={tableMode === TableMode.INSERT ? createEntry : updateEntry}
+          class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+          >Save</button
+        >
+        <button
+          onclick={cancelEntry}
+          class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+          >Cancel</button
+        >
+        {#if tableMode === TableMode.EDIT}
+          <ConfirmButton
+            initText="Delete Entry"
+            confirmText="Confirm Delete"
+            onconfirm={removeEntry}
+          />
+        {/if}
+      </div>
+
+      <!-- Add row button -->
+    {:else if tableMode === TableMode.DISPLAY && table.fields.length > 0}
+      <button
+        onclick={insertEntry}
+        class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
+        >+ Add Row</button
+      >
+    {/if}
+  </div>
+{/if}

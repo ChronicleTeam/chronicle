@@ -1,6 +1,4 @@
 <script lang="ts">
-  import D3Chart from "$lib/components/charts/D3Chart.svelte";
-  import ChartJsChart from "$lib/components/charts/ChartJSChart.svelte";
   import { type Dashboard } from "$lib/types.d.js";
   import {
     deleteDashboard,

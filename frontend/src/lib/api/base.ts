@@ -7,15 +7,6 @@ const API_URL = `${env.PUBLIC_API_URL}/api`;
 // General resources
 //
 
-// Constants
-const httpStatus = {
-  OK: 200,
-
-  Unprocessable: 422,
-
-  InternalServerError: 500
-};
-
 // types
 export type APIError = {
   status: number;

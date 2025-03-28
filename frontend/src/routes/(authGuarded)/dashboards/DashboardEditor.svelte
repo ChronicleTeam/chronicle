@@ -5,6 +5,8 @@
     getCharts,
     getTableData,
     getTables,
+    patchChart,
+    patchDashboard,
     postChart,
     putAxes,
   } from "$lib/api";
@@ -126,7 +128,12 @@
   let editedAxisFields = $state([] as AxisField[]);
   let curChartTableData: TableData | null = $state(null);
   let editChartError = $state("");
-  let editAxesError = $state("");
+
+  let dashboardMetadataChanged = $state(false);
+  let saveDashboardError = $state("");
+
+  let saveChartError = $state("");
+  let saveAxesError = $state("");
   $inspect(editedAxisFields);
 
   //
@@ -183,11 +190,26 @@
     curChartIdx = -1;
     editedAxisFields = [];
     curChartTableData = null;
+    saveChartError = "";
+    saveAxesError = "";
+    dashboardMetadataChanged = false;
   };
 
   //
   // API
   //
+
+  const saveDashboard = () =>
+    patchDashboard(dashboard)
+      .then((r) => {
+        dashboard.name = r.name;
+        dashboard.description = r.description;
+        dashboardMetadataChanged = false;
+        saveDashboardError = "";
+      })
+      .catch((e) => {
+        saveDashboardError = e.body.toString();
+      });
 
   const loadCharts = () =>
     getCharts(dashboard)
@@ -235,7 +257,7 @@
           throw { body: "Could not get Chart data" };
 
         editChartError = "";
-        editAxesError = "";
+        saveAxesError = "";
       })
       .catch((e) => {
         editChartError = e.body.toString();
@@ -253,19 +275,32 @@
       });
   };
 
-  const saveAxisFields = (chart: Chart, axes: AxisField[]) =>
-    putAxes(
+  const saveChartWithAxisFields = (chart: Chart, axes: AxisField[]) => {
+    let chartPromise = patchChart(dashboard, chart)
+      .then(() => {
+        saveChartError = "";
+      })
+      .catch((e) => {
+        saveChartError = e.body.toString();
+        throw Error();
+      });
+    let axisPromise = putAxes(
       dashboard,
       chart,
       axes.map((af) => af.axis),
     )
       .then(() => {
-        cancelEditChart();
-        editAxesError = "";
+        saveAxesError = "";
       })
       .catch((e) => {
-        editAxesError = e.body.toString();
+        saveAxesError = e.body.toString();
+        throw Error();
       });
+
+    Promise.all([chartPromise, axisPromise]).then(() => {
+      cancelEditChart();
+    });
+  };
 
   //
   // Startup
@@ -284,8 +319,36 @@
     </div>
   {:else if editMode === EditMode.DASH}
     <div class="flex flex-col items-center">
-      <input bind:value={dashboard.name} />
-      <input bind:value={dashboard.description} />
+      <input
+        bind:value={() => dashboard.name,
+        (s) => {
+          dashboardMetadataChanged = true;
+          dashboard.name = s;
+        }}
+      />
+      <input
+        bind:value={() => dashboard.description,
+        (s) => {
+          dashboardMetadataChanged = true;
+          dashboard.description = s;
+        }}
+      />
+      <div class="flex gap-2">
+        <ConfirmButton
+          initText="Delete Dashboard"
+          confirmText="Confirm Delete"
+          onconfirm={removeDashboard}
+        />
+        {#if dashboardMetadataChanged}
+          <button
+            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+            onclick={saveDashboard}>Save Title and Description</button
+          >
+        {/if}
+      </div>
+      {#if saveDashboardError}
+        <p class="text-red-500">{saveDashboardError}</p>
+      {/if}
     </div>
   {/if}
   <div class="grid grid-cols-4 grid-rows-1 gap-2">
@@ -364,7 +427,7 @@
             {#await asyncTables}
               <option value={undefined}>Loading...</option>
             {:then tables}
-              {#each tables as t}
+              {#each tables.filter((t) => t.parent_id == null) as t}
                 <option value={t.table_id}>{t.name}</option>
               {/each}
             {/await}
@@ -414,15 +477,11 @@
           editMode = EditMode.DISPLAY;
         }}>Back</button
       >
-      <ConfirmButton
-        initText="Delete Dashboard"
-        confirmText="Confirm Delete"
-        onconfirm={removeDashboard}
-      />
     </div>
   {/if}
 {:else}
   <input class="mb-2" bind:value={charts[curChartIdx].name} />
+  <p class="text-red-500">{saveChartError}</p>
   <div class="flex gap-3">
     {#each editedAxisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">
@@ -479,7 +538,7 @@
     <button
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
       onclick={() => {
-        saveAxisFields(charts[curChartIdx], editedAxisFields);
+        saveChartWithAxisFields(charts[curChartIdx], editedAxisFields);
       }}>Save</button
     >
     <button
@@ -488,5 +547,5 @@
       >Cancel</button
     >
   </div>
-  {#if editAxesError}<p class="text-red-500">{editAxesError}</p>{/if}
+  {#if saveAxesError}<p class="text-red-500">{saveAxesError}</p>{/if}
 {/if}
