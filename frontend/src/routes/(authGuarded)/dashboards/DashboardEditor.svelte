@@ -427,7 +427,7 @@
             {#await asyncTables}
               <option value={undefined}>Loading...</option>
             {:then tables}
-              {#each tables as t}
+              {#each tables.filter((t) => t.parent_id == null) as t}
                 <option value={t.table_id}>{t.name}</option>
               {/each}
             {/await}

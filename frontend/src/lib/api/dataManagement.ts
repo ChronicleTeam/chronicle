@@ -8,9 +8,12 @@ import { type Table, type TableData, type Field, type Entry, } from "../types.d.
 // Table methods
 export const getTables = async (): Promise<Table[]> => GET<Table[]>("/tables");
 
-export const postTable = async (name: string): Promise<Table> => POST<Table>("/tables", {
-  name,
-  description: "",
+export const getTableChildren = async (table: Table): Promise<Table[]> => GET<Table[]>(`/tables/${table.table_id}/children`);
+
+export const postTable = async (table: Table): Promise<Table> => POST<Table>("/tables", {
+  parent_id: table.parent_id,
+  name: table.name,
+  description: table.description,
 });
 
 export const patchTable = async (table: Table): Promise<Table> => PATCH<Table>(`/tables/${table.table_id}`, {
@@ -22,7 +25,7 @@ export const deleteTable = async (table: Table): Promise<void> => DELETE(`/table
 
 // Field methods
 export const getFields = async (table: Table): Promise<Field[]> => GET<Field[]>(`/tables/${table.table_id}/fields`)
-  .then(json => hydrateJSONTableData({ table: { table_id: -1, name: "", user_id: -1, description: "", created_at: new Date() }, fields: json, entries: [] }).fields)
+  .then(json => hydrateJSONTableData({ table: { table_id: -1, name: "", user_id: -1, description: "", created_at: new Date() }, fields: json, entries: [], children: [] }).fields)
 
 export const postField = async (field: Field): Promise<Field> => POST<Field>(`/tables/${field.table_id}/fields`, {
   name: field.name,

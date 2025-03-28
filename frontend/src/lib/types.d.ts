@@ -130,21 +130,23 @@ export const typeToStr = (t: FieldType): string => {
 export type Table = {
   table_id: Id;
   user_id: Id;
+  parent_id?: Id | null;
   name: string;
   description: string;
-  created_at: Date;
+  created_at?: Date;
   updated_at?: Date;
 };
 export type TableData = {
   table: Table;
   fields: Field[];
   entries: Entry[];
+  children: TableData[];
 };
 
 // Entry
 export type Entry = {
   entry_id: number;
-  parent_id: number | null;
+  parent_id?: number | null;
   cells: Cells;
 };
 

@@ -36,7 +36,7 @@
 
   let addTableError = $state("");
   const addTable = (name: string) =>
-    postTable(name)
+    postTable({ name, description: "", table_id: -1, user_id: -1 })
       .then(() => {
         addTableMode = false;
         asyncTables = getTables();
@@ -75,7 +75,7 @@
       {#await asyncTables}
         Loading...
       {:then tables}
-        {#each tables as t}
+        {#each tables.filter((t) => t.parent_id == null) as t}
           <button
             onclick={() => {
               curTable = t;

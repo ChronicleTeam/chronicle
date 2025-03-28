@@ -29,6 +29,9 @@
     patchField,
     deleteField,
     type APIError,
+    postTable,
+    deleteTable,
+    getTableChildren,
   } from "$lib/api";
   import { onMount } from "svelte";
 
@@ -69,15 +72,38 @@
   // State variables
   //
 
+  let isSubtable = $state(table_prop.parent_id != null);
+
   // the unmodified table, as it was fetched from the server
   let originalTable: TableData = $state({
     table: table_prop,
     fields: [],
     entries: [],
+    children: [],
   });
 
   // the table undergoing modifications
   let table = $state($state.snapshot(originalTable));
+
+  let originalSubtables: Table[] = $state([]);
+  let subtables: Table[] = $state($state.snapshot(originalSubtables));
+  let removedOGSubtables = $derived(
+    originalSubtables.filter((t) =>
+      subtables.every((u) => t.table_id !== u.table_id),
+    ),
+  );
+  let newSubtables = $derived(
+    subtables.filter((t) =>
+      originalSubtables.every((u) => t.table_id !== u.table_id),
+    ),
+  );
+  let modifiedSubtables = $derived(
+    subtables.filter((t) =>
+      originalSubtables.some(
+        (u) => t.table_id === u.table_id && !recursiveCompare(t, u),
+      ),
+    ),
+  );
 
   // derivations to track changes in the table
   let removedOGFields = $derived(
@@ -473,9 +499,49 @@
     removedOGFields.map((f) => `${f.name} (${typeToStr(f.field_kind.type)})`),
   );
 
+  let modalNewSubtableLines = $derived(newSubtables.map((t) => t.name));
+
+  let modalModifiedSubtableLines = $derived(
+    modifiedSubtables.map(
+      (t) =>
+        `${originalSubtables.find((u) => u.table_id === t.table_id)} -> ${t.table_id}`,
+    ),
+  );
+
+  let modalDeletedSubtableLines = $derived(
+    removedOGSubtables.map((t) => t.name),
+  );
+
   //
   // State methods
   //
+
+  // add a subtable
+  const addSubtable = (): void => {
+    let j = 1;
+    let newTableName = "New Table " + j;
+    while (subtables.some((t) => t.name === newTableName)) {
+      newTableName = "New Table " + ++j;
+    }
+
+    let id = -1;
+    while (subtables.some((t) => t.table_id === id)) {
+      id--;
+    }
+
+    subtables.splice(0, 0, {
+      table_id: id,
+      user_id: -1,
+      parent_id: table_prop.table_id,
+      name: newTableName,
+      description: "",
+    });
+  };
+
+  // remove a subtable
+  const removeSubtable = (i: number): void => {
+    subtables.splice(i, 1);
+  };
 
   // add a field to the table
   const addField = (): void => {
@@ -705,6 +771,7 @@
 
   let metadataError = $state("");
   let fieldErrors = $state([] as string[]);
+  let subtableErrors = $state([] as string[]);
 
   const loadFields = () => {
     getFields(table_prop).then((fields) => {
@@ -716,6 +783,15 @@
       updateAllOptionalCheckboxes();
       table.fields.forEach((f) => {
         fieldErrors[f.field_id] = "";
+      });
+    });
+
+    getTableChildren(table_prop).then((tables) => {
+      originalSubtables = tables;
+      subtables = $state.snapshot(originalSubtables);
+
+      subtables.forEach((subtable) => {
+        subtableErrors[subtable.table_id] = "";
       });
     });
   };
@@ -809,6 +885,61 @@
       );
     }
 
+    // add subtables
+    newSubtables.forEach((t) => {
+      promises.push(
+        postTable(t)
+          .then((response: Table) => {
+            originalSubtables.splice(0, 0, response);
+            subtables[
+              originalSubtables.findIndex((u) => u.table_id === t.table_id)
+            ] = response;
+            subtableErrors[t.table_id] = "";
+            return { ok: true };
+          })
+          .catch((e) => {
+            subtableErrors[t.table_id] = e.body.toString();
+            return { ok: false };
+          }),
+      );
+    });
+
+    // modify subtables
+    modifiedSubtables.forEach((t) => {
+      promises.push(
+        patchTable(t)
+          .then((response: Table) => {
+            originalSubtables[
+              originalSubtables.findIndex((u) => u.table_id === t.table_id)
+            ] = response;
+            subtableErrors[t.table_id] = "";
+            return { ok: true };
+          })
+          .catch((e) => {
+            subtableErrors[t.table_id] = e.body.toString();
+            return { ok: false };
+          }),
+      );
+    });
+
+    // delete subtables
+    removedOGSubtables.forEach((t) => {
+      promises.push(
+        deleteTable(t)
+          .then(() => {
+            originalSubtables.splice(
+              originalSubtables.findIndex((u) => u.table_id === t.table_id),
+              1,
+            );
+            return { ok: true };
+          })
+          .catch(() => {
+            subtableErrors[t.table_id] = "Could not delete";
+            return { ok: false };
+          }),
+      );
+    });
+
     // quit or reload
     Promise.allSettled(promises).then((results) => {
       if (results.every((r) => r.status == "fulfilled" && r.value.ok)) {
@@ -839,135 +970,161 @@
     id="name-input"
     bind:value={table.table.name}
     class="text-lg font-bold mb-3"
+    disabled={isSubtable}
   />
   <label for="decsription-input">Description: </label>
   <input
     id="description-input"
     bind:value={table.table.description}
     class="text-lg font-bold mb-3"
+    disabled={isSubtable}
   />
   {#if metadataError !== ""}
     <p class="text-red-500">{metadataError}</p>
   {/if}
-  <ConfirmButton
-    initText="Delete Table"
-    confirmText="Confirm Delete"
-    onconfirm={delete_table}
-  />
+  {#if !isSubtable}
+    <ConfirmButton
+      initText="Delete Table"
+      confirmText="Confirm Delete"
+      onconfirm={delete_table}
+    />
+  {/if}
 
   <!-- Fields  -->
-  <div class="flex items-stretch w-full flex-nowrap overflow-scroll gap-3">
-    <!-- Field editing sections -->
-    {#each table.fields as field, i}
-      <div
-        class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
-      >
-        <!-- Field name -->
-        <input bind:value={table.fields[i].name} />
+  <div class="flex justify-between w-full flex-nowrap overflow-scroll gap-3">
+    <div class="flex items-stretch gap-3">
+      <!-- Field editing sections -->
+      {#each table.fields as field, i}
+        <div
+          class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+        >
+          <!-- Field name -->
+          <input bind:value={table.fields[i].name} />
 
-        <!-- Field kind parameters -->
-        {#each optionInputList[i] as optionInput, j}
-          <div class="my-2">
-            <div class="flex items-center">
-              <!-- Add checkbox to enable/disable input if it is optional -->
-              {#if optionInput.optional}
-                <input
-                  class="mr-2"
-                  type="checkbox"
-                  bind:checked={() => optionalCheckboxStates[i][j],
-                  (val) => {
-                    optionalCheckboxStates[i][j] = val;
-                    if (val) {
-                      (table.fields[i].field_kind as any)[optionInput.name] =
-                        optionInput.default;
-                    } else {
-                      delete (table.fields[i].field_kind as any)[
-                        optionInput.name
-                      ];
-                    }
-                  }}
+          <!-- Field kind parameters -->
+          {#each optionInputList[i] as optionInput, j}
+            <div class="my-2">
+              <div class="flex items-center">
+                <!-- Add checkbox to enable/disable input if it is optional -->
+                {#if optionInput.optional}
+                  <input
+                    class="mr-2"
+                    type="checkbox"
+                    bind:checked={() => optionalCheckboxStates[i][j],
+                    (val) => {
+                      optionalCheckboxStates[i][j] = val;
+                      if (val) {
+                        (table.fields[i].field_kind as any)[optionInput.name] =
+                          optionInput.default;
+                      } else {
+                        delete (table.fields[i].field_kind as any)[
+                          optionInput.name
+                        ];
+                      }
+                    }}
+                  />
+                {/if}
+                <!-- The input -->
+                <VariableInput
+                  class={[
+                    "w-24",
+                    !optionalCheckboxStates && "text-gray-300 border-gray-300",
+                  ]}
+                  params={optionInput}
+                  disabled={!optionalCheckboxStates[i][j]}
+                  id={optionInput.label + i}
                 />
-              {/if}
-              <!-- The input -->
-              <VariableInput
-                class={[
-                  "w-24",
-                  !optionalCheckboxStates && "text-gray-300 border-gray-300",
-                ]}
-                params={optionInput}
-                disabled={!optionalCheckboxStates[i][j]}
-                id={optionInput.label + i}
-              />
+              </div>
             </div>
+          {/each}
+          <button
+            onclick={() => removeField(i)}
+            class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
+            >Remove</button
+          >
+          <!-- Error -->
+          {#if fieldErrors[field.field_id] !== ""}
+            <div class="rounded-lg text-red-500">
+              {fieldErrors[field.field_id]}
+            </div>
+          {/if}
+        </div>
+      {/each}
+
+      <!-- Add field button -->
+      <button
+        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-80"
+        onclick={addField}
+        aria-label="add field">Add Field</button
+      >
+
+      <!-- Deleted but restorable fields -->
+      {#each removedOGFields as field, i}
+        <div
+          class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2"
+        >
+          <p class="font-bold">
+            {field.name} ({typeToStr(field.field_kind.type)})
+          </p>
+          <button
+            class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition"
+            onclick={() => restoreField(i)}>Restore</button
+          >
+        </div>
+        {#if i < removedOGFields.length - 1}
+          <button class="p-4 text-center text-transparent text-base" disabled
+            >+</button
+          >
+        {/if}
+      {/each}
+    </div>
+
+    <!-- subtables -->
+    {#if !isSubtable}
+      <div class="flex justify-end gap-3">
+        <button
+          class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-80"
+          onclick={addSubtable}
+          aria-label="add Subtable">Add Subtable</button
+        >
+        {#each subtables as subtable, i}
+          <div
+            class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+          >
+            <input bind:value={subtables[i].name} />
+            <button
+              onclick={() => removeSubtable(i)}
+              class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
+              >Remove</button
+            >
+
+            {#if subtableErrors[subtable.table_id]}<p class="text-red-500">
+                {subtableErrors[subtable.table_id]}
+              </p>
+            {/if}
           </div>
         {/each}
-        <button
-          onclick={() => removeField(i)}
-          class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
-          >Remove</button
-        >
-        <!-- Error -->
-        {#if fieldErrors[field.field_id] !== ""}
-          <div class="rounded-lg text-red-500">
-            {fieldErrors[field.field_id]}
-          </div>
-        {/if}
       </div>
-    {/each}
-
-    <!-- Add field button -->
-    {#if table.fields.length === 0}
-      <button
-        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed"
-        onclick={addField}
-        aria-label="add field">+</button
-      >
-    {:else}
-      <button
-        class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all"
-        onclick={addField}
-        aria-label="add field">+</button
-      >
     {/if}
-
-    <!-- Deleted but restorable fields -->
-    {#each removedOGFields as field, i}
-      <div
-        class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2"
-      >
-        <p class="font-bold">
-          {field.name} ({typeToStr(field.field_kind.type)})
-        </p>
-        <button
-          class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition"
-          onclick={() => restoreField(i)}>Restore</button
-        >
-      </div>
-      {#if i < removedOGFields.length - 1}
-        <button class="p-4 text-center text-transparent text-base" disabled
-          >+</button
-        >
-      {/if}
-    {/each}
   </div>
-
-  <!-- Bottom Bar -->
-  {#if originalTable !== table}
-    <!-- TODO: actually have the condition check for modifications -->
-    <div class="flex items-center justify-center gap-3 mt-4">
-      <button
-        onclick={openConfirmationModal}
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-        >Save</button
-      >
-      <button
-        onclick={on_save}
-        class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-        >Cancel</button
-      >
-    </div>
-  {/if}
 </div>
+
+<!-- Bottom Bar -->
+{#if originalTable !== table}
+  <!-- TODO: actually have the condition check for modifications -->
+  <div class="flex items-center justify-center gap-3 mt-4">
+    <button
+      onclick={openConfirmationModal}
+      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+      >Save</button
+    >
+    <button
+      onclick={on_save}
+      class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+      >Cancel</button
+    >
+  </div>
+{/if}
 
 <!-- Confirmation modal -->
 <div
@@ -1012,6 +1169,25 @@
 
     <!-- Deleted fields -->
     {#each modalDeletedFieldLines as line}
+      <p>
+        <span class="font-bold text-red-500">[!]</span>
+        <span class="font-bold">Delete Field:</span>
+        {line}
+      </p>
+    {/each}
+
+    <!-- Added subtables -->
+    {#each modalNewSubtableLines as line}
+      <p><span class="font-bold">Added Subtable:</span> {line}</p>
+    {/each}
+
+    <!-- Modified subtables -->
+    {#each modalModifiedSubtableLines as line}
+      <p><span class="font-bold">Change Subtable:</span> {line}</p>
+    {/each}
+
+    <!-- Deleted subtables -->
+    {#each modalDeletedSubtableLines as line}
       <p>
         <span class="font-bold text-red-500">[!]</span>
         <span class="font-bold">Delete Field:</span>
