@@ -1,9 +1,10 @@
-name: Deploy to vercel
+name: Deploy to Vercel
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,7 +19,7 @@ jobs:
       - uses: dkershner6/vercel-set-env-action@v3
         with:
           token: ${{ secrets.VERCEL_TOKEN }}
-          projectName: chronicle
+          projectName: frontend
           envVariableKeys: PUBLIC_API_URL
         env:
           PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}

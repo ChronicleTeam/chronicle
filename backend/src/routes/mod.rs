@@ -29,14 +29,17 @@ mod viz;
 mod tests;
 
 use crate::{
-    config::Config, error::IntoAnyhow, users::{Backend, Credentials}
+    config::Config,
+    users::{Backend, Credentials},
 };
 use anyhow::Result;
-use axum::Router;
+use axum::{
+    http::{header, Method},
+    Router,
+};
 use axum_login::{tower_sessions::ExpiredDeletion, AuthManagerLayerBuilder};
 use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
-use tracing::info;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
@@ -87,9 +90,9 @@ pub async fn create_app(
     let backend = Backend::new(api_state.pool.clone());
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-    tokio::spawn(async move {
-        register_default_users(backend, secrets).await.unwrap()
-    });
+    let allowed_origin = secrets.get("ALLOWED_ORIGIN").expect("ALLOWED_ORIGIN secret must be set");
+
+    tokio::spawn(async move { register_default_users(backend, secrets).await.unwrap() });
 
     Ok(Router::new()
         .nest(
@@ -105,7 +108,22 @@ pub async fn create_app(
             TraceLayer::new_for_http().on_failure(()),
             TimeoutLayer::new(Duration::from_secs(300)),
             CatchPanicLayer::new(),
-            CorsLayer::permissive(),
+            CorsLayer::new()
+                .allow_origin([allowed_origin.parse().unwrap()]) // Adjust to your frontend origin
+                .allow_methods([
+                    Method::POST,
+                    Method::GET,
+                    Method::PATCH,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                    Method::HEAD,
+                ])
+                .allow_headers([
+                    header::CONTENT_TYPE,  // Needed for JSON, forms, and multipart
+                    header::AUTHORIZATION, // Needed for Bearer tokens
+                ])
+                .allow_credentials(true),
         ))
         .with_state(api_state))
 }

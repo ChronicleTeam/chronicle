@@ -43,7 +43,7 @@ async fn create_field(
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -71,7 +71,7 @@ async fn update_field(
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -99,7 +99,7 @@ async fn delete_field(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -125,7 +125,7 @@ async fn get_fields(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -142,7 +142,7 @@ async fn set_field_order(
     Path(table_id): Path<Id>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
     
     db::check_table_relation(&pool, user_id, table_id)
         .await?

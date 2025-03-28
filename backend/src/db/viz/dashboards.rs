@@ -1,4 +1,5 @@
 use sqlx::{Acquire, PgExecutor, Postgres};
+use tracing::info;
 
 use crate::{
     db::Relation,
@@ -147,7 +148,10 @@ pub async fn check_dashboard_relation(
     .await
     .map(|id| match id {
         None => Relation::Absent,
-        Some(id) if id == user_id => Relation::Owned,
+        Some(id) if id == user_id => {
+            info!("id == user_id: {id} == {user_id}");
+            Relation::Owned
+        }
         Some(_) => Relation::NotOwned,
     })
 }

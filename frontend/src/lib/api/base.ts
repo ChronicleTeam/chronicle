@@ -1,6 +1,7 @@
+import { env } from "$env/dynamic/public";
 import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = `${env.PUBLIC_API_URL}/api`;
 
 //
 // General resources
@@ -24,26 +25,42 @@ export type APIError = {
 };
 
 // Method shortcuts
-export const GET = async <T,>(endpoint: string): Promise<T> => fetch(API_URL + endpoint).then(handleResponse<T>);
+export const GET = async <T,>(endpoint: string): Promise<T> => fetch(API_URL + endpoint, {
+  method: "GET",
+  credentials: "include"
+}).then(handleResponse<T>);
 
 export const POST = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
   method: "POST",
+  credentials: "include",
   headers: {
     "Content-Type": "application/json",
   },
   body: JSON.stringify(jsonBody)
 }).then(handleResponse<T>);
+
+export const POST_FORM = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
+  method: "POST",
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+  },
+  body: new URLSearchParams(jsonBody)
+}).then(handleResponse<T>);
+
 
 export const PUT = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
   method: "PUT",
+  credentials: "include",
   headers: {
     "Content-Type": "application/json",
   },
   body: JSON.stringify(jsonBody)
 }).then(handleResponse<T>);
 
-export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL +endpoint, {
+export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
   method: "PATCH",
+  credentials: "include",
   headers: {
     "Content-Type": "application/json",
   },
@@ -66,7 +83,7 @@ export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL +
 // Helper methods
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (response.ok) {
-    return await response.json();
+    return await response.json().catch(() => { });
   } else {
     let err = {
       status: response.status,
@@ -74,7 +91,7 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
         .catch((e) => response.statusText),
     } as APIError
 
-    if(typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
+    if (typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
     throw err
   }
 };

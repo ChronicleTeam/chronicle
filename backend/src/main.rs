@@ -14,7 +14,7 @@ async fn main(
     #[shuttle_shared_db::Postgres] pool: PgPool,
     #[shuttle_runtime::Secrets] secrets: SecretStore,
 ) -> shuttle_axum::ShuttleAxum {
-    MIGRATOR.run(&pool).await.unwrap();
+    MIGRATOR.run(&pool).await.expect("Migration error");
 
     let router = routes::create_app(
         ApiState {

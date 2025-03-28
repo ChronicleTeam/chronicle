@@ -82,7 +82,7 @@ async fn get_charts(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Chart>>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
