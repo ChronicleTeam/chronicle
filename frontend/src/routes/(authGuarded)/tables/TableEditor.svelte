@@ -311,6 +311,7 @@
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
       onclick={() => {
         tableMode = TableMode.DISPLAY;
+        loadTable();
       }}>Back to <span class="font-bold">{table.table.name}</span></button
     >
     <h2 class="text-lg font-bold">{childTable.table.table.name}</h2>
