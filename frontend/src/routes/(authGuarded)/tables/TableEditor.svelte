@@ -35,20 +35,9 @@
   import TableEditor from "./TableEditor.svelte";
   import FieldEditor from "./FieldEditor.svelte";
   import { onMount } from "svelte";
+  import { TableMode, type ModeState, type TableChild } from "./types";
   let { table_prop, entry_id }: { table_prop: Table; entry_id?: number } =
     $props();
-
-  //
-  // Constants
-  //
-
-  const TableMode = {
-    DISPLAY: 0,
-    INSERT: 1,
-    EDIT: 2,
-    CHILD: 3,
-    EDIT_CHILD: 4,
-  };
 
   //
   // State
@@ -62,36 +51,40 @@
     children: [],
   } as TableData);
 
-  // the index of the entry being edited (-1 if no entry is being edited)
-  let editableEntry = $state(-1);
-
   // determines the state of the table, whether it is read-only, in the process of adding an entry, or in the process of editing an entry
-  let tableMode = $state(TableMode.DISPLAY);
+  let modeState: ModeState = $state({ mode: TableMode.DISPLAY });
+  const modeDisplay = () => {
+    modeState = { mode: TableMode.DISPLAY };
+  };
+  const modeInsert = (entry_idx: number) => {
+    modeState = { mode: TableMode.INSERT, entry_idx };
+  };
+  const modeEdit = (entry_idx: number) => {
+    modeState = { mode: TableMode.EDIT, entry_idx };
+  };
+  const modeChild = (child: TableChild) => {
+    modeState = { mode: TableMode.CHILD, child };
+  };
+  const modeEditChild = (child: TableChild) => {
+    modeState = { mode: TableMode.CHILD, child };
+  };
 
   // these are used to change the table state to DISPLAY, INSERT, and EDIT respectively
   const cancelEntry = () => {
-    if (tableMode === TableMode.INSERT) {
+    if (modeState.mode === TableMode.INSERT) {
       table.entries.pop();
     }
 
-    tableMode = TableMode.DISPLAY;
-    editableEntry = -1;
+    modeDisplay();
     fieldErrors = {};
   };
 
   const insertEntry = () => {
-    tableMode = TableMode.INSERT;
     table.entries.push(getNewEntry());
-    editableEntry = table.entries.length - 1;
+    modeInsert(table.entries.length - 1);
   };
 
-  const editEntry = (i: number) => {
-    tableMode = TableMode.EDIT;
-    editableEntry = i;
-  };
-
-  // for viewing a child table
-  let childTable: { table: TableData; entry_id: number } | null = $state(null);
+  const editEntry = modeEdit;
 
   //
   // Helper methods
@@ -264,37 +257,41 @@
 
   let fieldErrors = $state({} as { [key: number]: string });
   const createEntry = () => {
-    postEntry(table.table, table.entries[editableEntry])
-      .then(() => {
-        cancelEntry();
-        loadTable();
-      })
-      .catch((e: APIError) => {
-        if (e.status === 422) {
-          fieldErrors = e.body;
-        }
-      });
+    if (modeState.mode === TableMode.INSERT) {
+      postEntry(table.table, table.entries[modeState.entry_idx])
+        .then(() => {
+          cancelEntry();
+          loadTable();
+        })
+        .catch((e: APIError) => {
+          if (e.status === 422) {
+            fieldErrors = e.body;
+          }
+        });
+    }
   };
 
   const updateEntry = () => {
-    patchEntry(table.table, table.entries[editableEntry])
-      .then(() => {
-        cancelEntry();
-        loadTable();
-      })
-      .catch((e: APIError) => {
-        if (e.status === 422) {
-          fieldErrors = e.body;
-        }
-      });
+    if (modeState.mode === TableMode.EDIT) {
+      patchEntry(table.table, table.entries[modeState.entry_idx])
+        .then(() => {
+          cancelEntry();
+          loadTable();
+        })
+        .catch((e: APIError) => {
+          if (e.status === 422) {
+            fieldErrors = e.body;
+          }
+        });
+    }
   };
 
   const removeEntry = () => {
-    if (editableEntry === -1) return;
-
-    deleteEntry(table.table, table.entries[editableEntry])
-      .then(cancelEntry)
-      .then(loadTable);
+    if (modeState.mode === TableMode.EDIT) {
+      deleteEntry(table.table, table.entries[modeState.entry_idx])
+        .then(cancelEntry)
+        .then(loadTable);
+    }
   };
 
   //
@@ -303,29 +300,30 @@
   onMount(() => {
     loadTable();
   });
+
+  $inspect(modeState);
 </script>
 
-{#if tableMode === TableMode.CHILD && childTable !== null}
+{#if modeState.mode === TableMode.CHILD}
   <div class="flex items-center gap-2 mb-2">
     <button
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
       onclick={() => {
-        tableMode = TableMode.DISPLAY;
+        modeDisplay();
         loadTable();
       }}>Back to <span class="font-bold">{table.table.name}</span></button
     >
-    <h2 class="text-lg font-bold">{childTable.table.table.name}</h2>
+    <h2 class="text-lg font-bold">{modeState.child.table_data.table.name}</h2>
   </div>
   <TableEditor
-    table_prop={childTable.table.table}
-    entry_id={childTable.entry_id}
+    table_prop={modeState.child.table_data.table}
+    entry_id={modeState.child.entry_id}
   />
-{:else if tableMode === TableMode.EDIT_CHILD && childTable !== null}
+{:else if modeState.mode === TableMode.EDIT_CHILD}
   <FieldEditor
-    table_prop={childTable.table.table}
+    table_prop={modeState.child.table_data.table}
     on_save={() => {
-      childTable = null;
-      tableMode = TableMode.DISPLAY;
+      modeDisplay();
     }}
     delete_table={() => {}}
   />
@@ -346,8 +344,7 @@
               <button
                 class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
                 onclick={() => {
-                  childTable = { table: child, entry_id: -1 };
-                  tableMode = TableMode.EDIT_CHILD;
+                  modeEditChild({ table_data: child, entry_id: -1 });
                 }}
               >
                 Edit</button
@@ -363,14 +360,18 @@
               <td
                 class={[
                   "relative text-black border-2 border-gray-400 size-min p-2",
-                  editableEntry === i ? "bg-blue-200" : "bg-white",
+                  (modeState.mode === TableMode.INSERT ||
+                    modeState.mode === TableMode.EDIT) &&
+                  modeState.entry_idx === i
+                    ? "bg-blue-200"
+                    : "bg-white",
                 ]}
                 ondblclick={() => {
-                  if (tableMode === TableMode.DISPLAY) editEntry(i);
+                  if (modeState.mode === TableMode.DISPLAY) editEntry(i);
                 }}
               >
                 <!-- Floating error bubble -->
-                {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
+                {#if (modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT) && modeState.entry_idx === i && fieldErrors[field.field_id] !== undefined}
                   <div
                     class="absolute bottom-full inset-x-0 flex flex-col items-center"
                   >
@@ -387,10 +388,17 @@
 
                 <!-- Table cell -->
                 <VariableInput
-                  disabled={i !== editableEntry}
+                  disabled={!(
+                    modeState.mode === TableMode.INSERT ||
+                    modeState.mode === TableMode.EDIT
+                  ) || modeState.entry_idx !== i}
                   class={[
                     "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
-                    editableEntry === i ? "bg-blue-200" : "bg-white",
+                    (modeState.mode === TableMode.INSERT ||
+                      modeState.mode === TableMode.EDIT) &&
+                    modeState.entry_idx === i
+                      ? "bg-blue-200"
+                      : "bg-white",
                   ]}
                   params={cellToInputParams(i, field)}
                 />
@@ -400,25 +408,26 @@
               <td
                 class={[
                   "relative text-black border-2 border-gray-400 size-min p-2",
-                  editableEntry === i ? "bg-blue-200" : "bg-white",
+                  (modeState.mode === TableMode.INSERT ||
+                    modeState.mode === TableMode.EDIT) &&
+                  modeState.entry_idx === i
+                    ? "bg-blue-200"
+                    : "bg-white",
                 ]}
                 onclick={() => {
-                  if (tableMode === TableMode.EDIT) {
-                    childTable = {
-                      table: child,
+                  if (modeState.mode === TableMode.EDIT) {
+                    modeChild({
+                      table_data: child,
                       entry_id: entry.entry_id,
-                    };
-
-                    tableMode = TableMode.CHILD;
+                    });
                   }
                 }}
                 ondblclick={() => {
-                  if (tableMode === TableMode.DISPLAY) {
-                    childTable = {
-                      table: child,
+                  if (modeState.mode === TableMode.DISPLAY) {
+                    modeChild({
+                      table_data: child,
                       entry_id: entry.entry_id,
-                    };
-                    tableMode = TableMode.CHILD;
+                    });
                   }
                 }}
               >
@@ -433,10 +442,12 @@
       </tbody>
     </table>
     <!-- Button cluster to confirm/cancel editing/creating entries -->
-    {#if tableMode === TableMode.INSERT || tableMode === TableMode.EDIT}
+    {#if modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT}
       <div class="flex justify-center gap-3">
         <button
-          onclick={tableMode === TableMode.INSERT ? createEntry : updateEntry}
+          onclick={modeState.mode === TableMode.INSERT
+            ? createEntry
+            : updateEntry}
           class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
           >Save</button
         >
@@ -445,7 +456,7 @@
           class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
           >Cancel</button
         >
-        {#if tableMode === TableMode.EDIT}
+        {#if modeState.mode === TableMode.EDIT}
           <ConfirmButton
             initText="Delete Entry"
             confirmText="Confirm Delete"
@@ -455,7 +466,7 @@
       </div>
 
       <!-- Add row button -->
-    {:else if tableMode === TableMode.DISPLAY && table.fields.length > 0}
+    {:else if modeState.mode === TableMode.DISPLAY && table.fields.length > 0}
       <button
         onclick={insertEntry}
         class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
