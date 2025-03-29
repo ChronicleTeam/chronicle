@@ -32,6 +32,7 @@
     postTable,
     deleteTable,
     getTableChildren,
+    getTableData,
   } from "$lib/api";
   import { onMount } from "svelte";
 
@@ -85,22 +86,22 @@
   // the table undergoing modifications
   let table = $state($state.snapshot(originalTable));
 
-  let originalSubtables: Table[] = $state([]);
-  let subtables: Table[] = $state($state.snapshot(originalSubtables));
   let removedOGSubtables = $derived(
-    originalSubtables.filter((t) =>
-      subtables.every((u) => t.table_id !== u.table_id),
+    originalTable.children.filter((t) =>
+      table.children.every((u) => t.table.table_id !== u.table.table_id),
     ),
   );
   let newSubtables = $derived(
-    subtables.filter((t) =>
-      originalSubtables.every((u) => t.table_id !== u.table_id),
+    table.children.filter((t) =>
+      originalTable.children.every(
+        (u) => t.table.table_id !== u.table.table_id,
+      ),
     ),
   );
   let modifiedSubtables = $derived(
-    subtables.filter((t) =>
-      originalSubtables.some(
-        (u) => t.table_id === u.table_id && !recursiveCompare(t, u),
+    table.children.filter((t) =>
+      originalTable.children.some(
+        (u) => t.table.table_id === u.table.table_id && !recursiveCompare(t, u),
       ),
     ),
   );
@@ -499,17 +500,17 @@
     removedOGFields.map((f) => `${f.name} (${typeToStr(f.field_kind.type)})`),
   );
 
-  let modalNewSubtableLines = $derived(newSubtables.map((t) => t.name));
+  let modalNewSubtableLines = $derived(newSubtables.map((t) => t.table.name));
 
   let modalModifiedSubtableLines = $derived(
     modifiedSubtables.map(
       (t) =>
-        `${originalSubtables.find((u) => u.table_id === t.table_id)} -> ${t.table_id}`,
+        `${originalTable.children.find((u) => u.table.table_id === t.table.table_id)} -> ${t.table.table_id}`,
     ),
   );
 
   let modalDeletedSubtableLines = $derived(
-    removedOGSubtables.map((t) => t.name),
+    removedOGSubtables.map((t) => t.table.name),
   );
 
   //
@@ -520,27 +521,36 @@
   const addSubtable = (): void => {
     let j = 1;
     let newTableName = "New Table " + j;
-    while (subtables.some((t) => t.name === newTableName)) {
+    while (table.children.some((t) => t.table.name === newTableName)) {
       newTableName = "New Table " + ++j;
     }
 
     let id = -1;
-    while (subtables.some((t) => t.table_id === id)) {
+    while (table.children.some((t) => t.table.table_id === id)) {
       id--;
     }
 
-    subtables.splice(0, 0, {
-      table_id: id,
-      user_id: -1,
-      parent_id: table_prop.table_id,
-      name: newTableName,
-      description: "",
+    table.children.splice(0, 0, {
+      table: {
+        table_id: id,
+        user_id: -1,
+        parent_id: table_prop.table_id,
+        name: newTableName,
+        description: "",
+      },
+      fields: [],
+      entries: [],
+      children: [],
     });
   };
 
   // remove a subtable
   const removeSubtable = (i: number): void => {
-    subtables.splice(i, 1);
+    table.children.splice(i, 1);
+  };
+
+  const restoreSubtable = (i: number): void => {
+    table.children.push($state.snapshot(removedOGSubtables[i]));
   };
 
   // add a field to the table
@@ -774,9 +784,11 @@
   let subtableErrors = $state([] as string[]);
 
   const loadFields = () => {
-    getFields(table_prop).then((fields) => {
-      // update tables
-      originalTable.fields = fields.toSorted((f, g) => f.ordering - g.ordering);
+    getTableData(table_prop).then((td) => {
+      // update fields
+      originalTable.fields = td.fields.toSorted(
+        (f, g) => f.ordering - g.ordering,
+      );
       table = $state.snapshot(originalTable);
 
       //update optionalCheckboxStates
@@ -784,14 +796,13 @@
       table.fields.forEach((f) => {
         fieldErrors[f.field_id] = "";
       });
-    });
 
-    getTableChildren(table_prop).then((tables) => {
-      originalSubtables = tables;
-      subtables = $state.snapshot(originalSubtables);
+      // update subtables
+      originalTable.children = td.children;
+      table.children = $state.snapshot(originalTable.children);
 
-      subtables.forEach((subtable) => {
-        subtableErrors[subtable.table_id] = "";
+      table.children.forEach((subtable) => {
+        subtableErrors[subtable.table.table_id] = "";
       });
     });
   };
@@ -888,17 +899,25 @@
     // add subtables
     newSubtables.forEach((t) => {
       promises.push(
-        postTable(t)
+        postTable(t.table)
           .then((response: Table) => {
-            originalSubtables.splice(0, 0, response);
-            subtables[
-              originalSubtables.findIndex((u) => u.table_id === t.table_id)
-            ] = response;
-            subtableErrors[t.table_id] = "";
+            let newTableData = {
+              table: response,
+              fields: [],
+              entries: [],
+              children: [],
+            };
+            originalTable.children.splice(0, 0, newTableData);
+            table.children[
+              originalTable.children.findIndex(
+                (u) => u.table.table_id === t.table.table_id,
+              )
+            ] = newTableData;
+            subtableErrors[t.table.table_id] = "";
             return { ok: true };
           })
           .catch((e) => {
-            subtableErrors[t.table_id] = e.body.toString();
+            subtableErrors[t.table.table_id] = e.body.toString();
             return { ok: false };
           }),
       );
@@ -907,16 +926,25 @@
     // modify subtables
     modifiedSubtables.forEach((t) => {
       promises.push(
-        patchTable(t)
+        patchTable(t.table)
           .then((response: Table) => {
-            originalSubtables[
-              originalSubtables.findIndex((u) => u.table_id === t.table_id)
-            ] = response;
-            subtableErrors[t.table_id] = "";
+            let modifiedTableData = {
+              table: response,
+              fields: [],
+              entries: [],
+              children: [],
+            };
+
+            originalTable.children[
+              originalTable.children.findIndex(
+                (u) => u.table.table_id === t.table.table_id,
+              )
+            ] = modifiedTableData;
+            subtableErrors[t.table.table_id] = "";
             return { ok: true };
           })
           .catch((e) => {
-            subtableErrors[t.table_id] = e.body.toString();
+            subtableErrors[t.table.table_id] = e.body.toString();
             return { ok: false };
           }),
       );
@@ -925,16 +953,18 @@
     // delete subtables
     removedOGSubtables.forEach((t) => {
       promises.push(
-        deleteTable(t)
+        deleteTable(t.table)
           .then(() => {
-            originalSubtables.splice(
-              originalSubtables.findIndex((u) => u.table_id === t.table_id),
+            originalTable.children.splice(
+              originalTable.children.findIndex(
+                (u) => u.table.table_id === t.table.table_id,
+              ),
               1,
             );
             return { ok: true };
           })
           .catch(() => {
-            subtableErrors[t.table_id] = "Could not delete";
+            subtableErrors[t.table.table_id] = "Could not delete";
             return { ok: false };
           }),
       );
@@ -996,7 +1026,7 @@
       <!-- Field editing sections -->
       {#each table.fields as field, i}
         <div
-          class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+          class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
         >
           <!-- Field name -->
           <input bind:value={table.fields[i].name} />
@@ -1051,57 +1081,66 @@
         </div>
       {/each}
 
-      <!-- Add field button -->
-      <button
-        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-80"
-        onclick={addField}
-        aria-label="add field">Add Field</button
-      >
-
       <!-- Deleted but restorable fields -->
       {#each removedOGFields as field, i}
         <div
-          class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2"
+          class="p-3 border-2 border-black border-dashed rounded-lg flex flex-col justify-between gap-2 w-64"
         >
           <p class="font-bold">
             {field.name} ({typeToStr(field.field_kind.type)})
           </p>
           <button
-            class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition"
+            class="py-1 px-2 border-2 border-black border-dashed rounded-lg transition"
             onclick={() => restoreField(i)}>Restore</button
           >
         </div>
-        {#if i < removedOGFields.length - 1}
-          <button class="p-4 text-center text-transparent text-base" disabled
-            >+</button
-          >
-        {/if}
       {/each}
+
+      <!-- Add field button -->
+      <button
+        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
+        onclick={addField}
+        aria-label="add field">Add Field</button
+      >
     </div>
 
     <!-- subtables -->
     {#if !isSubtable}
       <div class="flex justify-end gap-3">
         <button
-          class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-80"
+          class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
           onclick={addSubtable}
           aria-label="add Subtable">Add Subtable</button
         >
-        {#each subtables as subtable, i}
+        {#each table.children as subtable, i}
           <div
-            class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+            class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
           >
-            <input bind:value={subtables[i].name} />
+            <input bind:value={table.children[i].table.name} />
             <button
               onclick={() => removeSubtable(i)}
               class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
               >Remove</button
             >
 
-            {#if subtableErrors[subtable.table_id]}<p class="text-red-500">
-                {subtableErrors[subtable.table_id]}
+            {#if subtableErrors[subtable.table.table_id]}
+              <p class="text-red-500">
+                {subtableErrors[subtable.table.table_id]}
               </p>
             {/if}
+          </div>
+        {/each}
+        {#each removedOGSubtables as subtable, i}
+          <div
+            class="p-3 border-2 border-black border-dashed rounded-lg flex flex-col justify-between gap-2 w-64"
+          >
+            <p class="font-bold">
+              {subtable.table.name}
+            </p>
+            <button
+              class="py-1 px-2 border-2 border-black border-dashed rounded-lg transition"
+              onclick={() => restoreSubtable(i)}>Restore</button
+            >
           </div>
         {/each}
       </div>
