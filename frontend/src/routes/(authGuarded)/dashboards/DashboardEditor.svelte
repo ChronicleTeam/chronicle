@@ -26,7 +26,6 @@
     Aggregate,
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
-  import ChartModal from "./ChartModal.svelte";
 
   let {
     dashboard,
@@ -120,8 +119,6 @@
 
     return out;
   });
-
-  let modalChart: Chart | null = $state(null);
 
   let newChart: Chart | null = $state(null);
   let createChartError = $state("");
@@ -320,16 +317,6 @@
       <h2 class="font-bold text-xl">{dashboard.name}</h2>
       <p>{dashboard.description}</p>
     </div>
-
-    {#if modalChart}
-      <ChartModal
-        {dashboard}
-        chart={modalChart}
-        onexit={() => {
-          modalChart = null;
-        }}
-      />
-    {/if}
   {:else if editMode === EditMode.DASH}
     <div class="flex flex-col items-center">
       <input
