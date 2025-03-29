@@ -136,6 +136,16 @@
     },
   });
 
+  let errors: {
+    fields: string[];
+    subtables: string[];
+    metadata: string;
+  } = $state({
+    fields: [],
+    subtables: [],
+    metadata: "",
+  });
+
   $inspect(table, changes);
   // the central table which represents the inputs for the editable field_kind parameters
   const optionInputList = $derived(
@@ -626,7 +636,7 @@
 
     //clear errors
     table.new.fields.forEach((f) => {
-      fieldErrors[f.field_id] = "";
+      errors.fields[f.field_id] = "";
     });
   };
 
@@ -814,10 +824,6 @@
   // API Calls
   //
 
-  let metadataError = $state("");
-  let fieldErrors = $state([] as string[]);
-  let subtableErrors = $state([] as string[]);
-
   const loadFields = () => {
     getTableData(table_prop).then((td) => {
       // update fields
@@ -827,7 +833,7 @@
       //update optionalCheckboxStates
       updateAllOptionalCheckboxes();
       table.new.fields.forEach((f) => {
-        fieldErrors[f.field_id] = "";
+        errors.fields[f.field_id] = "";
       });
 
       // update subtables
@@ -835,7 +841,7 @@
       table.new.children = $state.snapshot(table.old.children);
 
       table.new.children.forEach((subtable) => {
-        subtableErrors[subtable.table.table_id] = "";
+        errors.subtables[subtable.table.table_id] = "";
       });
     });
   };
@@ -857,11 +863,11 @@
           .then((response: Table) => {
             table.old.table.name = response.name;
             table.old.table.description = response.description;
-            metadataError = "";
+            errors.metadata = "";
             return { ok: true };
           })
           .catch((e: APIError) => {
-            metadataError = e.body.toString();
+            errors.metadata = e.body.toString();
             return { ok: false };
           }),
       );
@@ -876,12 +882,12 @@
             table.new.fields[
               table.new.fields.findIndex((f) => f.field_id === field.field_id)
             ].field_id = newField.field_id;
-            fieldErrors[field.field_id] = "";
+            errors.fields[field.field_id] = "";
             return { ok: true };
           })
           .catch((e: APIError) => {
             let text = e.body.toString();
-            fieldErrors[field.field_id] = text;
+            errors.fields[field.field_id] = text;
 
             return { ok: false };
           }),
@@ -896,12 +902,12 @@
             table.old.fields[
               table.old.fields.findIndex((f) => f.field_id === field.field_id)
             ] = response;
-            fieldErrors[field.field_id] = "";
+            errors.fields[field.field_id] = "";
             return { ok: true };
           })
           .catch((e: APIError) => {
             let text = e.body.toString();
-            fieldErrors[field.field_id] = text;
+            errors.fields[field.field_id] = text;
             return { ok: false };
           }),
       );
@@ -919,7 +925,7 @@
             return { ok: true };
           })
           .catch(() => {
-            fieldErrors[field.field_id] = "Could not delete";
+            errors.fields[field.field_id] = "Could not delete";
             return { ok: false };
           }),
       );
@@ -942,11 +948,11 @@
                 (u) => u.table.table_id === t.table.table_id,
               )
             ] = newTableData;
-            subtableErrors[t.table.table_id] = "";
+            errors.subtables[t.table.table_id] = "";
             return { ok: true };
           })
           .catch((e) => {
-            subtableErrors[t.table.table_id] = e.body.toString();
+            errors.subtables[t.table.table_id] = e.body.toString();
             return { ok: false };
           }),
       );
@@ -969,11 +975,11 @@
                 (u) => u.table.table_id === t.table.table_id,
               )
             ] = modifiedTableData;
-            subtableErrors[t.table.table_id] = "";
+            errors.subtables[t.table.table_id] = "";
             return { ok: true };
           })
           .catch((e) => {
-            subtableErrors[t.table.table_id] = e.body.toString();
+            errors.subtables[t.table.table_id] = e.body.toString();
             return { ok: false };
           }),
       );
@@ -993,7 +999,7 @@
             return { ok: true };
           })
           .catch(() => {
-            subtableErrors[t.table.table_id] = "Could not delete";
+            errors.subtables[t.table.table_id] = "Could not delete";
             return { ok: false };
           }),
       );
@@ -1017,7 +1023,7 @@
     updateAllOptionalCheckboxes();
 
     table.new.fields.forEach((f) => {
-      fieldErrors[f.field_id] = "";
+      errors.fields[f.field_id] = "";
     });
   });
 </script>
@@ -1038,8 +1044,8 @@
     class="text-lg font-bold mb-3"
     disabled={isSubtable}
   />
-  {#if metadataError !== ""}
-    <p class="text-red-500">{metadataError}</p>
+  {#if errors.metadata !== ""}
+    <p class="text-red-500">{errors.metadata}</p>
   {/if}
   {#if !isSubtable}
     <ConfirmButton
@@ -1103,9 +1109,9 @@
             >Remove</button
           >
           <!-- Error -->
-          {#if fieldErrors[field.field_id] !== ""}
+          {#if errors.fields[field.field_id] !== ""}
             <div class="rounded-lg text-red-500">
-              {fieldErrors[field.field_id]}
+              {errors.fields[field.field_id]}
             </div>
           {/if}
         </div>
@@ -1153,9 +1159,9 @@
               >Remove</button
             >
 
-            {#if subtableErrors[subtable.table.table_id]}
+            {#if errors.subtables[subtable.table.table_id]}
               <p class="text-red-500">
-                {subtableErrors[subtable.table.table_id]}
+                {errors.subtables[subtable.table.table_id]}
               </p>
             {/if}
           </div>
