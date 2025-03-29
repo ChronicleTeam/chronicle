@@ -47,8 +47,6 @@
         });
     }
   };
-
-  $inspect(curDash);
 </script>
 
 <div class="flex flex-wrap gap-4 size-full items-stretch">
