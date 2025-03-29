@@ -34,18 +34,26 @@ use crate::{
 };
 use anyhow::Result;
 use axum::{
-    http::{header, Method},
+    http::{
+        header::{self, SET_COOKIE},
+        HeaderValue, Method,
+    },
+    response::Response,
     Router,
 };
 use axum_login::{tower_sessions::ExpiredDeletion, AuthManagerLayerBuilder};
 use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
 use std::{collections::HashMap, sync::Arc, time::Duration};
+use tower::ServiceBuilder;
 use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
-use tower_sessions::{cookie::{Key, SameSite}, Expiry, SessionManagerLayer};
+use tower_sessions::{
+    cookie::{Key, SameSite},
+    Expiry, SessionManagerLayer,
+};
 use tower_sessions_sqlx_store::PostgresStore;
 
 /// Global state for the API.
@@ -90,7 +98,9 @@ pub async fn create_app(
     let backend = Backend::new(api_state.pool.clone());
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-    let allowed_origin = secrets.get("ALLOWED_ORIGIN").expect("ALLOWED_ORIGIN secret must be set");
+    let allowed_origin = secrets
+        .get("ALLOWED_ORIGIN")
+        .expect("ALLOWED_ORIGIN secret must be set");
 
     tokio::spawn(async move { register_default_users(backend, secrets).await.unwrap() });
 
@@ -103,11 +113,12 @@ pub async fn create_app(
                 .merge(viz::router()),
         )
         .layer(auth_layer)
-        .layer((
-            CompressionLayer::new(),
-            TraceLayer::new_for_http().on_failure(()),
-            TimeoutLayer::new(Duration::from_secs(300)),
-            CatchPanicLayer::new(),
+        .layer(ServiceBuilder::new().map_response(set_partitioned_cookie))
+        .layer(CompressionLayer::new())
+        .layer(TraceLayer::new_for_http().on_failure(()))
+        .layer(TimeoutLayer::new(Duration::from_secs(300)))
+        .layer(CatchPanicLayer::new())
+        .layer(
             CorsLayer::new()
                 .allow_origin([allowed_origin.parse().unwrap()]) // Adjust to your frontend origin
                 .allow_methods([
@@ -124,7 +135,7 @@ pub async fn create_app(
                     header::AUTHORIZATION, // Needed for Bearer tokens
                 ])
                 .allow_credentials(true),
-        ))
+        )
         .with_state(api_state))
 }
 
@@ -153,4 +164,17 @@ async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> s
     }
 
     Ok(())
+}
+
+fn set_partitioned_cookie(mut res: Response) -> Response {
+    if let Some(set_cookie) = res.headers().get(SET_COOKIE) {
+        if let Ok(cookie_value) = set_cookie.to_str() {
+            if !cookie_value.contains("Partitioned") {
+                let cookie_value = format!("{}; Partitioned", cookie_value);
+                let headers = res.headers_mut();
+                headers.insert(SET_COOKIE, HeaderValue::from_str(&cookie_value).unwrap());
+            }
+        }
+    }
+    res
 }
