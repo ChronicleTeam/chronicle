@@ -120,21 +120,30 @@
     return out;
   });
 
+  let errors = $state({
+    dashboard: {
+      save: "",
+    },
+
+    chart: {
+      create: "",
+      edit: "",
+      save: "",
+    },
+
+    axes: {
+      save: "",
+    },
+  });
+
   let newChart: Chart | null = $state(null);
-  let createChartError = $state("");
 
   // chart being edited
   let curChartIdx = $state(-1);
   let editedAxisFields = $state([] as AxisField[]);
   let curChartTableData: TableData | null = $state(null);
-  let editChartError = $state("");
 
   let dashboardMetadataChanged = $state(false);
-  let saveDashboardError = $state("");
-
-  let saveChartError = $state("");
-  let saveAxesError = $state("");
-  $inspect(editedAxisFields);
 
   //
   // Helper methods
@@ -190,8 +199,8 @@
     curChartIdx = -1;
     editedAxisFields = [];
     curChartTableData = null;
-    saveChartError = "";
-    saveAxesError = "";
+    errors.chart.save = "";
+    errors.axes.save = "";
     dashboardMetadataChanged = false;
   };
 
@@ -205,10 +214,10 @@
         dashboard.name = r.name;
         dashboard.description = r.description;
         dashboardMetadataChanged = false;
-        saveDashboardError = "";
+        errors.dashboard.save = "";
       })
       .catch((e) => {
-        saveDashboardError = e.body.toString();
+        errors.dashboard.save = e.body.toString();
       });
 
   const loadCharts = () =>
@@ -233,11 +242,11 @@
         .then(loadCharts)
         .then(cancelCreateChart)
         .then(() => {
-          createChartError = "";
+          errors.chart.create = "";
           editMode = EditMode.DISPLAY;
         })
         .catch((e) => {
-          createChartError = e.body.toString();
+          errors.chart.create = e.body.toString();
         });
     }
   };
@@ -256,11 +265,11 @@
         if (curChartTableData === null)
           throw { body: "Could not get Chart data" };
 
-        editChartError = "";
-        saveAxesError = "";
+        errors.chart.edit = "";
+        errors.axes.save = "";
       })
       .catch((e) => {
-        editChartError = e.body.toString();
+        errors.chart.edit = e.body.toString();
       });
   };
 
@@ -268,20 +277,20 @@
     deleteChart(dashboard, c)
       .then(() => {
         loadCharts();
-        editChartError = "";
+        errors.chart.edit = "";
       })
       .catch((e) => {
-        editChartError = e.body.toString();
+        errors.chart.edit = e.body.toString();
       });
   };
 
   const saveChartWithAxisFields = (chart: Chart, axes: AxisField[]) => {
     let chartPromise = patchChart(dashboard, chart)
       .then(() => {
-        saveChartError = "";
+        errors.chart.save = "";
       })
       .catch((e) => {
-        saveChartError = e.body.toString();
+        errors.chart.save = e.body.toString();
         throw Error();
       });
     let axisPromise = putAxes(
@@ -290,10 +299,10 @@
       axes.map((af) => af.axis),
     )
       .then(() => {
-        saveAxesError = "";
+        errors.axes.save = "";
       })
       .catch((e) => {
-        saveAxesError = e.body.toString();
+        errors.axes.save = e.body.toString();
         throw Error();
       });
 
@@ -346,8 +355,8 @@
           >
         {/if}
       </div>
-      {#if saveDashboardError}
-        <p class="text-red-500">{saveDashboardError}</p>
+      {#if errors.dashboard.save}
+        <p class="text-red-500">{errors.dashboard.save}</p>
       {/if}
     </div>
   {/if}
@@ -391,8 +400,8 @@
               }}
             />
           {/if}
-          {#if editChartError}
-            <p class="text-red-500">{editChartError}</p>
+          {#if errors.chart.edit}
+            <p class="text-red-500">{errors.chart.edit}</p>
           {/if}
         </div>
       {:else}
@@ -402,8 +411,8 @@
           </div>
         {/if}
       {/each}
-      {#if createChartError}
-        <p class="text-red-500">Error: {createChartError}</p>
+      {#if errors.chart.create}
+        <p class="text-red-500">Error: {errors.chart.create}</p>
       {/if}
     {/if}
     {#if editMode === EditMode.DASH}
@@ -481,7 +490,7 @@
   {/if}
 {:else}
   <input class="mb-2" bind:value={charts[curChartIdx].name} />
-  <p class="text-red-500">{saveChartError}</p>
+  <p class="text-red-500">{errors.chart.save}</p>
   <div class="flex gap-3">
     {#each editedAxisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">
@@ -547,5 +556,5 @@
       >Cancel</button
     >
   </div>
-  {#if saveAxesError}<p class="text-red-500">{saveAxesError}</p>{/if}
+  {#if errors.axes.save}<p class="text-red-500">{errors.axes.save}</p>{/if}
 {/if}

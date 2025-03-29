@@ -76,7 +76,7 @@
     }
 
     modeDisplay();
-    fieldErrors = {};
+    errors.fields = {};
   };
 
   const insertEntry = () => {
@@ -85,6 +85,16 @@
   };
 
   const editEntry = modeEdit;
+
+  let errors: {
+    fields:
+      | {
+          [key: string]: string;
+        }
+      | string;
+  } = $state({
+    fields: {},
+  });
 
   //
   // Helper methods
@@ -255,7 +265,6 @@
     });
   };
 
-  let fieldErrors = $state({} as { [key: number]: string });
   const createEntry = () => {
     if (modeState.mode === TableMode.INSERT) {
       postEntry(table.table, table.entries[modeState.entry_idx])
@@ -265,7 +274,7 @@
         })
         .catch((e: APIError) => {
           if (e.status === 422) {
-            fieldErrors = e.body;
+            errors.fields = e.body;
           }
         });
     }
@@ -280,7 +289,7 @@
         })
         .catch((e: APIError) => {
           if (e.status === 422) {
-            fieldErrors = e.body;
+            errors.fields = e.body;
           }
         });
     }
@@ -371,14 +380,14 @@
                 }}
               >
                 <!-- Floating error bubble -->
-                {#if (modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT) && modeState.entry_idx === i && fieldErrors[field.field_id] !== undefined}
+                {#if (modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT) && modeState.entry_idx === i && errors.fields[field.field_id.toString()] !== undefined}
                   <div
                     class="absolute bottom-full inset-x-0 flex flex-col items-center"
                   >
                     <div
                       class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm"
                     >
-                      Error: {fieldErrors[field.field_id]}
+                      Error: {errors.fields[field.field_id.toString()]}
                     </div>
                     <svg width="20" height="10">
                       <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
