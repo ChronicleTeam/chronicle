@@ -468,81 +468,85 @@
   let optionalCheckboxStates = $state([] as boolean[][]);
 
   // modal-related variables
-  let showConfirmScreen = $state(false);
+  let showConfirmModal = $state(false);
 
-  let modalNewFieldLines = $derived(
-    changes.fields.added.map(
-      (f) => `${f.name} (${typeToStr(f.field_kind.type)})`,
-    ),
-  );
+  let modalLines: {
+    fields: {
+      removed: string[];
+      modified: {
+        nameAndType: string;
+        kind: string[];
+      }[];
+      added: string[];
+    };
+    subtables: {
+      removed: string[];
+      modified: string[];
+      added: string[];
+    };
+  } = $derived({
+    fields: {
+      removed: changes.fields.removed.map(
+        (f) => `${f.name} (${typeToStr(f.field_kind.type)})`,
+      ),
 
-  let modalModifiedFieldLines = $derived(
-    changes.fields.modified.map((f) => {
-      let old = table.old.fields.find(
-        (g) => g.field_id === f.field_id,
-      ) as Field;
+      modified: changes.fields.modified.map((f) => {
+        let old = table.old.fields.find(
+          (g) => g.field_id === f.field_id,
+        ) as Field;
 
-      // get all entries from old field kind
-      let oldEntries = Object.entries(old.field_kind);
+        // get all entries from old field kind
+        let oldEntries = Object.entries(old.field_kind);
 
-      // setup comparisons between old and new field to check for changes
-      let entries = Object.entries(f.field_kind).map((entry) => {
-        return [
-          entry[0],
-          [
-            (oldEntries.find((o) => o[0] === entry[0]) ?? [
-              undefined,
-              undefined,
-            ])[1],
-            entry[1],
-          ],
-        ];
-      });
+        // setup comparisons between old and new field to check for changes
+        let entries = Object.entries(f.field_kind).map((entry) => {
+          return [
+            entry[0],
+            [
+              (oldEntries.find((o) => o[0] === entry[0]) ?? [
+                undefined,
+                undefined,
+              ])[1],
+              entry[1],
+            ],
+          ];
+        });
 
-      // add keys from old field that not in new field
-      entries.push(
-        ...oldEntries
-          .filter((o) => entries.findIndex((e) => e[0] === o[0]) === -1)
-          .map((o) => [o[0], [o[1], undefined]]),
-      );
+        // add keys from old field that not in new field
+        entries.push(
+          ...oldEntries
+            .filter((o) => entries.findIndex((e) => e[0] === o[0]) === -1)
+            .map((o) => [o[0], [o[1], undefined]]),
+        );
 
-      return {
-        nameAndType:
-          f.name !== old.name || f.field_kind.type !== old.field_kind.type
-            ? `${old.name} (${typeToStr(old.field_kind.type)}) -> ${f.name} (${typeToStr(f.field_kind.type)})`
-            : "",
-        kind: entries
-          .filter((e) => e[0] !== "type")
-          .filter((e) => !recursiveCompare(e[1][0], e[1][1]))
-          .filter((e) => !(e[1][0] == null && e[1][1] == null)) // check if both nullish
-          .map(
-            (e) =>
-              `${f.name} [${e[0]}] ${e[1][0] ?? "[Empty]"} -> ${e[1][1] ?? "[Empty]"}`,
-          ),
-      };
-    }),
-  );
-
-  let modalDeletedFieldLines = $derived(
-    changes.fields.removed.map(
-      (f) => `${f.name} (${typeToStr(f.field_kind.type)})`,
-    ),
-  );
-
-  let modalNewSubtableLines = $derived(
-    changes.subtables.added.map((t) => t.table.name),
-  );
-
-  let modalModifiedSubtableLines = $derived(
-    changes.subtables.modified.map(
-      (t) =>
-        `${table.old.children.find((u) => u.table.table_id === t.table.table_id)} -> ${t.table.table_id}`,
-    ),
-  );
-
-  let modalDeletedSubtableLines = $derived(
-    changes.subtables.removed.map((t) => t.table.name),
-  );
+        return {
+          nameAndType:
+            f.name !== old.name || f.field_kind.type !== old.field_kind.type
+              ? `${old.name} (${typeToStr(old.field_kind.type)}) -> ${f.name} (${typeToStr(f.field_kind.type)})`
+              : "",
+          kind: entries
+            .filter((e) => e[0] !== "type")
+            .filter((e) => !recursiveCompare(e[1][0], e[1][1]))
+            .filter((e) => !(e[1][0] == null && e[1][1] == null)) // check if both nullish
+            .map(
+              (e) =>
+                `${f.name} [${e[0]}] ${e[1][0] ?? "[Empty]"} -> ${e[1][1] ?? "[Empty]"}`,
+            ),
+        };
+      }),
+      added: changes.fields.added.map(
+        (f) => `${f.name} (${typeToStr(f.field_kind.type)})`,
+      ),
+    },
+    subtables: {
+      removed: changes.subtables.removed.map((t) => t.table.name),
+      modified: changes.subtables.modified.map(
+        (t) =>
+          `${table.old.children.find((u) => u.table.table_id === t.table.table_id)} -> ${t.table.table_id}`,
+      ),
+      added: changes.subtables.added.map((t) => t.table.name),
+    },
+  });
 
   //
   // State methods
@@ -654,7 +658,7 @@
 
   // opens the "Edit Summary" modal
   const openConfirmationModal = () => {
-    showConfirmScreen = true;
+    showConfirmModal = true;
   };
 
   //
@@ -841,7 +845,7 @@
   const saveFields = () => {
     let promises = [];
 
-    showConfirmScreen = false;
+    showConfirmModal = false;
 
     // modify table name/description
     if (
@@ -1195,7 +1199,7 @@
 <div
   class={[
     "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center",
-    !showConfirmScreen && "hidden",
+    !showConfirmModal && "hidden",
   ]}
 >
   <div class="bg-white rounded-lg p-3">
@@ -1215,12 +1219,12 @@
     {/if}
 
     <!-- Added fields -->
-    {#each modalNewFieldLines as line}
+    {#each modalLines.fields.added as line}
       <p><span class="font-bold">Added Field:</span> {line}</p>
     {/each}
 
     <!-- Modified fields -->
-    {#each modalModifiedFieldLines as moddedField}
+    {#each modalLines.fields.modified as moddedField}
       {#if moddedField.nameAndType}
         <p>
           <span class="font-bold">Change Field:</span>
@@ -1233,7 +1237,7 @@
     {/each}
 
     <!-- Deleted fields -->
-    {#each modalDeletedFieldLines as line}
+    {#each modalLines.fields.removed as line}
       <p>
         <span class="font-bold text-red-500">[!]</span>
         <span class="font-bold">Delete Field:</span>
@@ -1242,17 +1246,17 @@
     {/each}
 
     <!-- Added subtables -->
-    {#each modalNewSubtableLines as line}
+    {#each modalLines.subtables.added as line}
       <p><span class="font-bold">Added Subtable:</span> {line}</p>
     {/each}
 
     <!-- Modified subtables -->
-    {#each modalModifiedSubtableLines as line}
+    {#each modalLines.subtables.modified as line}
       <p><span class="font-bold">Change Subtable:</span> {line}</p>
     {/each}
 
     <!-- Deleted subtables -->
-    {#each modalDeletedSubtableLines as line}
+    {#each modalLines.subtables.removed as line}
       <p>
         <span class="font-bold text-red-500">[!]</span>
         <span class="font-bold">Delete Field:</span>
@@ -1269,7 +1273,7 @@
       <button
         class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
         onclick={() => {
-          showConfirmScreen = false;
+          showConfirmModal = false;
         }}>Cancel</button
       >
     </div>
