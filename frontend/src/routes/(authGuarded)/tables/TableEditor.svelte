@@ -311,6 +311,7 @@
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
       onclick={() => {
         tableMode = TableMode.DISPLAY;
+        loadTable();
       }}>Back to <span class="font-bold">{table.table.name}</span></button
     >
     <h2 class="text-lg font-bold">{childTable.table.table.name}</h2>
@@ -421,33 +422,6 @@
                   }
                 }}
               >
-                <!-- Floating error bubble
-                {#if editableEntry === i && fieldErrors[field.field_id] !== undefined}
-                  <div
-                    class="absolute bottom-full inset-x-0 flex flex-col items-center"
-                  >
-                    <div
-                      class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm"
-                    >
-                      Error: {fieldErrors[field.field_id]}
-                    </div>
-                    <svg width="20" height="10">
-                      <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
-                    </svg>
-                  </div>
-                {/if}
-                -->
-
-                <!-- Table cell
-                <VariableInput
-                  disabled={i !== editableEntry}
-                  class={[
-                    "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
-                    editableEntry === i ? "bg-blue-200" : "bg-white",
-                  ]}
-                  params={cellToInputParams(i, field)}
-                />
--->
                 <p>
                   {child.entries.filter((e) => e.parent_id === entry.entry_id)
                     .length} entries
