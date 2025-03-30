@@ -19,5 +19,5 @@ jobs:
           extra-args: --allow-dirty --debug
           secrets: |
             ALLOWED_ORIGIN = '${{ secrets.ALLOWED_ORIGIN }}'
-            TEST_USERNAME = '${{ secrets.TEST_USERNAME }}'
-            TEST_PASSWORD = '${{ secrets.TEST_PASSWORD }}'
+            ADMIN_USERNAME = '${{ secrets.ADMIN_USERNAME }}'
+            ADMIN_PASSWORD = '${{ secrets.ADMIN_PASSWORD }}'
