@@ -12,37 +12,41 @@
 
   let curDash: Dashboard | null = $state(null);
 
+  let errors = $state({
+    dashboard: {
+      add: "",
+      remove: "",
+    },
+  });
+
   let addDashMode = $state(false);
   let addDashName = $state("");
-  let addDashError = $state("");
   const addDashboard = (name: string) =>
     postDashboard(name)
       .then(() => {
         addDashMode = false;
         asyncDashboards = getDashboards();
         addDashName = "";
-        addDashError = "";
+        errors.dashboard.add = "";
       })
       .catch((e: APIError) => {
-        addDashError = "Error: " + (e.body as { [key: string]: string }).name;
+        errors.dashboard.add =
+          "Error: " + (e.body as { [key: string]: string }).name;
       });
 
-  let removeDashboardError = $state("");
   const removeDashboard = () => {
     if (curDash) {
       deleteDashboard(curDash)
         .then(() => {
           asyncDashboards = getDashboards();
           curDash = null;
-          removeDashboardError = "";
+          errors.dashboard.remove = "";
         })
         .catch((e) => {
-          removeDashboardError = e.body.toString();
+          errors.dashboard.remove = e.body.toString();
         });
     }
   };
-
-  $inspect(curDash);
 </script>
 
 <div class="flex flex-wrap gap-4 size-full items-stretch">
@@ -91,7 +95,7 @@
 
           <button
             onclick={() => {
-              addDashError = "";
+              errors.dashboard.add = "";
               addDashName = "";
               addDashMode = false;
             }}
@@ -107,8 +111,8 @@
           class="text-center w-full">Add Dashboard</button
         >
       {/if}
-      {#if addDashError !== ""}
-        <p class="text-red-500">{addDashError}</p>
+      {#if errors.dashboard.add !== ""}
+        <p class="text-red-500">{errors.dashboard.add}</p>
       {/if}
     </div>
   </div>
@@ -121,8 +125,8 @@
     {:else}
       {#key curDash}
         <DashboardEditor dashboard={curDash} {removeDashboard} />
-        {#if removeDashboardError}
-          <p class=" text-red-500">{removeDashboardError}</p>
+        {#if errors.dashboard.remove}
+          <p class=" text-red-500">{errors.dashboard.remove}</p>
         {/if}
       {/key}
     {/if}

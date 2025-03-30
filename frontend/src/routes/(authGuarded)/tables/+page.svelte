@@ -28,26 +28,32 @@
   let addTableMode = $state(false);
   let addTableField = $state("");
 
+  let errors = $state({
+    table: {
+      add: "",
+      delete: "",
+    },
+  });
+
   //
   // API Calls
   //
 
   let asyncTables: Promise<Table[]> = $state(getTables());
 
-  let addTableError = $state("");
   const addTable = (name: string) =>
     postTable({ name, description: "", table_id: -1, user_id: -1 })
       .then(() => {
         addTableMode = false;
         asyncTables = getTables();
-        addTableError = "";
+        errors.table.add = "";
         addTableField = "";
       })
       .catch((e: APIError) => {
-        addTableError = "Error: " + (e.body as { [key: string]: string }).name;
+        errors.table.add =
+          "Error: " + (e.body as { [key: string]: string }).name;
       });
 
-  let deleteTableError = $state("");
   const deleteCurTable = () => {
     if (curTable === null) {
       return;
@@ -57,11 +63,11 @@
       .then(() => {
         curTable = null;
         asyncTables = getTables();
-        deleteTableError = "";
+        errors.table.delete = "";
         editMode = EditMode.NONE;
       })
       .catch(() => {
-        deleteTableError = "An error occured.";
+        errors.table.delete = "An error occured.";
       });
   };
 </script>
@@ -107,7 +113,7 @@
 
           <button
             onclick={() => {
-              addTableError = "";
+              errors.table.add = "";
               addTableField = "";
               addTableMode = false;
             }}
@@ -123,8 +129,8 @@
           class="text-center w-full">Add Table</button
         >
       {/if}
-      {#if addTableError !== ""}
-        <p class="text-red-500">{addTableError}</p>
+      {#if errors.table.add !== ""}
+        <p class="text-red-500">{errors.table.add}</p>
       {/if}
     </div>
   </div>
@@ -153,8 +159,8 @@
         <TableEditor table_prop={curTable} />
       {/key}
       <!-- Error -->
-      {#if deleteTableError !== ""}
-        <p class="text-red-500">{deleteTableError}</p>
+      {#if errors.table.delete !== ""}
+        <p class="text-red-500">{errors.table.delete}</p>
       {/if}
     {:else if editMode === EditMode.FIELDS && curTable !== null}
       <!-- Field editor -->

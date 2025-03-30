@@ -26,6 +26,8 @@
     Aggregate,
   } from "$lib/types.d.js";
   import { onMount } from "svelte";
+  import type { ModeState } from "./types";
+  import { EditMode } from "./types";
 
   let {
     dashboard,
@@ -89,20 +91,35 @@
 
   const asyncTables = $state(getTables());
 
-  const EditMode = {
-    DISPLAY: 0,
-    DASH: 1,
-    CHART: 2,
-  };
-
   //
   // State
   //
 
-  let editMode = $state(EditMode.DISPLAY);
+  let modeState: ModeState = $state({ mode: EditMode.DISPLAY });
+  const modeDisplay = () => {
+    modeState = { mode: EditMode.DISPLAY };
+  };
+  const modeEditDash = () => {
+    modeState = {
+      mode: EditMode.EDIT_DASH,
+      metadataChanged: false,
+      newChart: null,
+    };
+  };
+  const modeEditChart = (
+    chartIdx: number,
+    chartTableData: TableData,
+    axisFields: AxisField[],
+  ) => {
+    modeState = {
+      mode: EditMode.EDIT_CHART,
+      chartIdx,
+      chartTableData,
+      axisFields,
+    };
+  };
 
   let charts: Chart[] = $state([]);
-  let loadChartError = $state("");
 
   let freeSpaces = $derived.by(() => {
     let out = [];
@@ -110,7 +127,9 @@
       for (let j = 1; j <= 1; j++) {
         if (
           !charts.some((c) => withinChart(i, j, c)) &&
-          (!newChart || !withinChart(i, j, newChart))
+          (!(modeState.mode === EditMode.EDIT_DASH) ||
+            !modeState.newChart ||
+            !withinChart(i, j, modeState.newChart))
         ) {
           out.push([i, j]);
         }
@@ -120,21 +139,37 @@
     return out;
   });
 
-  let newChart: Chart | null = $state(null);
-  let createChartError = $state("");
+  let errors: {
+    dashboard: {
+      save: string;
+    };
 
-  // chart being edited
-  let curChartIdx = $state(-1);
-  let editedAxisFields = $state([] as AxisField[]);
-  let curChartTableData: TableData | null = $state(null);
-  let editChartError = $state("");
+    chart: {
+      create: string;
+      edit: string;
+      save: string;
+      load: string;
+    };
 
-  let dashboardMetadataChanged = $state(false);
-  let saveDashboardError = $state("");
+    axes: {
+      save: { [key: string]: string };
+    };
+  } = $state({
+    dashboard: {
+      save: "",
+    },
 
-  let saveChartError = $state("");
-  let saveAxesError = $state("");
-  $inspect(editedAxisFields);
+    chart: {
+      create: "",
+      edit: "",
+      save: "",
+      load: "",
+    },
+
+    axes: {
+      save: {},
+    },
+  });
 
   //
   // Helper methods
@@ -158,16 +193,20 @@
   const blankAxis = (c: Chart): Axis => {
     let kinds = Object.values(AxisKind);
     let i = 0;
-    while (
-      editedAxisFields.some((af) => af.axis.axis_kind === kinds[i]) &&
-      i < kinds.length
-    ) {
-      i++;
+    if (modeState.mode === EditMode.EDIT_CHART) {
+      while (
+        modeState.axisFields.some((af) => af.axis.axis_kind === kinds[i]) &&
+        i < kinds.length
+      ) {
+        i++;
+      }
     }
 
     let j = -1;
-    while (editedAxisFields.some((af) => af.axis.axis_id === j)) {
-      j--;
+    if (modeState.mode === EditMode.EDIT_CHART) {
+      while (modeState.axisFields.some((af) => af.axis.axis_id === j)) {
+        j--;
+      }
     }
 
     return {
@@ -182,39 +221,40 @@
     c.x <= x && x < c.x + c.w && c.y <= y && y < c.y + c.h;
 
   const cancelCreateChart = () => {
-    newChart = null;
+    if (modeState.mode === EditMode.EDIT_DASH) {
+      modeState.newChart = null;
+    }
   };
 
   const cancelEditChart = () => {
-    editMode = EditMode.DISPLAY;
-    curChartIdx = -1;
-    editedAxisFields = [];
-    curChartTableData = null;
-    saveChartError = "";
-    saveAxesError = "";
-    dashboardMetadataChanged = false;
+    errors.chart.save = "";
+    errors.axes.save = {};
+    modeDisplay();
   };
 
   //
   // API
   //
 
-  const saveDashboard = () =>
+  const saveDashboard = () => {
     patchDashboard(dashboard)
       .then((r) => {
         dashboard.name = r.name;
         dashboard.description = r.description;
-        dashboardMetadataChanged = false;
-        saveDashboardError = "";
+        if (modeState.mode === EditMode.EDIT_DASH) {
+          modeState.metadataChanged = false;
+        }
+        errors.dashboard.save = "";
       })
       .catch((e) => {
-        saveDashboardError = e.body.toString();
+        errors.dashboard.save = e.body.toString();
       });
+  };
 
   const loadCharts = () =>
     getCharts(dashboard)
       .then((result: Chart[]) => {
-        loadChartError = "";
+        errors.chart.load = "";
         charts = result.map((c, i) => {
           c.x = i + 1;
           c.y = 1;
@@ -224,20 +264,20 @@
         });
       })
       .catch((e) => {
-        loadChartError = e.body.toString();
+        errors.chart.load = e.body.toString();
       });
 
   const createChart = () => {
-    if (newChart) {
-      postChart(dashboard, newChart)
+    if (modeState.mode === EditMode.EDIT_DASH && modeState.newChart) {
+      postChart(dashboard, modeState.newChart)
         .then(loadCharts)
         .then(cancelCreateChart)
         .then(() => {
-          createChartError = "";
-          editMode = EditMode.DISPLAY;
+          errors.chart.create = "";
+          modeDisplay();
         })
         .catch((e) => {
-          createChartError = e.body.toString();
+          errors.chart.create = e.body.toString();
         });
     }
   };
@@ -245,22 +285,22 @@
   const editChart = (c: Chart) => {
     getChartData(dashboard, c)
       .then(async (r) => {
-        editMode = EditMode.CHART;
-        curChartIdx = charts.findIndex((d) => d.chart_id === c.chart_id);
-        editedAxisFields = r.axes;
-        curChartTableData = await getTables().then((t) =>
-          getTableData(
-            t.find((table) => table.table_id === r.chart.table_id) as Table,
-          ).catch(() => null),
+        modeEditChart(
+          charts.findIndex((d) => d.chart_id === c.chart_id),
+          await getTables().then((t) =>
+            getTableData(
+              t.find((table) => table.table_id === r.chart.table_id) as Table,
+            ).catch(() => {
+              throw { body: "Could not get Chart data" };
+            }),
+          ),
+          r.axes,
         );
-        if (curChartTableData === null)
-          throw { body: "Could not get Chart data" };
-
-        editChartError = "";
-        saveAxesError = "";
+        errors.chart.edit = "";
+        errors.axes.save = {};
       })
       .catch((e) => {
-        editChartError = e.body.toString();
+        errors.chart.edit = e.body.toString();
       });
   };
 
@@ -268,20 +308,20 @@
     deleteChart(dashboard, c)
       .then(() => {
         loadCharts();
-        editChartError = "";
+        errors.chart.edit = "";
       })
       .catch((e) => {
-        editChartError = e.body.toString();
+        errors.chart.edit = e.body.toString();
       });
   };
 
   const saveChartWithAxisFields = (chart: Chart, axes: AxisField[]) => {
     let chartPromise = patchChart(dashboard, chart)
       .then(() => {
-        saveChartError = "";
+        errors.chart.save = "";
       })
       .catch((e) => {
-        saveChartError = e.body.toString();
+        errors.chart.save = e.body.toString();
         throw Error();
       });
     let axisPromise = putAxes(
@@ -290,10 +330,10 @@
       axes.map((af) => af.axis),
     )
       .then(() => {
-        saveAxesError = "";
+        errors.axes.save = {};
       })
       .catch((e) => {
-        saveAxesError = e.body.toString();
+        errors.axes.save = e.body;
         throw Error();
       });
 
@@ -311,26 +351,30 @@
   });
 </script>
 
-{#if editMode === EditMode.DISPLAY || editMode === EditMode.DASH}
-  {#if editMode === EditMode.DISPLAY}
+{#if modeState.mode === EditMode.DISPLAY || modeState.mode === EditMode.EDIT_DASH}
+  {#if modeState.mode === EditMode.DISPLAY}
     <div class="flex flex-col items-center">
       <h2 class="font-bold text-xl">{dashboard.name}</h2>
       <p>{dashboard.description}</p>
     </div>
-  {:else if editMode === EditMode.DASH}
+  {:else if modeState.mode === EditMode.EDIT_DASH}
     <div class="flex flex-col items-center">
       <input
         bind:value={() => dashboard.name,
         (s) => {
-          dashboardMetadataChanged = true;
-          dashboard.name = s;
+          if (modeState.mode === EditMode.EDIT_DASH) {
+            modeState.metadataChanged = true;
+            dashboard.name = s;
+          }
         }}
       />
       <input
         bind:value={() => dashboard.description,
         (s) => {
-          dashboardMetadataChanged = true;
-          dashboard.description = s;
+          if (modeState.mode === EditMode.EDIT_DASH) {
+            modeState.metadataChanged = true;
+            dashboard.description = s;
+          }
         }}
       />
       <div class="flex gap-2">
@@ -339,21 +383,21 @@
           confirmText="Confirm Delete"
           onconfirm={removeDashboard}
         />
-        {#if dashboardMetadataChanged}
+        {#if modeState.metadataChanged}
           <button
             class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
             onclick={saveDashboard}>Save Title and Description</button
           >
         {/if}
       </div>
-      {#if saveDashboardError}
-        <p class="text-red-500">{saveDashboardError}</p>
+      {#if errors.dashboard.save}
+        <p class="text-red-500">{errors.dashboard.save}</p>
       {/if}
     </div>
   {/if}
   <div class="grid grid-cols-4 grid-rows-1 gap-2">
-    {#if loadChartError}
-      <p class="text-red-500">{loadChartError}</p>
+    {#if errors.chart.load}
+      <p class="text-red-500">{errors.chart.load}</p>
     {:else}
       {#each charts as chart}
         <div
@@ -376,12 +420,12 @@
             <p>Source Table: <span class="text-red-500">(Not Found)</span></p>
           {/await}
           <ChartComponent {dashboard} {chart} />
-          {#if editMode === EditMode.DISPLAY}
+          {#if modeState.mode === EditMode.DISPLAY}
             <button
               class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
               onclick={() => editChart(chart)}>Edit</button
             >
-          {:else if editMode === EditMode.DASH}
+          {:else if modeState.mode === EditMode.EDIT_DASH}
             <ConfirmButton
               class="mt-auto rounded"
               initText="Delete"
@@ -391,39 +435,39 @@
               }}
             />
           {/if}
-          {#if editChartError}
-            <p class="text-red-500">{editChartError}</p>
+          {#if errors.chart.edit}
+            <p class="text-red-500">{errors.chart.edit}</p>
           {/if}
         </div>
       {:else}
-        {#if editMode === EditMode.DISPLAY}
+        {#if modeState.mode === EditMode.DISPLAY}
           <div class="flex justify-center items-center">
             <p>No Charts.</p>
           </div>
         {/if}
       {/each}
-      {#if createChartError}
-        <p class="text-red-500">Error: {createChartError}</p>
+      {#if errors.chart.create}
+        <p class="text-red-500">Error: {errors.chart.create}</p>
       {/if}
     {/if}
-    {#if editMode === EditMode.DASH}
-      {#if newChart}
+    {#if modeState.mode === EditMode.EDIT_DASH}
+      {#if modeState.newChart}
         <div
           class={[
             "rounded-lg bg-gray-100 flex flex-col gap-3 p-3 ",
-            col_start[newChart.x],
-            row_start[newChart.y],
-            col_span[newChart.w],
-            row_span[newChart.h],
+            col_start[modeState.newChart.x],
+            row_start[modeState.newChart.y],
+            col_span[modeState.newChart.w],
+            row_span[modeState.newChart.h],
           ]}
         >
-          <input bind:value={newChart.name} />
-          <select bind:value={newChart.chart_kind}>
+          <input bind:value={modeState.newChart.name} />
+          <select bind:value={modeState.newChart.chart_kind}>
             {#each Object.values(ChartKind) as kind}
               <option>{kind}</option>
             {/each}
           </select>
-          <select bind:value={newChart.table_id}>
+          <select bind:value={modeState.newChart.table_id}>
             {#await asyncTables}
               <option value={undefined}>Loading...</option>
             {:then tables}
@@ -454,52 +498,54 @@
             row_start[space[1]],
           ]}
           onclick={() => {
-            newChart = blankChart(space[0], space[1], 1, 1);
+            if (modeState.mode === EditMode.EDIT_DASH) {
+              modeState.newChart = blankChart(space[0], space[1], 1, 1);
+            }
           }}>+</button
         >
       {/each}
     {/if}
   </div>
-  {#if editMode === EditMode.DISPLAY}
+  {#if modeState.mode === EditMode.DISPLAY}
     <div class="flex justify-center my-2">
       <button
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         onclick={() => {
-          editMode = EditMode.DASH;
+          modeEditDash();
         }}>Edit</button
       >
     </div>
-  {:else if editMode === EditMode.DASH}
+  {:else if modeState.mode === EditMode.EDIT_DASH}
     <div class="flex justify-center my-2">
       <button
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         onclick={() => {
-          editMode = EditMode.DISPLAY;
+          modeDisplay();
         }}>Back</button
       >
     </div>
   {/if}
-{:else}
-  <input class="mb-2" bind:value={charts[curChartIdx].name} />
-  <p class="text-red-500">{saveChartError}</p>
+{:else if modeState.mode === EditMode.EDIT_CHART}
+  <input class="mb-2" bind:value={charts[modeState.chartIdx].name} />
+  <p class="text-red-500">{errors.chart.save}</p>
   <div class="flex gap-3">
-    {#each editedAxisFields as axis, i}
+    {#each modeState.axisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">
         <div class="flex mb-2 gap-2">
           <p>Field:</p>
-          <select bind:value={editedAxisFields[i].axis.field_id}>
-            {#if curChartTableData}
-              {#each curChartTableData.fields as field}
+          <select bind:value={modeState.axisFields[i].axis.field_id}>
+            {#if modeState.chartTableData}
+              {#each modeState.chartTableData.fields as field}
                 <option value={field.field_id}>{field.name}</option>
               {/each}
             {/if}
           </select>
         </div>
-        {#if charts[curChartIdx].chart_kind !== ChartKind.Table}
+        {#if charts[modeState.chartIdx].chart_kind !== ChartKind.Table}
           <div class="flex gap-2">
             <p>Kind:</p>
-            <select bind:value={editedAxisFields[i].axis.axis_kind}>
-              {#each Object.values(AxisKind).filter((ak) => !editedAxisFields.some((af) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id)) as kind}
+            <select bind:value={modeState.axisFields[i].axis.axis_kind}>
+              {#each Object.values(AxisKind).filter( (ak) => (modeState.mode === EditMode.EDIT_CHART ? !modeState.axisFields.some((af: AxisField) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id) : true), ) as kind}
                 <option>{kind}</option>
               {/each}
             </select>
@@ -507,7 +553,7 @@
         {/if}
         <div class="flex gap-2">
           <p>Aggregate:</p>
-          <select bind:value={editedAxisFields[i].axis.aggregate}>
+          <select bind:value={modeState.axisFields[i].axis.aggregate}>
             <option value={null}>None</option>
             {#each Object.values(Aggregate) as agg}
               <option>{agg}</option>
@@ -517,28 +563,44 @@
         <ConfirmButton
           initText="Delete"
           confirmText="Confirm Delete"
-          onconfirm={() => editedAxisFields.splice(i, 1)}
+          onconfirm={() => {
+            if (modeState.mode === EditMode.EDIT_CHART) {
+              modeState.axisFields.splice(i, 1);
+            }
+          }}
         />
+        {#if errors.axes.save[axis.axis.axis_id.toString()]}<p
+            class="text-red-500"
+          >
+            {errors.axes.save[axis.axis.axis_id.toString()]}
+          </p>{/if}
       </div>
     {/each}
   </div>
   <div class="flex gap-2">
-    {#if editedAxisFields.length < Object.values(AxisKind).length || charts[curChartIdx].chart_kind === ChartKind.Table}
+    {#if modeState.axisFields.length < Object.values(AxisKind).length || charts[modeState.chartIdx].chart_kind === ChartKind.Table}
       <button
         class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
         onclick={() => {
-          editedAxisFields.push({
-            axis: blankAxis(charts[curChartIdx]),
-            field_name: "",
-            field_kind: null as unknown as FieldKind,
-          });
+          if (modeState.mode === EditMode.EDIT_CHART) {
+            modeState.axisFields.push({
+              axis: blankAxis(charts[modeState.chartIdx]),
+              field_name: "",
+              field_kind: null as unknown as FieldKind,
+            });
+          }
         }}>Add Axis</button
       >
     {/if}
     <button
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
       onclick={() => {
-        saveChartWithAxisFields(charts[curChartIdx], editedAxisFields);
+        if (modeState.mode === EditMode.EDIT_CHART) {
+          saveChartWithAxisFields(
+            charts[modeState.chartIdx],
+            modeState.axisFields,
+          );
+        }
       }}>Save</button
     >
     <button
@@ -547,5 +609,4 @@
       >Cancel</button
     >
   </div>
-  {#if saveAxesError}<p class="text-red-500">{saveAxesError}</p>{/if}
 {/if}
