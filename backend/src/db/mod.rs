@@ -8,9 +8,10 @@
 
 mod data;
 mod viz;
+mod users;
 
 use crate::error::{ApiError, ApiResult};
-pub use {data::*, viz::*};
+pub use {data::*, viz::*, users::*};
 
 pub enum Relation {
     Owned,

@@ -1,50 +1,9 @@
-use crate::Id;
-use axum_login::{AuthUser, AuthnBackend, UserId};
+use axum_login::{AuthnBackend, UserId};
 use password_auth::{generate_hash, verify_password};
-use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool};
+use sqlx::PgPool;
 use tokio::task;
 
-#[derive(Clone, Serialize, Deserialize, FromRow)]
-pub struct User {
-    user_id: Id,
-    pub username: String,
-    password_hash: String,
-}
-
-impl std::fmt::Debug for User {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("User")
-            .field("user_id", &self.user_id)
-            .field("username", &self.username)
-            .field("password_hash", &"[redacted]")
-            .finish()
-    }
-}
-
-impl AuthUser for User {
-    type Id = Id;
-
-    fn id(&self) -> Self::Id {
-        self.user_id
-    }
-
-    fn session_auth_hash(&self) -> &[u8] {
-        // We use the password hash as the auth
-        // hash--what this means
-        // is when the user changes their password the
-        // auth session becomes invalid.
-        self.password_hash.as_bytes()
-    }
-}
-
-// This allows us to extract the authentication fields from forms. We use this
-// to authenticate requests with the backend.
-#[derive(Debug, Clone, Deserialize)]
-pub struct Credentials {
-    pub username: String,
-    pub password: String,
-}
+use crate::{model::users::{Credentials, User, UserRole}, Id};
 
 #[derive(Debug, Clone)]
 pub struct Backend {
@@ -83,7 +42,8 @@ impl Backend {
             RETURNING
                 user_id,
                 username,
-                password_hash
+                password_hash,
+                role
             "#,
         )
         .bind(creds.username)
@@ -95,7 +55,35 @@ impl Backend {
 
         Ok(user)
     }
+
+    pub async fn set_role(&mut self, user_id: Id, role: UserRole) -> sqlx::Result<User> {
+
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = self.pool.begin().await?;
+
+        let user = sqlx::query_as(
+            r#"
+            UPDATE app_user
+            SET role = $1
+            WHERE user_id = $2
+            RETURNING
+                user_id,
+                username,
+                password_hash,
+                role
+            "#,
+        )
+        .bind(role)
+        .bind(user_id)
+        .fetch_one(tx.as_mut())
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(user)
+    }
 }
+
+
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -121,7 +109,8 @@ impl AuthnBackend for Backend {
             SELECT
                 user_id,
                 username,
-                password_hash
+                password_hash,
+                role
             FROM app_user
             WHERE username = $1
         "#,
@@ -146,7 +135,8 @@ impl AuthnBackend for Backend {
             SELECT
                 user_id,
                 username,
-                password_hash
+                password_hash,
+                role
             FROM app_user
             WHERE user_id = $1",
         )
@@ -158,7 +148,4 @@ impl AuthnBackend for Backend {
     }
 }
 
-// We use a type alias for convenience.
-//
-// Note that we've supplied our concrete backend here.
 pub type AuthSession = axum_login::AuthSession<Backend>;

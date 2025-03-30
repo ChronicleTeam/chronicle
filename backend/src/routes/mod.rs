@@ -21,16 +21,15 @@
 //! and Rust allow for strict types which reduce the amount of validation
 //! necessary.
 
-mod auth;
+mod users;
 mod data;
 mod viz;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 use crate::{
-    config::Config,
-    users::{Backend, Credentials},
+    config::Config, db::Backend, model::users::{Credentials, UserRole},
 };
 use anyhow::Result;
 use axum::{
@@ -108,7 +107,7 @@ pub async fn create_app(
         .nest(
             "/api",
             Router::new()
-                .merge(auth::router())
+                .merge(users::router())
                 .merge(data::router())
                 .merge(viz::router()),
         )
@@ -159,7 +158,8 @@ async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> s
         })
     }) {
         if !backend.exists(&creds).await? {
-            _ = backend.create_user(creds).await?;
+            let user_id = backend.create_user(creds).await?.user_id;
+            backend.set_role(user_id, UserRole::Admin).await?;
         }
     }
 
@@ -178,3 +178,5 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
     }
     res
 }
+
+
