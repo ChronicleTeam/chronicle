@@ -139,7 +139,22 @@
     return out;
   });
 
-  let errors = $state({
+  let errors: {
+    dashboard: {
+      save: string;
+    };
+
+    chart: {
+      create: string;
+      edit: string;
+      save: string;
+      load: string;
+    };
+
+    axes: {
+      save: { [key: string]: string };
+    };
+  } = $state({
     dashboard: {
       save: "",
     },
@@ -152,7 +167,7 @@
     },
 
     axes: {
-      save: "",
+      save: {},
     },
   });
 
@@ -213,7 +228,7 @@
 
   const cancelEditChart = () => {
     errors.chart.save = "";
-    errors.axes.save = "";
+    errors.axes.save = {};
     modeDisplay();
   };
 
@@ -282,7 +297,7 @@
           r.axes,
         );
         errors.chart.edit = "";
-        errors.axes.save = "";
+        errors.axes.save = {};
       })
       .catch((e) => {
         errors.chart.edit = e.body.toString();
@@ -315,10 +330,10 @@
       axes.map((af) => af.axis),
     )
       .then(() => {
-        errors.axes.save = "";
+        errors.axes.save = {};
       })
       .catch((e) => {
-        errors.axes.save = e.body.toString();
+        errors.axes.save = e.body;
         throw Error();
       });
 
@@ -554,6 +569,11 @@
             }
           }}
         />
+        {#if errors.axes.save[axis.axis.axis_id.toString()]}<p
+            class="text-red-500"
+          >
+            {errors.axes.save[axis.axis.axis_id.toString()]}
+          </p>{/if}
       </div>
     {/each}
   </div>
@@ -589,5 +609,4 @@
       >Cancel</button
     >
   </div>
-  {#if errors.axes.save}<p class="text-red-500">{errors.axes.save}</p>{/if}
 {/if}
