@@ -11,6 +11,7 @@
 
 pub mod data;
 pub mod viz;
+pub mod users;
 
 use chrono::{DateTime, Utc};
 use data::FieldKind;

@@ -1,12 +1,11 @@
 use crate::{
-    db, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, routes::ApiState, users::AuthSession, Id
+    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, routes::ApiState, Id
 };
 use axum::{
     extract::{Path, State},
     routing::{patch, post},
     Json, Router,
 };
-use axum_login::AuthUser;
 
 // const DASHBOARD_NAME_CONFLICT: ErrorMessage =
 //     ErrorMessage::new_static("name", "Dashboard name already used");
@@ -28,7 +27,7 @@ async fn create_dashboard(
     State(ApiState { pool, .. }): State<ApiState>,
     Json(create_dashboard): Json<CreateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let dashboard = db::create_dashboard(&pool, user_id, create_dashboard).await?;
 
@@ -41,7 +40,7 @@ async fn update_dashboard(
     Path(dashboard_id): Path<Id>,
     Json(update_dashboard): Json<UpdateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -57,7 +56,7 @@ async fn delete_dashboard(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -72,7 +71,7 @@ async fn get_dashboards(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
 ) -> ApiResult<Json<Vec<Dashboard>>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let dashboards = db::get_dashboards(&pool, user_id).await?;
 

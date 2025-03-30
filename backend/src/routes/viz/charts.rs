@@ -1,12 +1,11 @@
 use crate::{
-    db, error::{ApiError, ApiResult}, model::viz::{Chart, ChartData, CreateChart, UpdateChart}, routes::ApiState, users::AuthSession, Id
+    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::viz::{Chart, ChartData, CreateChart, UpdateChart}, routes::ApiState, Id
 };
 use axum::{
     extract::{Path, State},
     routing::{get, patch, post},
     Json, Router,
 };
-use axum_login::AuthUser;
 
 pub fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -24,7 +23,7 @@ async fn create_chart(
     Path(dashboard_id): Path<Id>,
     Json(create_chart): Json<CreateChart>,
 ) -> ApiResult<Json<Chart>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -44,7 +43,7 @@ async fn update_chart(
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(update_chart): Json<UpdateChart>,
 ) -> ApiResult<Json<Chart>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -63,7 +62,7 @@ async fn delete_chart(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -82,7 +81,7 @@ async fn get_charts(
     State(ApiState { pool, .. }): State<ApiState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Chart>>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
@@ -100,7 +99,7 @@ async fn get_chart_data(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<Json<ChartData>> {
-    let user_id = user.ok_or(ApiError::Forbidden)?.id();
+    let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?

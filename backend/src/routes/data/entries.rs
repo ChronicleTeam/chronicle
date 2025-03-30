@@ -1,16 +1,15 @@
 use super::ApiState;
 use crate::{
-    db, error::{ApiError, ApiResult}, model::{
+    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::{
         data::{CreateEntry, Entry, FieldKind, FieldMetadata, UpdateEntry},
         Cell,
-    }, users::AuthSession, Id
+    }, Id
 };
 use axum::{
     extract::{Path, State},
     routing::{patch, post},
     Json, Router,
 };
-use axum_login::AuthUser;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
@@ -50,7 +49,7 @@ async fn create_entry(
     Path(table_id): Path<Id>,
     Json(create_entry): Json<CreateEntry>,
 ) -> ApiResult<Json<Entry>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -90,7 +89,7 @@ async fn update_entry(
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry { cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -120,7 +119,7 @@ async fn delete_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     
     db::check_table_relation(&pool, user_id, table_id)
         .await?

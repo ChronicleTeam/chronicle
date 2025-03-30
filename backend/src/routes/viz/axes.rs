@@ -1,15 +1,14 @@
 use crate::{
-    db, error::{ApiError, ApiResult}, model::{
+    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::{
         data::FieldKind,
         viz::{Aggregate, Axis, SetAxes},
-    }, routes::ApiState, users::AuthSession, Id
+    }, routes::ApiState, Id
 };
 use axum::{
     extract::{Path, State},
     routing::put,
     Json, Router,
 };
-use axum_login::AuthUser;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -29,7 +28,7 @@ async fn set_axes(
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(SetAxes(axes)): Json<SetAxes>,
 ) -> ApiResult<Json<Vec<Axis>>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_dashboard_relation(&pool, user_id, dashboard_id)
         .await?
