@@ -21,5 +21,3 @@ jobs:
             ALLOWED_ORIGIN = '${{ secrets.ALLOWED_ORIGIN }}'
             TEST_USERNAME = '${{ secrets.TEST_USERNAME }}'
             TEST_PASSWORD = '${{ secrets.TEST_PASSWORD }}'
-            DEFAULT_USERNAME = '${{ secrets.DEFAULT_USERNAME }}'
-            DEFAULT_PASSWORD = '${{ secrets.DEFAULT_PASSWORD }}'
