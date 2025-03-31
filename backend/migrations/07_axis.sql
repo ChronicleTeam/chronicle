@@ -1,3 +1,6 @@
+/*
+Types of aggregate functions for an axis.
+*/
 CREATE TYPE aggregate AS ENUM (
     'Sum',
     'Average',
@@ -6,6 +9,9 @@ CREATE TYPE aggregate AS ENUM (
     'Count'
 );
 
+/*
+Kind of axis. Behavior depends on the chart_kind.
+*/
 CREATE TYPE axis_kind AS ENUM (
     'X',
     'Y',
@@ -15,7 +21,9 @@ CREATE TYPE axis_kind AS ENUM (
     'Label'
 );
 
-
+/*
+An axis in a chart. Represents a column in the actual SQL view.
+*/
 CREATE TABLE axis (
     axis_id SERIAL PRIMARY KEY,
     chart_id INT NOT NULL REFERENCES chart(chart_id) ON DELETE CASCADE,

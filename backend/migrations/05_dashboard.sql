@@ -1,3 +1,6 @@
+/*
+A dashboard containing many charts.
+*/
 CREATE TABLE dashboard (
     dashboard_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES app_user(user_id),
@@ -12,4 +15,7 @@ SELECT trigger_updated_at('dashboard');
 
 SELECT trigger_rename_duplicate('dashboard', 'dashboard_id', 'user_id');
 
+/*
+All dynamic views are put under this schema.
+*/
 CREATE SCHEMA data_view;

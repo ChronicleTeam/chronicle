@@ -43,6 +43,10 @@ async fn _register(
     }))
 }
 
+/// Login the user from a credentials form.
+/// 
+/// # Errors:
+/// - [ApiError::BadRequest]
 async fn login(
     mut auth_session: AuthSession,
     Form(creds): Form<Credentials>,

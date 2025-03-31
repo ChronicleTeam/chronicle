@@ -1,4 +1,4 @@
-//! This module is responsible for building the application [`Router`]
+//! This module is responsible for building the application [Router]
 //! and defining the logic of all route handlers to create a REST API.
 //!
 //! Routes represent ressources on which CRUD opertions are performed.
@@ -6,14 +6,14 @@
 //! HTTP methods map to different operations like this:
 //! - POST: Create
 //! - GET: Read
-//! - PUT: Update
+//! - PUT/PATCH: Update
 //! - DELETE: Delete
 //!
-//! See [`crate::error::ApiError`] for the errors that can be returned from the API.
+//! See [crate::error::ApiError] for the errors that can be returned from the API.
 //!
 //! Handlers have only the following responsability
 //! - Validating the input request.
-//! - Calling database functions from [`crate::db`].
+//! - Calling database functions from [crate::db].
 //! - Returning the output response.
 //!
 //! Handlers should not be concerned with creating SQL queries
@@ -57,17 +57,30 @@ use tower_sessions_sqlx_store::PostgresStore;
 
 /// Global state for the API.
 ///
-/// Contains the configuration ([`Config`]) and the
-/// shared database connection ([`PgPool`]).
+/// Contains the configuration ([Config]) and the
+/// shared database connection ([PgPool]).
 #[derive(Clone)]
 pub struct ApiState {
     pub config: Arc<Config>,
     pub pool: PgPool,
 }
 
-/// Create the application [`Router`].
-/// It puts all routes under the `/api` path, it sets important
-/// middleware layers for the back-end, and it attaches the [`ApiState`]
+/// Create the application [Router].
+/// It creates the routes under the `/api` path and configures
+/// middleware layers for the back-end. The [ApiState] is then
+/// attached to the router.
+/// 
+/// The secrets provided must contain the following keys:
+/// ```toml
+/// ALLOWED_ORIGIN=<url>
+/// ```
+/// 
+/// An amount of admin accounts can be defined by repeating this pair of variables:
+/// ```toml
+/// <identifier>_USERNAME=<username>
+/// <identifier>_PASSWORD=<password>
+/// ```
+/// 
 pub async fn create_app(
     api_state: ApiState,
     secrets: SecretStore,
@@ -101,7 +114,7 @@ pub async fn create_app(
         .get("ALLOWED_ORIGIN")
         .expect("ALLOWED_ORIGIN secret must be set");
 
-    tokio::spawn(async move { register_default_users(backend, secrets).await.unwrap() });
+    tokio::spawn(async move { create_admin_users(backend, secrets).await.unwrap() });
 
     Ok(Router::new()
         .nest(
@@ -119,7 +132,7 @@ pub async fn create_app(
         .layer(CatchPanicLayer::new())
         .layer(
             CorsLayer::new()
-                .allow_origin([allowed_origin.parse().unwrap()]) // Adjust to your frontend origin
+                .allow_origin([allowed_origin.parse().unwrap()])
                 .allow_methods([
                     Method::POST,
                     Method::GET,
@@ -130,15 +143,16 @@ pub async fn create_app(
                     Method::HEAD,
                 ])
                 .allow_headers([
-                    header::CONTENT_TYPE,  // Needed for JSON, forms, and multipart
-                    header::AUTHORIZATION, // Needed for Bearer tokens
+                    header::CONTENT_TYPE,
+                    header::AUTHORIZATION,
                 ])
                 .allow_credentials(true),
         )
         .with_state(api_state))
 }
 
-async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> sqlx::Result<()> {
+/// Create the admin users from the application secrets.
+async fn create_admin_users(mut backend: Backend, secrets: SecretStore) -> sqlx::Result<()> {
     let mut usernames: HashMap<String, String> = HashMap::new();
     let mut passwords: HashMap<String, String> = HashMap::new();
     for (key, value) in secrets {
@@ -166,6 +180,7 @@ async fn register_default_users(mut backend: Backend, secrets: SecretStore) -> s
     Ok(())
 }
 
+/// Sets the "Partiioned" attribute of the "set-cookie" header.
 fn set_partitioned_cookie(mut res: Response) -> Response {
     if let Some(set_cookie) = res.headers().get(SET_COOKIE) {
         if let Ok(cookie_value) = set_cookie.to_str() {

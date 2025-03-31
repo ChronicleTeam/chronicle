@@ -1,4 +1,6 @@
--- Active: 1738002585894@@127.0.0.1@5432@user
+/*
+Set the updated_at date on UPDATE.
+*/
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS
 $$
@@ -8,6 +10,10 @@ BEGIN
 END;
 $$ LANGUAGE PLPGSQL;
 
+/*
+Create the set_updated_at trigger.
+table_name: Name of the table for the trigger
+*/
 CREATE OR REPLACE FUNCTION trigger_updated_at(table_name TEXT)
 RETURNS VOID AS
 $$
@@ -23,6 +29,9 @@ BEGIN
 end;
 $$ language plpgsql;
 
+/*
+Rename duplicate names by concatenating "(<number>)" at the end of the string.
+*/
 CREATE OR REPLACE FUNCTION rename_duplicate()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -34,8 +43,6 @@ DECLARE
     exists_check BOOLEAN;
 BEGIN
     new_name := NEW.name;
-
-    -- RAISE WARNING 'Starting loop with new_name: %', new_name;
 
     LOOP
         EXECUTE format(
@@ -50,14 +57,10 @@ BEGIN
         INTO exists_check
         USING NEW, new_name;
 
-        -- RAISE WARNING 'exists_check: %', exists_check;
-
         EXIT WHEN NOT exists_check;
 
         new_name := NEW.name || ' (' || counter || ')';
         counter := counter + 1;
-
-        -- RAISE WARNING 'Updated new_name: %', new_name;
     END LOOP;
 
     NEW.name = new_name;
@@ -66,6 +69,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+/*
+Create the rename_duplicate trigger.
+table_name: Name of the table for the trigger
+pk_column: Column of the primary key
+scope_column: Column of the scope in which the unique constraint applies.
+*/
 CREATE OR REPLACE FUNCTION trigger_rename_duplicate(
     table_name TEXT,
     pk_column TEXT,
@@ -83,10 +92,16 @@ BEGIN
 end;
 $$ language plpgsql;
 
+/*
+Colate for case insensitive text.
+*/
 CREATE COLLATION case_insensitive (
     PROVIDER = icu,
     LOCALE = 'und-u-ks-level2',
     DETERMINISTIC = FALSE
 );
 
+/*
+Money type used in the database.
+*/
 CREATE DOMAIN numeric_money AS NUMERIC(15, 4);

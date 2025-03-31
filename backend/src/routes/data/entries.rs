@@ -34,17 +34,19 @@ pub fn router() -> Router<ApiState> {
     )
 }
 
-/// Create an entry in a table.
+/// Create many entries in a table.
+/// 
+/// Can optionally take a parent entry ID.
 ///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table not found
+/// - [`ApiError::Forbidden`]: User does not have access to that table or 
+/// - [`ApiError::NotFound`]: Table or parent entry not found
 /// - [`ApiError::UnprocessableEntity`]:
-///     - [`IS_REQUIRED`]
-///     - [`INVALID_TYPE`]
-///     - [`ENUMERATION_VALUE_MISSING`]
-///     - [`INVALID_FIELD_ID`]
+///     - <field_id>: [`IS_REQUIRED`]
+///     - <field_id>: [`INVALID_TYPE`]
+///     - <field_id>: [`ENUMERATION_VALUE_MISSING`]
+///     - <field_id>: [`INVALID_FIELD_ID`]
 ///
 async fn create_entries(
     AuthSession { user, .. }: AuthSession,
@@ -59,8 +61,8 @@ async fn create_entries(
         .to_api_result()?;
 
     if let Some(parent_entry_id) = parent_id {
-        let table_parent_id = db::get_table_parent_id(&pool, table_id).await?;
-        db::check_entry_relation(&pool, table_parent_id, parent_entry_id)
+        let parent_table_id = db::get_table_parent_id(&pool, table_id).await?;
+        db::check_entry_relation(&pool, parent_table_id, parent_entry_id)
             .await?
             .to_api_result()?;
     }
@@ -78,11 +80,13 @@ async fn create_entries(
 }
 
 /// Update an entry in a table.
+/// 
+/// Can optionally take a parent entry ID.
 ///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
 /// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table or entry not found
+/// - [`ApiError::NotFound`]: Table, entry, or parent entry not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - [`IS_REQUIRED`]
 ///     - [`INVALID_TYPE`]
@@ -105,8 +109,8 @@ async fn update_entry(
         .to_api_result()?;
 
     if let Some(parent_entry_id) = parent_id {
-        let table_parent_id = db::get_table_parent_id(&pool, table_id).await?;
-        db::check_entry_relation(&pool, table_parent_id, parent_entry_id)
+        let parent_table_id = db::get_table_parent_id(&pool, table_id).await?;
+        db::check_entry_relation(&pool, parent_table_id, parent_entry_id)
             .await?
             .to_api_result()?;
     }
@@ -146,6 +150,7 @@ async fn delete_entry(
     Ok(())
 }
 
+/// Convert raw JSON cell values to a list of cells.
 fn convert_cells(
     mut raw_cells: HashMap<Id, Value>,
     fields: &[FieldMetadata],
@@ -172,8 +177,7 @@ fn convert_cells(
     Ok(new_cells)
 }
 
-/// Converts a JSON value to a [`Cell`] and returns the
-/// correct error message on failure.
+/// Converts a JSON value to a [`Cell`] and return the correct error message on failure.
 fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static str> {
     match (value, field_kind) {
         (
@@ -287,7 +291,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
     }
 }
 
-/// Check that a value is within the range for validating entries.
+/// Check that cell value is within the range specified by the field options.
 fn check_range<T>(
     value: &T,
     range_start: Option<&T>,
