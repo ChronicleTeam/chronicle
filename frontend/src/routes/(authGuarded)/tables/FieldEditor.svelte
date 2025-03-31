@@ -29,6 +29,10 @@
     patchField,
     deleteField,
     type APIError,
+    postTable,
+    deleteTable,
+    getTableChildren,
+    getTableData,
   } from "$lib/api";
   import { onMount } from "svelte";
 
@@ -69,39 +73,83 @@
   // State variables
   //
 
-  // the unmodified table, as it was fetched from the server
-  let originalTable: TableData = $state({
-    table: table_prop,
-    fields: [],
-    entries: [],
+  let isSubtable = $state(table_prop.parent_id != null);
+
+  let table: {
+    old: TableData; // original table
+    new: TableData; // table undergoing modifications
+  } = $state({
+    old: {
+      table: table_prop,
+      fields: [],
+      entries: [],
+      children: [],
+    },
+    new: {
+      table: table_prop,
+      fields: [],
+      entries: [],
+      children: [],
+    },
   });
 
-  // the table undergoing modifications
-  let table = $state($state.snapshot(originalTable));
-
-  // derivations to track changes in the table
-  let removedOGFields = $derived(
-    originalTable.fields.filter((f: Field) =>
-      table.fields.every((g: Field) => g.field_id !== f.field_id),
-    ),
-  );
-
-  let newFields = $derived(
-    table.fields.filter((f) =>
-      originalTable.fields.every((h) => f.field_id !== h.field_id),
-    ),
-  );
-  let moddedFields = $derived(
-    table.fields.filter((f) =>
-      originalTable.fields.some(
-        (h) => f.field_id === h.field_id && !recursiveCompare(f, h),
+  let changes: {
+    fields: {
+      removed: Field[];
+      modified: Field[];
+      added: Field[];
+    };
+    subtables: {
+      removed: TableData[];
+      modified: TableData[];
+      added: TableData[];
+    };
+  } = $derived({
+    fields: {
+      removed: table.old.fields.filter((f: Field) =>
+        table.new.fields.every((g: Field) => g.field_id !== f.field_id),
       ),
-    ),
-  );
+      modified: table.new.fields.filter((f) =>
+        table.old.fields.some(
+          (h) => f.field_id === h.field_id && !recursiveCompare(f, h),
+        ),
+      ),
+      added: table.new.fields.filter((f) =>
+        table.old.fields.every((h) => f.field_id !== h.field_id),
+      ),
+    },
 
+    subtables: {
+      removed: table.old.children.filter((t) =>
+        table.new.children.every((u) => t.table.table_id !== u.table.table_id),
+      ),
+      modified: table.new.children.filter((t) =>
+        table.old.children.some(
+          (u) =>
+            t.table.table_id === u.table.table_id && !recursiveCompare(t, u),
+        ),
+      ),
+
+      added: table.new.children.filter((t) =>
+        table.old.children.every((u) => t.table.table_id !== u.table.table_id),
+      ),
+    },
+  });
+
+  let errors: {
+    fields: string[];
+    subtables: string[];
+    metadata: string;
+  } = $state({
+    fields: [],
+    subtables: [],
+    metadata: "",
+  });
+
+  $inspect(table, changes);
   // the central table which represents the inputs for the editable field_kind parameters
   const optionInputList = $derived(
-    table.fields.map((f: Field, i: number): FieldKindInputParameters[] => {
+    table.new.fields.map((f: Field, i: number): FieldKindInputParameters[] => {
       switch (f.field_kind.type) {
         case FieldType.Text:
           return [getTypeFieldKindInput(i), getRequiredFieldKindInput(i)];
@@ -117,11 +165,13 @@
               default: 0,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as IntegerKind).range_start ?? 0
+                  (table.new.fields[i].field_kind as IntegerKind).range_start ??
+                  0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as IntegerKind).range_start = val;
+                (table.new.fields[i].field_kind as IntegerKind).range_start =
+                  val;
               },
             },
             {
@@ -132,11 +182,12 @@
               default: 100,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as IntegerKind).range_end ?? 100
+                  (table.new.fields[i].field_kind as IntegerKind).range_end ??
+                  100
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as IntegerKind).range_end = val;
+                (table.new.fields[i].field_kind as IntegerKind).range_end = val;
               },
             },
           ];
@@ -152,11 +203,13 @@
               default: 0,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DecimalKind).range_start ?? 0
+                  (table.new.fields[i].field_kind as DecimalKind).range_start ??
+                  0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as DecimalKind).range_start = val;
+                (table.new.fields[i].field_kind as DecimalKind).range_start =
+                  val;
               },
               step: Math.pow(10, -(f.field_kind.number_scale ?? 10)),
             },
@@ -168,11 +221,12 @@
               default: 100,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DecimalKind).range_end ?? 100
+                  (table.new.fields[i].field_kind as DecimalKind).range_end ??
+                  100
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as DecimalKind).range_end = val;
+                (table.new.fields[i].field_kind as DecimalKind).range_end = val;
               },
               step: Math.pow(10, -(f.field_kind.number_scale ?? 10)),
             },
@@ -182,12 +236,12 @@
               type: "checkbox",
               optional: false,
               bindGetter: () => {
-                return (table.fields[i].field_kind as DecimalKind)
+                return (table.new.fields[i].field_kind as DecimalKind)
                   .scientific_notation;
               },
               bindSetter: (val: boolean) => {
                 (
-                  table.fields[i].field_kind as DecimalKind
+                  table.new.fields[i].field_kind as DecimalKind
                 ).scientific_notation = val;
               },
             },
@@ -199,13 +253,14 @@
               default: 20,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DecimalKind)
+                  (table.new.fields[i].field_kind as DecimalKind)
                     .number_precision ?? 20
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as DecimalKind).number_precision =
-                  val;
+                (
+                  table.new.fields[i].field_kind as DecimalKind
+                ).number_precision = val;
               },
             },
             {
@@ -216,11 +271,13 @@
               default: 10,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DecimalKind).number_scale ?? 10
+                  (table.new.fields[i].field_kind as DecimalKind)
+                    .number_scale ?? 10
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as DecimalKind).number_scale = val;
+                (table.new.fields[i].field_kind as DecimalKind).number_scale =
+                  val;
               },
             },
           ];
@@ -236,12 +293,12 @@
               default: "0.00",
               bindGetter: () => {
                 return parseFloat(
-                  (table.fields[i].field_kind as MoneyKind).range_start ??
+                  (table.new.fields[i].field_kind as MoneyKind).range_start ??
                     "0.00",
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as MoneyKind).range_start =
+                (table.new.fields[i].field_kind as MoneyKind).range_start =
                   val.toFixed(2);
               },
               step: 0.01,
@@ -254,12 +311,12 @@
               default: "100.00",
               bindGetter: () => {
                 return parseFloat(
-                  (table.fields[i].field_kind as MoneyKind).range_end ??
+                  (table.new.fields[i].field_kind as MoneyKind).range_end ??
                     "100.00",
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as MoneyKind).range_end =
+                (table.new.fields[i].field_kind as MoneyKind).range_end =
                   val.toFixed(2);
               },
               step: 0.01,
@@ -275,11 +332,13 @@
               optional: false,
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as ProgressKind).total_steps ?? 0
+                  (table.new.fields[i].field_kind as ProgressKind)
+                    .total_steps ?? 0
                 );
               },
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as ProgressKind).total_steps = val;
+                (table.new.fields[i].field_kind as ProgressKind).total_steps =
+                  val;
               },
             },
           ];
@@ -295,14 +354,14 @@
               default: new Date(),
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DateTimeKind).range_start
+                  (table.new.fields[i].field_kind as DateTimeKind).range_start
                     ?.toISOString()
                     .substring(0, 19) ??
                   new Date().toISOString().substring(0, 19)
                 );
               },
               bindSetter: (val: string) => {
-                (table.fields[i].field_kind as DateTimeKind).range_start =
+                (table.new.fields[i].field_kind as DateTimeKind).range_start =
                   new Date(val);
               },
             },
@@ -314,14 +373,14 @@
               default: new Date(),
               bindGetter: () => {
                 return (
-                  (table.fields[i].field_kind as DateTimeKind).range_end
+                  (table.new.fields[i].field_kind as DateTimeKind).range_end
                     ?.toISOString()
                     .substring(0, 19) ??
                   new Date().toISOString().substring(0, 19)
                 );
               },
               bindSetter: (val: string) => {
-                (table.fields[i].field_kind as DateTimeKind).range_end =
+                (table.new.fields[i].field_kind as DateTimeKind).range_end =
                   new Date(val);
               },
             },
@@ -331,12 +390,13 @@
               type: "text",
               optional: false,
               bindGetter: () => {
-                return (table.fields[i].field_kind as DateTimeKind)
+                return (table.new.fields[i].field_kind as DateTimeKind)
                   .date_time_format;
               },
               bindSetter: (val: string) => {
-                (table.fields[i].field_kind as DateTimeKind).date_time_format =
-                  val;
+                (
+                  table.new.fields[i].field_kind as DateTimeKind
+                ).date_time_format = val;
               },
             },
           ];
@@ -359,13 +419,13 @@
               optional: false,
               bindGetter: () => {
                 return Object.entries(
-                  (table.fields[i].field_kind as EnumerationKind).values,
+                  (table.new.fields[i].field_kind as EnumerationKind).values,
                 )
                   .map((entry) => entry[0].toString() + ":" + entry[1])
                   .join("\n");
               },
               bindSetter: (val: string) => {
-                (table.fields[i].field_kind as EnumerationKind).values =
+                (table.new.fields[i].field_kind as EnumerationKind).values =
                   Object.fromEntries(
                     val
                       .split("\n")
@@ -395,10 +455,12 @@
               type: "number",
               optional: false,
               bindGetter: () =>
-                (table.fields[i].field_kind as EnumerationKind).default_value,
+                (table.new.fields[i].field_kind as EnumerationKind)
+                  .default_value,
               bindSetter: (val: number) => {
-                (table.fields[i].field_kind as EnumerationKind).default_value =
-                  val;
+                (
+                  table.new.fields[i].field_kind as EnumerationKind
+                ).default_value = val;
               },
             },
           ];
@@ -416,88 +478,147 @@
   let optionalCheckboxStates = $state([] as boolean[][]);
 
   // modal-related variables
-  let showConfirmScreen = $state(false);
+  let showConfirmModal = $state(false);
 
-  let modalNewFieldLines = $derived(
-    newFields.map((f) => `${f.name} (${typeToStr(f.field_kind.type)})`),
-  );
+  let modalLines: {
+    fields: {
+      removed: string[];
+      modified: {
+        nameAndType: string;
+        kind: string[];
+      }[];
+      added: string[];
+    };
+    subtables: {
+      removed: string[];
+      modified: string[];
+      added: string[];
+    };
+  } = $derived({
+    fields: {
+      removed: changes.fields.removed.map(
+        (f) => `${f.name} (${typeToStr(f.field_kind.type)})`,
+      ),
 
-  let modalModifiedFieldLines = $derived(
-    moddedFields.map((f) => {
-      let old = originalTable.fields.find(
-        (g) => g.field_id === f.field_id,
-      ) as Field;
+      modified: changes.fields.modified.map((f) => {
+        let old = table.old.fields.find(
+          (g) => g.field_id === f.field_id,
+        ) as Field;
 
-      // get all entries from old field kind
-      let oldEntries = Object.entries(old.field_kind);
+        // get all entries from old field kind
+        let oldEntries = Object.entries(old.field_kind);
 
-      // setup comparisons between old and new field to check for changes
-      let entries = Object.entries(f.field_kind).map((entry) => {
-        return [
-          entry[0],
-          [
-            (oldEntries.find((o) => o[0] === entry[0]) ?? [
-              undefined,
-              undefined,
-            ])[1],
-            entry[1],
-          ],
-        ];
-      });
+        // setup comparisons between old and new field to check for changes
+        let entries = Object.entries(f.field_kind).map((entry) => {
+          return [
+            entry[0],
+            [
+              (oldEntries.find((o) => o[0] === entry[0]) ?? [
+                undefined,
+                undefined,
+              ])[1],
+              entry[1],
+            ],
+          ];
+        });
 
-      // add keys from old field that not in new field
-      entries.push(
-        ...oldEntries
-          .filter((o) => entries.findIndex((e) => e[0] === o[0]) === -1)
-          .map((o) => [o[0], [o[1], undefined]]),
-      );
+        // add keys from old field that not in new field
+        entries.push(
+          ...oldEntries
+            .filter((o) => entries.findIndex((e) => e[0] === o[0]) === -1)
+            .map((o) => [o[0], [o[1], undefined]]),
+        );
 
-      return {
-        nameAndType:
-          f.name !== old.name || f.field_kind.type !== old.field_kind.type
-            ? `${old.name} (${typeToStr(old.field_kind.type)}) -> ${f.name} (${typeToStr(f.field_kind.type)})`
-            : "",
-        kind: entries
-          .filter((e) => e[0] !== "type")
-          .filter((e) => !recursiveCompare(e[1][0], e[1][1]))
-          .filter((e) => !(e[1][0] == null && e[1][1] == null)) // check if both nullish
-          .map(
-            (e) =>
-              `${f.name} [${e[0]}] ${e[1][0] ?? "[Empty]"} -> ${e[1][1] ?? "[Empty]"}`,
-          ),
-      };
-    }),
-  );
-
-  let modalDeletedFieldLines = $derived(
-    removedOGFields.map((f) => `${f.name} (${typeToStr(f.field_kind.type)})`),
-  );
+        return {
+          nameAndType:
+            f.name !== old.name || f.field_kind.type !== old.field_kind.type
+              ? `${old.name} (${typeToStr(old.field_kind.type)}) -> ${f.name} (${typeToStr(f.field_kind.type)})`
+              : "",
+          kind: entries
+            .filter((e) => e[0] !== "type")
+            .filter((e) => !recursiveCompare(e[1][0], e[1][1]))
+            .filter((e) => !(e[1][0] == null && e[1][1] == null)) // check if both nullish
+            .map(
+              (e) =>
+                `${f.name} [${e[0]}] ${e[1][0] ?? "[Empty]"} -> ${e[1][1] ?? "[Empty]"}`,
+            ),
+        };
+      }),
+      added: changes.fields.added.map(
+        (f) => `${f.name} (${typeToStr(f.field_kind.type)})`,
+      ),
+    },
+    subtables: {
+      removed: changes.subtables.removed.map((t) => t.table.name),
+      modified: changes.subtables.modified.map(
+        (t) =>
+          `${table.old.children.find((u) => u.table.table_id === t.table.table_id)} -> ${t.table.table_id}`,
+      ),
+      added: changes.subtables.added.map((t) => t.table.name),
+    },
+  });
 
   //
   // State methods
   //
+
+  // add a subtable
+  const addSubtable = (): void => {
+    let j = 1;
+    let newTableName = "New Table " + j;
+    while (table.new.children.some((t) => t.table.name === newTableName)) {
+      newTableName = "New Table " + ++j;
+    }
+
+    let id = -1;
+    while (table.new.children.some((t) => t.table.table_id === id)) {
+      id--;
+    }
+
+    table.new.children.splice(0, 0, {
+      table: {
+        table_id: id,
+        user_id: -1,
+        parent_id: table_prop.table_id,
+        name: newTableName,
+        description: "",
+      },
+      fields: [],
+      entries: [],
+      children: [],
+    });
+  };
+
+  // remove a subtable
+  const removeSubtable = (i: number): void => {
+    table.new.children.splice(i, 1);
+  };
+
+  const restoreSubtable = (i: number): void => {
+    table.new.children.push($state.snapshot(changes.subtables.removed[i]));
+  };
 
   // add a field to the table
   const addField = (): void => {
     // find unique field name
     let j = 1;
     let newFieldName = "New Field " + j;
-    while (table.fields.some((f: Field) => f.name === newFieldName)) {
+    while (table.new.fields.some((f: Field) => f.name === newFieldName)) {
       newFieldName = "New Field " + ++j;
     }
 
     // find unique field id
     let id = -1;
-    while (table.fields.some((f) => f.field_id === id)) {
+    while (table.new.fields.some((f) => f.field_id === id)) {
       id--;
     }
 
     // create new field and add it
     let newField: Field = {
-      table_id: table.table.table_id,
+      table_id: table.new.table.table_id,
       user_id: -1,
       field_id: id, // temporary id, will be replaced when created
-      ordering: table.fields.length,
+      ordering: table.new.fields.length,
 
       name: newFieldName,
       field_kind: {
@@ -506,27 +627,27 @@
       },
     };
 
-    table.fields.push(newField);
+    table.new.fields.push(newField);
 
     // update optionalCheckBoxStates
     optionalCheckboxStates.push(
-      optionInputList[table.fields.length - 1].map((v) => !v.optional),
+      optionInputList[table.new.fields.length - 1].map((v) => !v.optional),
     );
 
     //clear errors
-    table.fields.forEach((f) => {
-      fieldErrors[f.field_id] = "";
+    table.new.fields.forEach((f) => {
+      errors.fields[f.field_id] = "";
     });
   };
 
   // remove a field from the table
   const removeField = (i: number): void => {
-    table.fields.splice(i, 1);
+    table.new.fields.splice(i, 1);
   };
 
   // restore a field to the table which was marked to be removed
   const restoreField = (i: number): void => {
-    table.fields.push($state.snapshot(removedOGFields[i]));
+    table.new.fields.push($state.snapshot(changes.fields.removed[i]));
   };
 
   // update methods for the optionalCheckboxStates
@@ -540,14 +661,14 @@
     optionalCheckboxStates[i] = optionInputList[i].map(
       (v) =>
         !v.optional ||
-        ((table.fields[i].field_kind as any)[v.name] !== null &&
-          (table.fields[i].field_kind as any)[v.name] !== undefined),
+        ((table.new.fields[i].field_kind as any)[v.name] !== null &&
+          (table.new.fields[i].field_kind as any)[v.name] !== undefined),
     );
   };
 
   // opens the "Edit Summary" modal
   const openConfirmationModal = () => {
-    showConfirmScreen = true;
+    showConfirmModal = true;
   };
 
   //
@@ -562,10 +683,10 @@
       type: "checkbox",
       optional: false,
       bindGetter: () => {
-        return (table.fields[i].field_kind as RequirableKind).is_required;
+        return (table.new.fields[i].field_kind as RequirableKind).is_required;
       },
       bindSetter: (val: boolean) => {
-        (table.fields[i].field_kind as RequirableKind).is_required = val;
+        (table.new.fields[i].field_kind as RequirableKind).is_required = val;
       },
     };
   };
@@ -581,26 +702,26 @@
         fieldTypes.map((t) => [t, typeToStr(t)]),
       ),
       bindGetter: () => {
-        return table.fields[i].field_kind.type;
+        return table.new.fields[i].field_kind.type;
       },
       bindSetter: (val: FieldType) => {
         // swap out field option if type change
-        if (val != table.fields[i].field_kind.type) {
+        if (val != table.new.fields[i].field_kind.type) {
           switch (val) {
             case FieldType.Text:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Integer:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Decimal:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
 
@@ -608,19 +729,19 @@
               };
               break;
             case FieldType.Money:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Progress:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 total_steps: 100,
               };
               break;
             case FieldType.DateTime:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
 
@@ -628,30 +749,30 @@
               };
               break;
             case FieldType.Interval:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.WebLink:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Email:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.Checkbox:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
               };
               break;
             case FieldType.Enumeration:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
                 values: {} as { [key: number]: string },
@@ -659,13 +780,13 @@
               };
               break;
             case FieldType.Image:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
               break;
             case FieldType.File:
-              table.fields[i].field_kind = {
+              table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
               };
@@ -703,19 +824,24 @@
   // API Calls
   //
 
-  let metadataError = $state("");
-  let fieldErrors = $state([] as string[]);
-
   const loadFields = () => {
-    getFields(table_prop).then((fields) => {
-      // update tables
-      originalTable.fields = fields.toSorted((f, g) => f.ordering - g.ordering);
-      table = $state.snapshot(originalTable);
+    getTableData(table_prop).then((td) => {
+      // update fields
+      table.old.fields = td.fields.toSorted((f, g) => f.ordering - g.ordering);
+      table.new.fields = $state.snapshot(table.old.fields);
 
       //update optionalCheckboxStates
       updateAllOptionalCheckboxes();
-      table.fields.forEach((f) => {
-        fieldErrors[f.field_id] = "";
+      table.new.fields.forEach((f) => {
+        errors.fields[f.field_id] = "";
+      });
+
+      // update subtables
+      table.old.children = td.children;
+      table.new.children = $state.snapshot(table.old.children);
+
+      table.new.children.forEach((subtable) => {
+        errors.subtables[subtable.table.table_id] = "";
       });
     });
   };
@@ -725,43 +851,43 @@
   const saveFields = () => {
     let promises = [];
 
-    showConfirmScreen = false;
+    showConfirmModal = false;
 
     // modify table name/description
     if (
-      table.table.name !== originalTable.table.name ||
-      table.table.description !== originalTable.table.description
+      table.new.table.name !== table.old.table.name ||
+      table.new.table.description !== table.old.table.description
     )
       promises.push(
-        patchTable(table.table)
+        patchTable(table.new.table)
           .then((response: Table) => {
-            originalTable.table.name = response.name;
-            originalTable.table.description = response.description;
-            metadataError = "";
+            table.old.table.name = response.name;
+            table.old.table.description = response.description;
+            errors.metadata = "";
             return { ok: true };
           })
           .catch((e: APIError) => {
-            metadataError = e.body.toString();
+            errors.metadata = e.body.toString();
             return { ok: false };
           }),
       );
 
     // create new fields
-    newFields.forEach((field) => {
+    changes.fields.added.forEach((field) => {
       promises.push(
         postField(field)
           .then((response: Field) => {
             let newField = response;
-            originalTable.fields.push(newField);
-            table.fields[
-              table.fields.findIndex((f) => f.field_id === field.field_id)
+            table.old.fields.push(newField);
+            table.new.fields[
+              table.new.fields.findIndex((f) => f.field_id === field.field_id)
             ].field_id = newField.field_id;
-            fieldErrors[field.field_id] = "";
+            errors.fields[field.field_id] = "";
             return { ok: true };
           })
           .catch((e: APIError) => {
             let text = e.body.toString();
-            fieldErrors[field.field_id] = text;
+            errors.fields[field.field_id] = text;
 
             return { ok: false };
           }),
@@ -769,45 +895,115 @@
     });
 
     // modify existing fields
-    moddedFields.forEach((field) => {
+    changes.fields.modified.forEach((field) => {
       promises.push(
         patchField(field)
           .then((response: Field) => {
-            originalTable.fields[
-              originalTable.fields.findIndex(
-                (f) => f.field_id === field.field_id,
-              )
+            table.old.fields[
+              table.old.fields.findIndex((f) => f.field_id === field.field_id)
             ] = response;
-            fieldErrors[field.field_id] = "";
+            errors.fields[field.field_id] = "";
             return { ok: true };
           })
           .catch((e: APIError) => {
             let text = e.body.toString();
-            fieldErrors[field.field_id] = text;
+            errors.fields[field.field_id] = text;
             return { ok: false };
           }),
       );
     });
 
     // delete fields
-    for (const field of removedOGFields) {
+    for (const field of changes.fields.removed) {
       promises.push(
         deleteField(field)
           .then(() => {
-            originalTable.fields.splice(
-              originalTable.fields.findIndex(
-                (f) => f.field_id === field.field_id,
+            table.old.fields.splice(
+              table.old.fields.findIndex((f) => f.field_id === field.field_id),
+              1,
+            );
+            return { ok: true };
+          })
+          .catch(() => {
+            errors.fields[field.field_id] = "Could not delete";
+            return { ok: false };
+          }),
+      );
+    }
+
+    // add subtables
+    changes.subtables.added.forEach((t) => {
+      promises.push(
+        postTable(t.table)
+          .then((response: Table) => {
+            let newTableData = {
+              table: response,
+              fields: [],
+              entries: [],
+              children: [],
+            };
+            table.old.children.splice(0, 0, newTableData);
+            table.new.children[
+              table.old.children.findIndex(
+                (u) => u.table.table_id === t.table.table_id,
+              )
+            ] = newTableData;
+            errors.subtables[t.table.table_id] = "";
+            return { ok: true };
+          })
+          .catch((e) => {
+            errors.subtables[t.table.table_id] = e.body.toString();
+            return { ok: false };
+          }),
+      );
+    });
+
+    // modify subtables
+    changes.subtables.modified.forEach((t) => {
+      promises.push(
+        patchTable(t.table)
+          .then((response: Table) => {
+            let modifiedTableData = {
+              table: response,
+              fields: [],
+              entries: [],
+              children: [],
+            };
+
+            table.old.children[
+              table.old.children.findIndex(
+                (u) => u.table.table_id === t.table.table_id,
+              )
+            ] = modifiedTableData;
+            errors.subtables[t.table.table_id] = "";
+            return { ok: true };
+          })
+          .catch((e) => {
+            errors.subtables[t.table.table_id] = e.body.toString();
+            return { ok: false };
+          }),
+      );
+    });
+
+    // delete subtables
+    changes.subtables.removed.forEach((t) => {
+      promises.push(
+        deleteTable(t.table)
+          .then(() => {
+            table.old.children.splice(
+              table.old.children.findIndex(
+                (u) => u.table.table_id === t.table.table_id,
               ),
               1,
             );
             return { ok: true };
           })
           .catch(() => {
-            fieldErrors[field.field_id] = "Could not delete";
+            errors.subtables[t.table.table_id] = "Could not delete";
             return { ok: false };
           }),
       );
-    }
+    });
 
     // quit or reload
     Promise.allSettled(promises).then((results) => {
@@ -826,8 +1022,8 @@
 
     updateAllOptionalCheckboxes();
 
-    table.fields.forEach((f) => {
-      fieldErrors[f.field_id] = "";
+    table.new.fields.forEach((f) => {
+      errors.fields[f.field_id] = "";
     });
   });
 </script>
@@ -837,168 +1033,204 @@
   <label for="name-input">Name: </label>
   <input
     id="name-input"
-    bind:value={table.table.name}
+    bind:value={table.new.table.name}
     class="text-lg font-bold mb-3"
+    disabled={isSubtable}
   />
   <label for="decsription-input">Description: </label>
   <input
     id="description-input"
-    bind:value={table.table.description}
+    bind:value={table.new.table.description}
     class="text-lg font-bold mb-3"
+    disabled={isSubtable}
   />
-  {#if metadataError !== ""}
-    <p class="text-red-500">{metadataError}</p>
+  {#if errors.metadata !== ""}
+    <p class="text-red-500">{errors.metadata}</p>
   {/if}
-  <ConfirmButton
-    initText="Delete Table"
-    confirmText="Confirm Delete"
-    onconfirm={delete_table}
-  />
+  {#if !isSubtable}
+    <ConfirmButton
+      initText="Delete Table"
+      confirmText="Confirm Delete"
+      onconfirm={delete_table}
+    />
+  {/if}
 
   <!-- Fields  -->
-  <div class="flex items-stretch w-full flex-nowrap overflow-scroll gap-3">
-    <!-- Field editing sections -->
-    {#each table.fields as field, i}
-      <div
-        class="bg-white border-2 w-80 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
-      >
-        <!-- Field name -->
-        <input bind:value={table.fields[i].name} />
+  <div class="flex justify-between w-full flex-nowrap overflow-scroll gap-3">
+    <div class="flex items-stretch gap-3">
+      <!-- Field editing sections -->
+      {#each table.new.fields as field, i}
+        <div
+          class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+        >
+          <!-- Field name -->
+          <input bind:value={table.new.fields[i].name} />
 
-        <!-- Field kind parameters -->
-        {#each optionInputList[i] as optionInput, j}
-          <div class="my-2">
-            <div class="flex items-center">
-              <!-- Add checkbox to enable/disable input if it is optional -->
-              {#if optionInput.optional}
-                <input
-                  class="mr-2"
-                  type="checkbox"
-                  bind:checked={() => optionalCheckboxStates[i][j],
-                  (val) => {
-                    optionalCheckboxStates[i][j] = val;
-                    if (val) {
-                      (table.fields[i].field_kind as any)[optionInput.name] =
-                        optionInput.default;
-                    } else {
-                      delete (table.fields[i].field_kind as any)[
-                        optionInput.name
-                      ];
-                    }
-                  }}
+          <!-- Field kind parameters -->
+          {#each optionInputList[i] as optionInput, j}
+            <div class="my-2">
+              <div class="flex items-center">
+                <!-- Add checkbox to enable/disable input if it is optional -->
+                {#if optionInput.optional}
+                  <input
+                    class="mr-2"
+                    type="checkbox"
+                    bind:checked={() => optionalCheckboxStates[i][j],
+                    (val) => {
+                      optionalCheckboxStates[i][j] = val;
+                      if (val) {
+                        (table.new.fields[i].field_kind as any)[
+                          optionInput.name
+                        ] = optionInput.default;
+                      } else {
+                        delete (table.new.fields[i].field_kind as any)[
+                          optionInput.name
+                        ];
+                      }
+                    }}
+                  />
+                {/if}
+                <!-- The input -->
+                <VariableInput
+                  class={[
+                    "w-24",
+                    !optionalCheckboxStates && "text-gray-300 border-gray-300",
+                  ]}
+                  params={optionInput}
+                  disabled={!optionalCheckboxStates[i][j]}
+                  id={optionInput.label + i}
                 />
-              {/if}
-              <!-- The input -->
-              <VariableInput
-                class={[
-                  "w-24",
-                  !optionalCheckboxStates && "text-gray-300 border-gray-300",
-                ]}
-                params={optionInput}
-                disabled={!optionalCheckboxStates[i][j]}
-                id={optionInput.label + i}
-              />
+              </div>
             </div>
-          </div>
-        {/each}
-        <button
-          onclick={() => removeField(i)}
-          class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
-          >Remove</button
-        >
-        <!-- Error -->
-        {#if fieldErrors[field.field_id] !== ""}
-          <div class="rounded-lg text-red-500">
-            {fieldErrors[field.field_id]}
-          </div>
-        {/if}
-      </div>
-    {/each}
+          {/each}
+          <button
+            onclick={() => removeField(i)}
+            class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
+            >Remove</button
+          >
+          <!-- Error -->
+          {#if errors.fields[field.field_id] !== ""}
+            <div class="rounded-lg text-red-500">
+              {errors.fields[field.field_id]}
+            </div>
+          {/if}
+        </div>
+      {/each}
 
-    <!-- Add field button -->
-    {#if table.fields.length === 0}
+      <!-- Deleted but restorable fields -->
+      {#each changes.fields.removed as field, i}
+        <div
+          class="p-3 border-2 border-black border-dashed rounded-lg flex flex-col justify-between gap-2 w-64"
+        >
+          <p class="font-bold">
+            {field.name} ({typeToStr(field.field_kind.type)})
+          </p>
+          <button
+            class="py-1 px-2 border-2 border-black border-dashed rounded-lg transition"
+            onclick={() => restoreField(i)}>Restore</button
+          >
+        </div>
+      {/each}
+
+      <!-- Add field button -->
       <button
-        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed"
+        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
         onclick={addField}
-        aria-label="add field">+</button
-      >
-    {:else}
-      <button
-        class="p-4 hover:p-12 text-center text-transparent hover:text-black text-base hover:text-3xl transition-all"
-        onclick={addField}
-        aria-label="add field">+</button
-      >
-    {/if}
-
-    <!-- Deleted but restorable fields -->
-    {#each removedOGFields as field, i}
-      <div
-        class="p-3 border-2 border-gray-400 border-dashed rounded-lg flex flex-col justify-between gap-2"
-      >
-        <p class="font-bold">
-          {field.name} ({typeToStr(field.field_kind.type)})
-        </p>
-        <button
-          class="py-1 px-2 border-2 border-gray-400 hover:bg-gray-400 border-dashed rounded-lg transition"
-          onclick={() => restoreField(i)}>Restore</button
-        >
-      </div>
-      {#if i < removedOGFields.length - 1}
-        <button class="p-4 text-center text-transparent text-base" disabled
-          >+</button
-        >
-      {/if}
-    {/each}
-  </div>
-
-  <!-- Bottom Bar -->
-  {#if originalTable !== table}
-    <!-- TODO: actually have the condition check for modifications -->
-    <div class="flex items-center justify-center gap-3 mt-4">
-      <button
-        onclick={openConfirmationModal}
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-        >Save</button
-      >
-      <button
-        onclick={on_save}
-        class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-        >Cancel</button
+        aria-label="add field">Add Field</button
       >
     </div>
-  {/if}
+
+    <!-- subtables -->
+    {#if !isSubtable}
+      <div class="flex justify-end gap-3">
+        <button
+          class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
+          onclick={addSubtable}
+          aria-label="add Subtable">Add Subtable</button
+        >
+        {#each table.new.children as subtable, i}
+          <div
+            class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+          >
+            <input bind:value={table.new.children[i].table.name} />
+            <button
+              onclick={() => removeSubtable(i)}
+              class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
+              >Remove</button
+            >
+
+            {#if errors.subtables[subtable.table.table_id]}
+              <p class="text-red-500">
+                {errors.subtables[subtable.table.table_id]}
+              </p>
+            {/if}
+          </div>
+        {/each}
+        {#each changes.subtables.removed as subtable, i}
+          <div
+            class="p-3 border-2 border-black border-dashed rounded-lg flex flex-col justify-between gap-2 w-64"
+          >
+            <p class="font-bold">
+              {subtable.table.name}
+            </p>
+            <button
+              class="py-1 px-2 border-2 border-black border-dashed rounded-lg transition"
+              onclick={() => restoreSubtable(i)}>Restore</button
+            >
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </div>
 </div>
+
+<!-- Bottom Bar -->
+{#if table.old !== table.new}
+  <!-- TODO: actually have the condition check for modifications -->
+  <div class="flex items-center justify-center gap-3 mt-4">
+    <button
+      onclick={openConfirmationModal}
+      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+      >Save</button
+    >
+    <button
+      onclick={on_save}
+      class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+      >Cancel</button
+    >
+  </div>
+{/if}
 
 <!-- Confirmation modal -->
 <div
   class={[
     "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center",
-    !showConfirmScreen && "hidden",
+    !showConfirmModal && "hidden",
   ]}
 >
   <div class="bg-white rounded-lg p-3">
     <h2 class="w-full font-bold text-center">Edit Summary</h2>
     <!-- Table name + description -->
-    {#if table.table.name !== originalTable.table.name}
+    {#if table.new.table.name !== table.old.table.name}
       <p>
-        <span class="font-bold">Changed Title:</span> "{originalTable.table
-          .name}" -&gt "{table.table.name}"
+        <span class="font-bold">Changed Title:</span> "{table.old.table.name}"
+        -&gt "{table.new.table.name}"
       </p>
     {/if}
-    {#if table.table.description !== originalTable.table.description}
+    {#if table.new.table.description !== table.old.table.description}
       <p>
-        <span class="font-bold">Changed Description:</span> "{originalTable
-          .table.description}" -&gt "{table.table.description}"
+        <span class="font-bold">Changed Description:</span> "{table.old.table
+          .description}" -&gt "{table.new.table.description}"
       </p>
     {/if}
 
     <!-- Added fields -->
-    {#each modalNewFieldLines as line}
+    {#each modalLines.fields.added as line}
       <p><span class="font-bold">Added Field:</span> {line}</p>
     {/each}
 
     <!-- Modified fields -->
-    {#each modalModifiedFieldLines as moddedField}
+    {#each modalLines.fields.modified as moddedField}
       {#if moddedField.nameAndType}
         <p>
           <span class="font-bold">Change Field:</span>
@@ -1011,7 +1243,26 @@
     {/each}
 
     <!-- Deleted fields -->
-    {#each modalDeletedFieldLines as line}
+    {#each modalLines.fields.removed as line}
+      <p>
+        <span class="font-bold text-red-500">[!]</span>
+        <span class="font-bold">Delete Field:</span>
+        {line}
+      </p>
+    {/each}
+
+    <!-- Added subtables -->
+    {#each modalLines.subtables.added as line}
+      <p><span class="font-bold">Added Subtable:</span> {line}</p>
+    {/each}
+
+    <!-- Modified subtables -->
+    {#each modalLines.subtables.modified as line}
+      <p><span class="font-bold">Change Subtable:</span> {line}</p>
+    {/each}
+
+    <!-- Deleted subtables -->
+    {#each modalLines.subtables.removed as line}
       <p>
         <span class="font-bold text-red-500">[!]</span>
         <span class="font-bold">Delete Field:</span>
@@ -1028,7 +1279,7 @@
       <button
         class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
         onclick={() => {
-          showConfirmScreen = false;
+          showConfirmModal = false;
         }}>Cancel</button
       >
     </div>

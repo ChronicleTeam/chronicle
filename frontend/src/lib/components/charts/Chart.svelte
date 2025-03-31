@@ -10,6 +10,7 @@
     type FieldKind,
     type AxisField,
     FieldType,
+    type Axis,
   } from "$lib/types.d.js";
   import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
   import { onMount } from "svelte";
@@ -23,6 +24,8 @@
   let chartData: ChartData | null = $state(null);
   $inspect(chartData);
   let error = $state("");
+
+  let enterModal = $state(false);
 
   let g: any;
   $effect(() => {
@@ -44,11 +47,6 @@
           (a) => a.axis.axis_kind === AxisKind.Label,
         );
         if (!xAxis || !yAxis) return;
-        $inspect(
-          xAxis,
-          yAxis,
-          chartData.cells.map((row: Cells) => row[yAxis.axis.axis_id]),
-        );
 
         let options = {
           scales: {
@@ -131,6 +129,24 @@
   });
 
   //
+  // Helper method
+  //
+
+  const stringifyDates = (c: ChartData): ChartData => {
+    c.axes.forEach((a: AxisField) => {
+      if (a.field_kind.type === FieldType.DateTime) {
+        c.cells = c.cells.map((row: Cells) => {
+          row[a.axis.axis_id] =
+            `${(row[a.axis.axis_id] as Date).getFullYear()}-${(row[a.axis.axis_id] as Date).getMonth() + 1}-${(row[a.axis.axis_id] as Date).getUTCDate()}`;
+          return row;
+        });
+      }
+    });
+
+    return c;
+  };
+
+  //
   // Table stuff
   //
 
@@ -157,6 +173,7 @@
     getChartData(dashboard, chart)
       .then((r: ChartData) => {
         chartData = r;
+        chartData = stringifyDates(chartData);
       })
       .catch((e) => {
         error = e.body.toString();
@@ -164,46 +181,65 @@
   });
 </script>
 
-{#if error}
-  <p class="text-red-500">({error})</p>
-{:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
-  <div>
-    <canvas bind:this={g}></canvas>
-  </div>
-{:else if chartData}
-  <table class="border border-black">
-    <thead>
-      <tr>
-        {#each chartData.axes as axis}
-          <th
-            class="border border-black bg-white select-none"
-            onclick={() => {
-              if (selectedColumn.axis_id === axis.axis.axis_id) {
-                selectedColumn.ascending = !selectedColumn.ascending;
-              } else {
-                selectedColumn.axis_id = axis.axis.axis_id;
-                selectedColumn.ascending = true;
-              }
-            }}
-            >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
-              ? selectedColumn.ascending
-                ? " ↑"
-                : " ↓"
-              : ""}</th
-          >
-        {/each}
-      </tr>
-    </thead>
-    <tbody>
-      {#each tableCells as row}
-        <tr>
-          {#each chartData.axes as axis}
-            <td class="p-2 border border-black">
-              {row[axis.axis.axis_id]}
-            </td>
+<div
+  class={enterModal
+    ? "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center"
+    : ""}
+  onclick={() => {
+    enterModal = false;
+  }}
+>
+  <div
+    onclick={(e) => {
+      e.stopPropagation();
+      enterModal = true;
+    }}
+    class={enterModal
+      ? "bg-white rounded-lg p-3 size-1/2 transition-all"
+      : "transition-all"}
+  >
+    {#if error}
+      <p class="text-red-500">({error})</p>
+    {:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
+      <div class="size-full flex justify-center items-center">
+        <canvas bind:this={g}></canvas>
+      </div>
+    {:else if chartData}
+      <table class="border border-black">
+        <thead>
+          <tr>
+            {#each chartData.axes as axis}
+              <th
+                class="border border-black bg-white select-none"
+                onclick={() => {
+                  if (selectedColumn.axis_id === axis.axis.axis_id) {
+                    selectedColumn.ascending = !selectedColumn.ascending;
+                  } else {
+                    selectedColumn.axis_id = axis.axis.axis_id;
+                    selectedColumn.ascending = true;
+                  }
+                }}
+                >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
+                  ? selectedColumn.ascending
+                    ? " ↑"
+                    : " ↓"
+                  : ""}</th
+              >
+            {/each}
+          </tr>
+        </thead>
+        <tbody>
+          {#each tableCells as row}
+            <tr>
+              {#each chartData.axes as axis}
+                <td class="p-2 border border-black">
+                  {row[axis.axis.axis_id]}
+                </td>
+              {/each}
+            </tr>
           {/each}
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-{/if}
+        </tbody>
+      </table>
+    {/if}
+  </div>
+</div>

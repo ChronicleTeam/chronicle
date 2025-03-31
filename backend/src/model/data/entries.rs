@@ -18,13 +18,14 @@ pub struct Entry {
 
 /// Create entry request. Keys map to field IDs.
 #[derive(Debug, Deserialize)]
-pub struct CreateEntry{
+pub struct CreateEntries{
     pub parent_id: Option<Id>,
-    pub cells: HashMap<Id, Value>,
+    pub entries: Vec<HashMap<Id, Value>>,
 }
 
 /// Update entry request. Keys map to field IDs.
 #[derive(Debug, Deserialize)]
 pub struct UpdateEntry{
+    pub parent_id: Option<Id>,
     pub cells: HashMap<Id, Value>,
 }

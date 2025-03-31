@@ -1,4 +1,6 @@
+import { goto } from "$app/navigation";
 import { env } from "$env/dynamic/public";
+import { clearUser, user } from "$lib/user.svelte.js";
 import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
 
 const API_URL = `${env.PUBLIC_API_URL}/api`;
@@ -6,15 +8,6 @@ const API_URL = `${env.PUBLIC_API_URL}/api`;
 //
 // General resources
 //
-
-// Constants
-const httpStatus = {
-  OK: 200,
-
-  Unprocessable: 422,
-
-  InternalServerError: 500
-};
 
 // types
 export type APIError = {
@@ -69,6 +62,7 @@ export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => 
 
 export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL + endpoint, {
   method: "DELETE",
+  credentials: "include",
 }).then(response => {
   if (response.ok) {
     return
@@ -84,16 +78,20 @@ export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL +
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (response.ok) {
     return await response.json().catch(() => { });
-  } else {
-    let err = {
-      status: response.status,
-      body: await (response.headers.get("Content-Type") === "application/json" ? response.json() : response.text())
-        .catch((e) => response.statusText),
-    } as APIError
-
-    if (typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
-    throw err
+  } else if (response.status === 401) {
+    //if unauthorized, redirect to login
+    clearUser()
+    goto(`/`);
   }
+
+  let err = {
+    status: response.status,
+    body: await (response.headers.get("Content-Type") === "application/json" ? response.json() : response.text())
+      .catch((e) => response.statusText),
+  } as APIError
+
+  if (typeof err.body === "object") err.body.toString = () => Object.entries(err.body).filter(e => e[0] !== "toString").map((e) => `${e[0]}: ${e[1]}`).join("\n");
+  throw err
 };
 
 type JSONDateTimeKind = DateTimeKind & {

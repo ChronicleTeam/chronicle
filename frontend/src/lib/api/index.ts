@@ -1,3 +1,3 @@
-export * from "./dataManagement.ts";
-export * from "./dashboard.ts";
-export { type APIError } from "./base.ts";
+export * from "./dataManagement.js";
+export * from "./dashboard.js";
+export { type APIError } from "./base.js";

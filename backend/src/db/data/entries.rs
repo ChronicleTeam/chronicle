@@ -1,6 +1,6 @@
-use super::{entry_from_row, field_columns};
+use super::{entry_from_row, select_columns, set_columns};
 use crate::{
-    db::Relation,
+    db::{data::insert_columns, Relation},
     model::{
         data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},
         Cell,
@@ -30,13 +30,9 @@ pub async fn create_entry(
         .chain(parent_id.map(|_| format!("${}", entry.len() + 1)))
         .join(", ");
 
-    let insert_columns = field_idents
-        .iter()
-        .map(|x| x.to_string())
-        .chain(parent_id.map(|_| "parent_id".to_string()))
-        .join(", ");
+    let insert_columns = insert_columns(parent_id.is_some(), &field_idents);
 
-    let return_columns = field_columns(parent_id.is_some(), &field_idents).join(", ");
+    let return_columns = select_columns(parent_id.is_some(), &field_idents);
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
@@ -69,6 +65,7 @@ pub async fn create_entry(
 pub async fn create_entries(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
+    parent_id: Option<Id>,
     fields: Vec<FieldMetadata>,
     entries: Vec<Vec<Cell>>,
 ) -> sqlx::Result<Vec<Entry>> {
@@ -85,13 +82,16 @@ pub async fn create_entries(
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let insert_columns = field_idents.iter().join(", ");
-    let return_columns = field_columns(false, &field_idents).join(", ");
+    let insert_columns = insert_columns(parent_id.is_some(), &field_idents);
+    let return_columns = select_columns(parent_id.is_some(), &field_idents);
 
     let rows = QueryBuilder::new(format!(r#"INSERT INTO {table_ident} ({insert_columns})"#))
         .push_values(entries, |mut builder, entry| {
             for cell in entry {
                 cell.push_bind(&mut builder);
+            }
+            if let Some(parent_id) = parent_id {
+                builder.push_bind(parent_id);
             }
         })
         .push(format!(
@@ -117,45 +117,27 @@ pub async fn update_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     entry_id: Id,
-    cell_entry: Vec<(Cell, FieldMetadata)>,
+    parent_id: Option<Id>,
+    fields: Vec<FieldMetadata>,
+    cells: Vec<Cell>,
 ) -> sqlx::Result<Entry> {
     let mut tx = conn.begin().await?;
-
-    let (cells, fields): (Vec<_>, Vec<_>) = cell_entry.into_iter().unzip();
 
     let field_idents = fields
         .iter()
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let parameters = field_idents
-        .iter()
-        .enumerate()
-        .map(|(i, field_ident)| format!("{field_ident} = ${}", i + 2))
-        .join(", ");
+    let set_columns = set_columns(parent_id.is_some(), &field_idents, 2);
 
-    let with_parent: bool = sqlx::query_scalar(&format!(
-        r#"
-            SELECT EXISTS (
-                SELECT 1
-                FROM meta_table
-                WHERE table_id = $1
-                    AND parent_id IS NOT NULL
-            )
-        "#
-    ))
-    .bind(table_id)
-    .fetch_one(tx.as_mut())
-    .await?;
-
-    let return_columns = field_columns(with_parent, &field_idents).join(", ");
+    let return_columns = select_columns(parent_id.is_some(), &field_idents);
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
     let update_query = format!(
         r#"
             UPDATE {table_ident}
-            SET {parameters}
+            SET {set_columns}
             WHERE entry_id = $1
             RETURNING {return_columns}
         "#,
@@ -164,6 +146,9 @@ pub async fn update_entry(
 
     for cell in cells {
         update_query = cell.bind(update_query);
+    }
+    if let Some(parent_id) = parent_id {
+        update_query = update_query.bind(parent_id);
     }
 
     let entry = entry_from_row(update_query.fetch_one(tx.as_mut()).await?, &fields)?;

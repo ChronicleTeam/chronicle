@@ -1,4 +1,4 @@
-use super::{entry_from_row, field_columns};
+use super::{entry_from_row, select_columns};
 use crate::{
     db::Relation,
     model::data::{
@@ -235,7 +235,7 @@ pub async fn get_table_data(
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let select_columns = field_columns(table.parent_id.is_some(), &field_idents).join(", ");
+    let select_columns = select_columns(table.parent_id.is_some(), &field_idents);
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let entries = sqlx::query::<Postgres>(&format!(

@@ -1,16 +1,18 @@
 use super::ApiState;
 use crate::{
-    db, error::{ApiError, ApiResult}, model::{
-        data::{CreateEntry, Entry, FieldKind, FieldMetadata, UpdateEntry},
+    db::{self, AuthSession},
+    error::{ApiError, ApiResult},
+    model::{
+        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
         Cell,
-    }, users::AuthSession, Id
+    },
+    Id,
 };
 use axum::{
     extract::{Path, State},
     routing::{patch, post},
     Json, Router,
 };
-use axum_login::AuthUser;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
@@ -27,7 +29,7 @@ pub fn router() -> Router<ApiState> {
     Router::new().nest(
         "/tables/{table-id}/entries",
         Router::new()
-            .route("/", post(create_entry))
+            .route("/", post(create_entries))
             .route("/{entry-id}", patch(update_entry).delete(delete_entry)),
     )
 }
@@ -44,32 +46,35 @@ pub fn router() -> Router<ApiState> {
 ///     - [`ENUMERATION_VALUE_MISSING`]
 ///     - [`INVALID_FIELD_ID`]
 ///
-async fn create_entry(
+async fn create_entries(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
-    Json(create_entry): Json<CreateEntry>,
-) -> ApiResult<Json<Entry>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    Json(CreateEntries { parent_id, entries }): Json<CreateEntries>,
+) -> ApiResult<Json<Vec<Entry>>> {
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    if let Some(entry_parent_id) = create_entry.parent_id {
+    if let Some(parent_entry_id) = parent_id {
         let table_parent_id = db::get_table_parent_id(&pool, table_id).await?;
-        db::check_entry_relation(&pool, table_parent_id, entry_parent_id)
+        db::check_entry_relation(&pool, table_parent_id, parent_entry_id)
             .await?
             .to_api_result()?;
     }
 
     let fields = db::get_fields_metadata(&pool, table_id).await?;
 
-    let cells = convert_cells(create_entry.cells, fields)?;
+    let entries = entries
+        .into_iter()
+        .map(|cells| convert_cells(cells, &fields))
+        .try_collect()?;
 
-    let entry = db::create_entry(&pool, table_id, create_entry.parent_id, cells).await?;
+    let entries = db::create_entries(&pool, table_id, parent_id, fields, entries).await?;
 
-    Ok(Json(entry))
+    Ok(Json(entries))
 }
 
 /// Update an entry in a table.
@@ -88,9 +93,9 @@ async fn update_entry(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
-    Json(UpdateEntry { cells }): Json<UpdateEntry>,
+    Json(UpdateEntry { parent_id, cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -99,11 +104,18 @@ async fn update_entry(
         .await?
         .to_api_result()?;
 
+    if let Some(parent_entry_id) = parent_id {
+        let table_parent_id = db::get_table_parent_id(&pool, table_id).await?;
+        db::check_entry_relation(&pool, table_parent_id, parent_entry_id)
+            .await?
+            .to_api_result()?;
+    }
+
     let fields = db::get_fields_metadata(&pool, table_id).await?;
 
-    let entry = convert_cells(cells, fields)?;
+    let cells = convert_cells(cells, &fields)?;
 
-    let entry = db::update_entry(&pool, table_id, entry_id, entry).await?;
+    let entry = db::update_entry(&pool, table_id, entry_id, parent_id, fields, cells).await?;
 
     Ok(Json(entry))
 }
@@ -120,8 +132,8 @@ async fn delete_entry(
     State(ApiState { pool, .. }): State<ApiState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
-    let user_id = user.ok_or(ApiError::Unauthorized)?.id();
-    
+    let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -136,17 +148,14 @@ async fn delete_entry(
 
 fn convert_cells(
     mut raw_cells: HashMap<Id, Value>,
-    fields: Vec<FieldMetadata>,
-) -> ApiResult<Vec<(Cell, FieldMetadata)>> {
-    let (new_entry, mut error_messages): (Vec<_>, Vec<_>) = fields
+    fields: &[FieldMetadata],
+) -> ApiResult<Vec<Cell>> {
+    let (new_cells, mut error_messages): (Vec<_>, Vec<_>) = fields
         .into_iter()
         .map(|field| {
             let json_value = raw_cells.remove(&field.field_id).unwrap_or(Value::Null);
-            Ok((
-                json_to_cell(json_value, &field.field_kind)
-                    .map_err(|message| (field.field_id.to_string(), message))?,
-                field,
-            ))
+            Ok(json_to_cell(json_value, &field.field_kind)
+                .map_err(|message| (field.field_id.to_string(), message))?)
         })
         .partition_result();
 
@@ -160,7 +169,7 @@ fn convert_cells(
         return Err(ApiError::unprocessable_entity(error_messages));
     }
 
-    Ok(new_entry)
+    Ok(new_cells)
 }
 
 /// Converts a JSON value to a [`Cell`] and returns the

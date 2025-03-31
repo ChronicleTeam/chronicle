@@ -10,6 +10,10 @@ export const user = async () => {
   return userState
 };
 
+export const clearUser = async () => {
+  userState = null;
+}
+
 export const login = (credentials: Credentials) => userState ? async () => { throw { body: "Already logged in." } } : postLogin(credentials).then((r: User) => {
   userState = r;
 }).catch(e => {
