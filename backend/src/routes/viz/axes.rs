@@ -22,6 +22,19 @@ pub fn router() -> Router<ApiState> {
     )
 }
 
+/// Set all the axes of the specified chart.
+/// 
+/// This is the only way to modify chart axes because the dynamic view needs to
+/// be rebuilt and it is much more convienient when receiving all the axes at once.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
+/// - [ApiError::NotFound]: Dashboard or chart not found
+/// - [ApiError::UnprocessableEntity]:
+///     - <field_id>: [FIELD_NOT_FOUND]
+///     - <field_id>: [INVALID_AXIS_AGGREGATE]
+/// 
 async fn set_axes(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -39,9 +52,6 @@ async fn set_axes(
 
     let table_id = db::get_chart_table_id(&pool, chart_id).await?;
 
-    db::check_table_relation(&pool, user_id, table_id)
-        .await?
-        .to_api_result()?;
 
     let field_kinds: HashMap<_, _> = db::get_fields_metadata(&pool, table_id)
         .await?

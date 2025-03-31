@@ -1,3 +1,10 @@
+//! Route handlers for managing users.
+//! 
+//! User sessions are managed through an authentication cookie which is sent to the
+//! front-end and received in the back-end to confirm identity.
+//! 
+
+
 use super::ApiState;
 use crate::{
     db::AuthSession, error::{ApiError, ApiResult, ErrorMessage, IntoAnyhow}, model::users::{Credentials, User, UserResponse, UserRole}
@@ -20,6 +27,16 @@ pub fn router() -> Router<ApiState> {
 }
 
 
+/// Register a user from credentials.
+/// Logins the user after registration.
+/// 
+/// *WARNING*: Intentionally inaccessible because we don't want
+/// to allow everyone to create accounts because of limited ressources.
+/// 
+/// # Errors
+/// - [ApiError::BadRequest]: User is already authenticated
+/// - [ApiError::Conflict]: User name is already taken
+/// 
 async fn _register(
     mut auth_session: AuthSession,
     Form(creds): Form<Credentials>,
@@ -43,10 +60,13 @@ async fn _register(
     }))
 }
 
-/// Login the user from a credentials form.
+/// Login the user from the credentials.
 /// 
-/// # Errors:
-/// - [ApiError::BadRequest]
+/// # Errors
+/// - [ApiError::BadRequest]: User is already authenticated
+/// - [ApiError::UnprocessableEntity]:
+///   - [INVALID_CREDENTIALS]
+/// 
 async fn login(
     mut auth_session: AuthSession,
     Form(creds): Form<Credentials>,
@@ -73,12 +93,17 @@ async fn login(
         username: user.username,
     }))
 }
+
+/// Logout the user. Does nothing if the user is not logged in.
+/// 
 pub async fn logout(mut auth_session: AuthSession) -> ApiResult<()> {
     _ = auth_session.logout().await.into_anyhow()?;
 
     Ok(())
 }
-
+/// Get the currently logged in username and user ID.
+/// Returns null if the user is not logged in.
+/// 
 async fn get_user(
     AuthSession { user, .. }: AuthSession,
 ) -> ApiResult<Json<Option<UserResponse>>> {
@@ -88,7 +113,13 @@ async fn get_user(
     })))
 }
 
-
+/// Create a user from credentials. Request user must have the role [UserRole::Admin].
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User is not [UserRole::Admin]
+/// - [ApiError::Conflict]: User name is already taken
+/// 
 async fn create_user(
     AuthSession { user, mut backend, ..}: AuthSession,
     Form(creds): Form<Credentials>,

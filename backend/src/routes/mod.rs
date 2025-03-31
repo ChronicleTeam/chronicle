@@ -5,8 +5,9 @@
 //!
 //! HTTP methods map to different operations like this:
 //! - POST: Create
+//! - PUT: Create or replace
 //! - GET: Read
-//! - PUT/PATCH: Update
+//! - PATCH: Update
 //! - DELETE: Delete
 //!
 //! See [crate::error::ApiError] for the errors that can be returned from the API.
