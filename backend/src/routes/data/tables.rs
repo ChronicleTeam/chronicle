@@ -12,8 +12,8 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
-use tracing::info;
 use std::io::Cursor;
+use tracing::info;
 use umya_spreadsheet::{
     reader::{self, xlsx},
     writer,
@@ -115,7 +115,7 @@ async fn get_tables(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let tables = db::get_tables(&pool, user_id).await?;
-    
+
     Ok(Json(tables))
 }
 
@@ -185,6 +185,7 @@ async fn import_table_from_excel(
         let entries = db::create_entries(
             tx.as_mut(),
             table.table_id,
+            None,
             fields
                 .iter()
                 .map(|field| FieldMetadata::from_field(field.clone()))
@@ -262,6 +263,7 @@ async fn import_table_from_csv(
     let entries = db::create_entries(
         tx.as_mut(),
         table.table_id,
+        None,
         fields
             .iter()
             .map(|field| FieldMetadata::from_field(field.clone()))
