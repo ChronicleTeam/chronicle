@@ -6,13 +6,9 @@ export enum FieldType {
   Money = "Money",
   Progress = "Progress",
   DateTime = "DateTime",
-  Interval = "Interval",
   WebLink = "WebLink",
-  Email = "Email",
   Checkbox = "Checkbox",
   Enumeration = "Enumeration",
-  Image = "Image",
-  File = "File",
 }
 export type Field = {
   table_id: number;
@@ -66,18 +62,8 @@ export type DateTimeKind = {
   date_time_format: string;
 };
 
-export type IntervalKind = {
-  type: FieldType.Interval;
-  is_required: boolean;
-}
-
 export type WebLinkKind = {
   type: FieldType.WebLink;
-  is_required: boolean;
-}
-
-export type EmailKind = {
-  type: FieldType.Email;
   is_required: boolean;
 }
 
@@ -91,15 +77,6 @@ export type EnumerationKind = {
   default_value: number;
 };
 
-export type ImageKind = {
-  type: FieldType.Image;
-  is_required: boolean;
-}
-export type FileKind = {
-  type: FieldType.File;
-  is_required: boolean;
-}
-
 export type FieldKind =
   | TextKind
   | IntegerKind
@@ -107,13 +84,9 @@ export type FieldKind =
   | MoneyKind
   | ProgressKind
   | DateTimeKind
-  | IntervalKind
   | WebLinkKind
-  | EmailKind
   | CheckboxKind
   | EnumerationKind
-  | ImageKind
-  | FileKind;
 
 export const typeToStr = (t: FieldType): string => {
   switch (t) {
@@ -164,13 +137,9 @@ export type Decimal = number;
 export type Money = string;
 export type Progress = number;
 export type DateTime = Date;
-export type Interval = null;
 export type Weblink = string;
-export type Email = string;
 export type Checkbox = boolean;
 export type Enumeration = number;
-export type Image = null;
-export type File = null;
 
 export type Cell =
   | Text
@@ -179,13 +148,9 @@ export type Cell =
   | Money
   | Progress
   | DateTime
-  | Interval
   | Weblink
-  | Email
   | Checkbox
   | Enumeration
-  | Image
-  | File;
 
 // Variable Inputs
 

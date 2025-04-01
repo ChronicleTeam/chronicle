@@ -32,15 +32,12 @@ export const POST = async <T,>(endpoint: string, jsonBody: any): Promise<T> => f
   body: JSON.stringify(jsonBody)
 }).then(handleResponse<T>);
 
-export const POST_FORM = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
+export const POST_FORM = async <T,>(endpoint: string, form: FormData): Promise<T> => fetch(API_URL + endpoint, {
   method: "POST",
   credentials: "include",
-  headers: {
-    "Content-Type": "application/x-www-form-urlencoded",
-  },
-  body: new URLSearchParams(jsonBody)
+  // @ts-ignore (URLSearchParams works fine with FormData as stated in https://developer.mozilla.org/en-US/docs/Web/API/FormData)
+  body: form.values().some(v => v instanceof Blob) ? form : new URLSearchParams(form)
 }).then(handleResponse<T>);
-
 
 export const PUT = async <T,>(endpoint: string, jsonBody: any): Promise<T> => fetch(API_URL + endpoint, {
   method: "PUT",
@@ -77,7 +74,11 @@ export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL +
 // Helper methods
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (response.ok) {
-    return await response.json().catch(() => { });
+    if (response.headers.get("Content-Type") === "application/octet-stream") {
+      return await response.blob() as T
+    } else {
+      return await response.json().catch(() => { });
+    }
   } else if (response.status === 401) {
     //if unauthorized, redirect to login
     clearUser()
