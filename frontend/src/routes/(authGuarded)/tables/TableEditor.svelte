@@ -64,7 +64,7 @@
     modeState = { mode: TableMode.CHILD, child };
   };
   const modeEditChild = (child: TableChild) => {
-    modeState = { mode: TableMode.CHILD, child };
+    modeState = { mode: TableMode.EDIT_CHILD, child };
   };
 
   // these are used to change the table state to DISPLAY, INSERT, and EDIT respectively
