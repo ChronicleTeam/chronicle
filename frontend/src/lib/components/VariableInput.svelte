@@ -8,12 +8,14 @@
     id, // maps to id attribute
     class: innerClass = "", // maps to class attribute
     onclick, // maps to onclick attribute
+    onkeydown,
   }: {
     params: InputParameters;
     disabled?: boolean;
     id?: string;
     class?: ClassValue;
     onclick?: () => void;
+    onkeydown: (e: KeyboardEvent) => void;
   } = $props();
 </script>
 
@@ -32,6 +34,7 @@
       {id}
       bind:value={params.bindGetter, params.bindSetter}
       {onclick}
+      {onkeydown}
     >
       {#each opts as opt}
         <option value={opt[0]}>{opt[1]}</option>
@@ -44,6 +47,7 @@
       class={innerClass}
       bind:value={params.bindGetter, params.bindSetter}
       {onclick}
+      {onkeydown}
     ></textarea>
   {:else if params.type === "checkbox"}
     <input
@@ -52,6 +56,7 @@
       type="checkbox"
       bind:checked={params.bindGetter, params.bindSetter}
       {onclick}
+      {onkeydown}
     />
   {:else if params.type === "url"}
     {#if disabled}
@@ -68,6 +73,7 @@
         type={params.type}
         bind:value={params.bindGetter, params.bindSetter}
         {onclick}
+        {onkeydown}
       />
     {/if}
   {:else}
@@ -87,6 +93,7 @@
         : params.step}
       bind:value={params.bindGetter, params.bindSetter}
       {onclick}
+      {onkeydown}
     />
   {/if}
 </div>

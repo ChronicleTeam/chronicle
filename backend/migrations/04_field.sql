@@ -1,5 +1,6 @@
 /*
-A field in a user table. Contains JSON options under field_kind. See src/model/data/field.rs
+A field in a user table. Contains JSON options under field_kind.
+Represents a column in the actual SQL table.
 */
 CREATE TABLE meta_field (
     field_id SERIAL PRIMARY KEY,
@@ -16,6 +17,9 @@ SELECT trigger_updated_at('meta_field');
 
 SELECT trigger_rename_duplicate('meta_field', 'field_id', 'table_id');
 
+/*
+Set the default ordering of a meta_field row as being one greater than the current max.
+*/
 CREATE OR REPLACE FUNCTION set_default_ordering()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -35,6 +39,9 @@ BEFORE INSERT ON meta_field
 FOR EACH ROW
 EXECUTE FUNCTION set_default_ordering();
 
+/*
+Decrement greater orderings after deleting a row in meta_fields.
+*/
 CREATE OR REPLACE FUNCTION decrement_orderings()
 RETURNS TRIGGER AS $$
 BEGIN

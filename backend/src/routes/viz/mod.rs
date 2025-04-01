@@ -1,3 +1,7 @@
+//! Route handlers for managing user dashboards.
+//!
+//! Users must be authenticated for all requests.
+
 mod axes;
 mod charts;
 mod dashboards;

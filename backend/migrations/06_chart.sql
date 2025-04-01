@@ -1,10 +1,16 @@
-
+/*
+Kind of chart to display.
+*/
 CREATE TYPE chart_kind AS ENUM (
     'Table',
     'Bar',
     'Line'
 );
 
+/*
+A chart containing many axes depending on the chart_kind.
+Represents an actual SQL view on the reference table.
+*/
 CREATE TABLE chart (
     chart_id SERIAL PRIMARY KEY,
     dashboard_id INT NOT NULL REFERENCES dashboard(dashboard_id),
