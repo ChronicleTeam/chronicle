@@ -18,7 +18,7 @@ export type ModeState = {
   mode: TableMode.DISPLAY
 } | {
   mode: TableMode.INSERT;
-  entry_idx: number;
+  entry_idxes: number[];
 } | {
   mode: TableMode.EDIT;
   entry_idx: number;
