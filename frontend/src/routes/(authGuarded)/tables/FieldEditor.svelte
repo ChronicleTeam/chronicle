@@ -10,12 +10,8 @@
     FieldType,
     type DecimalKind,
     type DateTimeKind,
-    type IntervalKind,
     type WebLinkKind,
-    type EmailKind,
     type EnumerationKind,
-    type ImageKind,
-    type FileKind,
     type InputParameters,
     type Table,
     typeToStr,
@@ -62,12 +58,8 @@
     | DecimalKind
     | MoneyKind
     | DateTimeKind
-    | IntervalKind
     | WebLinkKind
-    | EmailKind
-    | EnumerationKind
-    | ImageKind
-    | FileKind;
+    | EnumerationKind;
 
   //
   // State variables
@@ -400,11 +392,7 @@
               },
             },
           ];
-        case FieldType.Interval:
-          return [getTypeFieldKindInput(i), getRequiredFieldKindInput(i)];
         case FieldType.WebLink:
-          return [getTypeFieldKindInput(i), getRequiredFieldKindInput(i)];
-        case FieldType.Email:
           return [getTypeFieldKindInput(i), getRequiredFieldKindInput(i)];
         case FieldType.Checkbox:
           return [getTypeFieldKindInput(i)];
@@ -464,10 +452,6 @@
               },
             },
           ];
-        case FieldType.Image:
-          return [getTypeFieldKindInput(i), getRequiredFieldKindInput(i)];
-        case FieldType.File:
-          return [getTypeFieldKindInput(i), getRequiredFieldKindInput(i)];
         default:
           return [];
       }
@@ -748,19 +732,7 @@
                 date_time_format: "YYYY-MM-DD",
               };
               break;
-            case FieldType.Interval:
-              table.new.fields[i].field_kind = {
-                type: val,
-                is_required: true,
-              };
-              break;
             case FieldType.WebLink:
-              table.new.fields[i].field_kind = {
-                type: val,
-                is_required: true,
-              };
-              break;
-            case FieldType.Email:
               table.new.fields[i].field_kind = {
                 type: val,
                 is_required: true,
@@ -777,18 +749,6 @@
                 is_required: true,
                 values: {} as { [key: number]: string },
                 default_value: 0,
-              };
-              break;
-            case FieldType.Image:
-              table.new.fields[i].field_kind = {
-                type: val,
-                is_required: true,
-              };
-              break;
-            case FieldType.File:
-              table.new.fields[i].field_kind = {
-                type: val,
-                is_required: true,
               };
               break;
           }

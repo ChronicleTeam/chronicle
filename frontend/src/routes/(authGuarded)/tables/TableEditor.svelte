@@ -11,9 +11,7 @@
     Money,
     Progress,
     DateTime,
-    Interval,
     Weblink,
-    Email,
     Checkbox,
     Enumeration,
     InputParameters,
@@ -129,12 +127,8 @@
               return [f.field_id.toString(), 0 as Progress];
             case FieldType.DateTime:
               return [f.field_id.toString(), new Date() as DateTime];
-            case FieldType.Interval:
-              return [f.field_id.toString(), null as Interval];
             case FieldType.WebLink:
               return [f.field_id.toString(), "" as Weblink];
-            case FieldType.Email:
-              return [f.field_id.toString(), "" as Email];
             case FieldType.Checkbox:
               return [f.field_id.toString(), false as Checkbox];
             case FieldType.Enumeration:
@@ -245,7 +239,6 @@
           },
         } as InputParameters;
       case FieldType.Text:
-      case FieldType.Email:
       default:
         return {
           type: "text",
