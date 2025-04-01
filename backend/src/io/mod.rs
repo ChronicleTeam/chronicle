@@ -1,4 +1,3 @@
 mod data;
-mod viz;
 
-pub use {data::*, viz::*};
+pub use data::*;

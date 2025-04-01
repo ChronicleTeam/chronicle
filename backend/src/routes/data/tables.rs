@@ -28,9 +28,9 @@ pub fn router() -> Router<ApiState> {
             .route("/{table-id}/children", get(get_table_children))
             .route("/{table-id}/data", get(get_table_data))
             .route("/excel", post(import_table_from_excel))
-            .route("/{table-id}/excel", get(export_table_to_excel))
+            .route("/{table-id}/excel", post(export_table_to_excel))
             .route("/csv", post(import_table_from_csv))
-            .route("/{table-id}/csv", get(export_table_to_csv)),
+            .route("/{table-id}/csv", post(export_table_to_csv)),
     )
 }
 
