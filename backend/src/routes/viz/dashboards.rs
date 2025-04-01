@@ -1,14 +1,15 @@
 use crate::{
-    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, routes::ApiState, Id
+    db::{self, AuthSession},
+    error::{ApiError, ApiResult},
+    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
+    routes::ApiState,
+    Id,
 };
 use axum::{
     extract::{Path, State},
     routing::{patch, post},
     Json, Router,
 };
-
-// const DASHBOARD_NAME_CONFLICT: ErrorMessage =
-//     ErrorMessage::new_static("name", "Dashboard name already used");
 
 pub fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -22,6 +23,11 @@ pub fn router() -> Router<ApiState> {
     )
 }
 
+/// Create a blank dashboard.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// 
 async fn create_dashboard(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -34,6 +40,13 @@ async fn create_dashboard(
     Ok(Json(dashboard))
 }
 
+/// Update a dashboard's metadata.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard
+/// - [ApiError::NotFound]: Dashboard not found
+/// 
 async fn update_dashboard(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -51,6 +64,13 @@ async fn update_dashboard(
     Ok(Json(dashboard))
 }
 
+/// Delete a dashboard and all of it's charts and chart axes.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard
+/// - [ApiError::NotFound]: Dashboard not found
+/// 
 async fn delete_dashboard(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -67,6 +87,11 @@ async fn delete_dashboard(
     Ok(())
 }
 
+/// Get all dashboards of the user.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// 
 async fn get_dashboards(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,

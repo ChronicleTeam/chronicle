@@ -7,8 +7,9 @@ services:
     ports:
       - "5432:5432" # Expose port 5432
     environment:
-      POSTGRES_USER: user
+      POSTGRES_USER: chronicle
       POSTGRES_PASSWORD: password
+      POSTGRES_DB: chronicle
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
