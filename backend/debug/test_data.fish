@@ -28,7 +28,7 @@ curl -b cookies.txt -X PATCH $ADDR/tables/1/fields/order \
 
 # Import excel
 curl -b cookies.txt -X POST $ADDR/tables/excel \
-    -F "file=@data/test.xlsx"
+    -F "file=@data/import.xlsx"
 
 # Export excel without existing spreadsheet
 curl -b cookies.txt -X GET  $ADDR/tables/1/excel \

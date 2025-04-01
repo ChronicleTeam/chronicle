@@ -46,7 +46,7 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
 
         let entries: Vec<Vec<Cell>> = (2..=rows)
             .map(|row| {
-                (1..columns)
+                (1..=columns)
                     .map(|col| {
                         let value = sheet.get_value((col, row));
                         if value.is_empty() {
