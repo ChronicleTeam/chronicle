@@ -25,7 +25,7 @@
   import { FieldType } from "$lib/types.d.js";
   import {
     getTableData,
-    postEntry,
+    postEntries,
     patchEntry,
     deleteEntry,
     type APIError,
@@ -57,7 +57,7 @@
     modeState = { mode: TableMode.DISPLAY };
   };
   const modeInsert = (entry_idx: number) => {
-    modeState = { mode: TableMode.INSERT, entry_idx };
+    modeState = { mode: TableMode.INSERT, entry_idxes: [entry_idx] };
   };
   const modeEdit = (entry_idx: number) => {
     modeState = { mode: TableMode.EDIT, entry_idx };
@@ -81,7 +81,12 @@
 
   const insertEntry = () => {
     table.entries.push(getNewEntry());
-    modeInsert(table.entries.length - 1);
+
+    if (!(modeState.mode === TableMode.INSERT)) {
+      modeInsert(table.entries.length - 1);
+    } else {
+      modeState.entry_idxes.push(table.entries.length - 1);
+    }
   };
 
   const editEntry = modeEdit;
@@ -102,9 +107,13 @@
 
   // generates a new entry object with default values
   const getNewEntry = (): Entry => {
+    let i = -1;
+    while (table.entries.some((e) => e.entry_id === i)) {
+      i--;
+    }
     return {
       parent_id: entry_id ?? null,
-      entry_id: -1,
+      entry_id: i,
       cells: Object.fromEntries(
         table.fields.map((f: Field): [string, Cell] => {
           switch (f.field_kind.type) {
@@ -265,9 +274,16 @@
     });
   };
 
-  const createEntry = () => {
+  const createEntries = () => {
     if (modeState.mode === TableMode.INSERT) {
-      postEntry(table.table, table.entries[modeState.entry_idx])
+      postEntries(
+        table.table,
+        table.entries.filter((e, idx) =>
+          modeState.mode === TableMode.INSERT
+            ? modeState.entry_idxes.some((i: number) => idx === i)
+            : false,
+        ),
+      )
         .then(() => {
           cancelEntry();
           loadTable();
@@ -310,7 +326,7 @@
     loadTable();
   });
 
-  $inspect(modeState);
+  $inspect(modeState, errors);
 </script>
 
 {#if modeState.mode === TableMode.CHILD}
@@ -343,9 +359,26 @@
       <thead>
         <tr>
           {#each table.fields as field}
-            <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
-              >{field.name}</th
+            <th
+              class=" relative bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
             >
+              <!-- Floating error bubble -->
+              {#if modeState.mode === TableMode.INSERT && typeof errors.fields === "object" && errors.fields[field.field_id.toString()] !== undefined}
+                <div
+                  class="absolute bottom-full inset-x-0 flex flex-col items-center"
+                >
+                  <div
+                    class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm font-normal"
+                  >
+                    Error: {errors.fields[field.field_id.toString()]}
+                  </div>
+                  <svg width="20" height="10">
+                    <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
+                  </svg>
+                </div>
+              {/if}
+              {field.name}
+            </th>
           {/each}
           {#each table.children as child}
             <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
@@ -365,13 +398,14 @@
       <tbody>
         {#each table.entries.filter( (e) => (entry_id != null ? e.parent_id === entry_id : true), ) as entry, i}
           <tr>
-            {#each table.fields as field}
+            {#each table.fields as field, j}
               <td
                 class={[
                   "relative text-black border-2 border-gray-400 size-min p-2",
-                  (modeState.mode === TableMode.INSERT ||
-                    modeState.mode === TableMode.EDIT) &&
-                  modeState.entry_idx === i
+                  (modeState.mode === TableMode.INSERT &&
+                    modeState.entry_idxes.includes(i)) ||
+                  (modeState.mode === TableMode.EDIT &&
+                    modeState.entry_idx === i)
                     ? "bg-blue-200"
                     : "bg-white",
                 ]}
@@ -380,7 +414,7 @@
                 }}
               >
                 <!-- Floating error bubble -->
-                {#if (modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT) && modeState.entry_idx === i && errors.fields[field.field_id.toString()] !== undefined}
+                {#if modeState.mode === TableMode.EDIT && modeState.entry_idx === i && typeof errors.fields === "object" && errors.fields[field.field_id.toString()] !== undefined}
                   <div
                     class="absolute bottom-full inset-x-0 flex flex-col items-center"
                   >
@@ -397,19 +431,32 @@
 
                 <!-- Table cell -->
                 <VariableInput
+                  id={`input-${i}-${j}`}
                   disabled={!(
-                    modeState.mode === TableMode.INSERT ||
-                    modeState.mode === TableMode.EDIT
-                  ) || modeState.entry_idx !== i}
+                    (modeState.mode === TableMode.INSERT &&
+                      modeState.entry_idxes.includes(i)) ||
+                    (modeState.mode === TableMode.EDIT &&
+                      modeState.entry_idx === i)
+                  )}
                   class={[
                     "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
-                    (modeState.mode === TableMode.INSERT ||
-                      modeState.mode === TableMode.EDIT) &&
-                    modeState.entry_idx === i
+                    (modeState.mode === TableMode.INSERT &&
+                      modeState.entry_idxes.includes(i)) ||
+                    (modeState.mode === TableMode.EDIT &&
+                      modeState.entry_idx === i)
                       ? "bg-blue-200"
                       : "bg-white",
                   ]}
                   params={cellToInputParams(i, field)}
+                  onkeydown={(k) => {
+                    if (k.key === "Enter") {
+                      if (i === table.entries.length - 1) {
+                        insertEntry();
+                      } else {
+                        document.getElementById(`input-${i + 1}-${0}`)?.focus();
+                      }
+                    }
+                  }}
                 />
               </td>
             {/each}
@@ -417,9 +464,10 @@
               <td
                 class={[
                   "relative text-black border-2 border-gray-400 size-min p-2",
-                  (modeState.mode === TableMode.INSERT ||
-                    modeState.mode === TableMode.EDIT) &&
-                  modeState.entry_idx === i
+                  (modeState.mode === TableMode.INSERT &&
+                    modeState.entry_idxes.includes(i)) ||
+                  (modeState.mode === TableMode.EDIT &&
+                    modeState.entry_idx === i)
                     ? "bg-blue-200"
                     : "bg-white",
                 ]}
@@ -450,12 +498,23 @@
         {/each}
       </tbody>
     </table>
+    {#if typeof errors.fields === "string"}<p class="text-red-500">
+        Error: {errors.fields}
+      </p>{/if}
+    <!-- Add row button -->
+    {#if (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
+      <button
+        onclick={insertEntry}
+        class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
+        >+ Add Row</button
+      >
+    {/if}
     <!-- Button cluster to confirm/cancel editing/creating entries -->
     {#if modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT}
       <div class="flex justify-center gap-3">
         <button
           onclick={modeState.mode === TableMode.INSERT
-            ? createEntry
+            ? createEntries
             : updateEntry}
           class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
           >Save</button
@@ -473,14 +532,6 @@
           />
         {/if}
       </div>
-
-      <!-- Add row button -->
-    {:else if modeState.mode === TableMode.DISPLAY && table.fields.length > 0}
-      <button
-        onclick={insertEntry}
-        class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
-        >+ Add Row</button
-      >
     {/if}
   </div>
 {/if}
