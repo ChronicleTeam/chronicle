@@ -291,8 +291,9 @@
   });
 </script>
 
-<!-- Dashboard viewer / editor -->
 {#if modeState.mode === EditMode.DISPLAY || modeState.mode === EditMode.EDIT_DASH}
+  <!-- Dashboard viewer / editor -->
+
   <!-- Dashboard metadata -->
   {#if modeState.mode === EditMode.DISPLAY}
     <div class="flex flex-col items-center">
@@ -467,9 +468,9 @@
       >
     </div>
   {/if}
-
-  <!-- Chart editor (Axes) -->
 {:else if modeState.mode === EditMode.EDIT_CHART}
+  <!-- Chart editor (Axes) -->
+
   <!-- Chart metadata -->
   <input class="mb-2" bind:value={charts[modeState.chartIdx].name} />
   <p class="text-red-500">{errors.chart.save}</p>
