@@ -17,6 +17,13 @@ pub fn router() -> Router<ApiState> {
     )
 }
 
+/// Create a blank chart.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard or table
+/// - [ApiError::NotFound]: Dashboard or table not found
+/// 
 async fn create_chart(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -37,6 +44,13 @@ async fn create_chart(
     Ok(Json(chart))
 }
 
+/// Update a chart's metadata.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
+/// - [ApiError::NotFound]: Dashboard or chart not found
+/// 
 async fn update_chart(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -57,6 +71,13 @@ async fn update_chart(
     Ok(Json(chart))
 }
 
+/// Delete a chart and its axes.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
+/// - [ApiError::NotFound]: Dashboard or chart not found
+/// 
 async fn delete_chart(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -76,6 +97,13 @@ async fn delete_chart(
     Ok(())
 }
 
+/// Get all charts for this dashboard.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard
+/// - [ApiError::NotFound]: Dashboard not found
+/// 
 async fn get_charts(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -93,7 +121,15 @@ async fn get_charts(
 }
 
 
-
+/// Get the chart's metadata, axes metadata, and cell data.
+/// 
+/// Used for building and displaying the chart.
+/// 
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
+/// - [ApiError::NotFound]: Dashboard or chart not found
+/// 
 async fn get_chart_data(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,

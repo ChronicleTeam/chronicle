@@ -13,14 +13,10 @@ use axum::{
 };
 use itertools::Itertools;
 use std::io::Cursor;
-use tracing::info;
 use umya_spreadsheet::{
     reader::{self, xlsx},
     writer,
 };
-
-// const TABLE_NAME_CONFLICT: ErrorMessage =
-//     ErrorMessage::new_static("name", "Table name already used");
 
 pub fn router() -> Router<ApiState> {
     Router::new().nest(
@@ -40,7 +36,7 @@ pub fn router() -> Router<ApiState> {
 /// Create an empty user table.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [ApiError::Unauthorized]: User not authenticated
 ///
 async fn create_table(
     AuthSession { user, .. }: AuthSession,
@@ -57,9 +53,9 @@ async fn create_table(
 /// Update a table's meta data.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table not found
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
 ///
 async fn update_table(
     AuthSession { user, .. }: AuthSession,
@@ -81,18 +77,16 @@ async fn update_table(
 /// Delete a table, including all fields and entries.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table not found
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
 ///
 async fn delete_table(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
-    info!("OK");
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    info!("AUTHORIZED");
 
     db::check_table_relation(&pool, user_id, table_id)
         .await?
@@ -106,7 +100,7 @@ async fn delete_table(
 /// Get all tables belonging to the user.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
+/// - [ApiError::Unauthorized]: User not authenticated
 ///
 async fn get_tables(
     AuthSession { user, .. }: AuthSession,
@@ -119,6 +113,13 @@ async fn get_tables(
     Ok(Json(tables))
 }
 
+/// Get all table children for the specified table.
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
+///
 async fn get_table_children(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -138,6 +139,12 @@ async fn get_table_children(
 /// Get all the meta data, fields, and entries of a table.
 ///
 /// Used for displaying the table in the user interface.
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
+///
 async fn get_table_data(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -154,6 +161,12 @@ async fn get_table_data(
     Ok(Json(data_table))
 }
 
+/// Takes an Excel file and attempts to convert it into an table.
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::BadRequest]: Multipart has zero fields
+///
 async fn import_table_from_excel(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -206,6 +219,20 @@ async fn import_table_from_excel(
     Ok(Json(tables))
 }
 
+/// Converts the specified table into an Excel file.
+///
+/// Can optionally take an input Excel file in which to add the table to.
+/// Otherwise, provide an empty multipart field.
+///
+/// # TODO
+/// Add support for child tables.
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
+/// - [ApiError::BadRequest]: Multipart has zero fields
+///
 async fn export_table_to_excel(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -239,6 +266,12 @@ async fn export_table_to_excel(
     Ok(buffer)
 }
 
+/// Takes an CSV file and attempts to convert it into an table.
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::BadRequest]: Multipart has zero fields
+///
 async fn import_table_from_csv(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -282,6 +315,16 @@ async fn import_table_from_csv(
     }))
 }
 
+/// Converts the specified table into an CSV file.
+///
+/// # TODO
+/// Add support for child tables.
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
+///
 async fn export_table_to_csv(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,

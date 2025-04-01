@@ -14,7 +14,7 @@ use std::{
 };
 
 /// Main return type for the API.
-/// See [`ApiError`] for details on usage.
+/// See [ApiError] for details on usage.
 pub type ApiResult<T> = std::result::Result<T, ApiError>;
 
 

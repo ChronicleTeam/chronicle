@@ -1,8 +1,9 @@
-use std::collections::HashSet;
-
 use super::ApiState;
 use crate::{
-    db::{self, AuthSession}, error::{ApiError, ApiResult, ErrorMessage}, model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField}, Id
+    db::{self, AuthSession},
+    error::{ApiError, ApiResult, ErrorMessage},
+    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
+    Id,
 };
 use anyhow::anyhow;
 use axum::{
@@ -11,6 +12,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
+use std::collections::HashSet;
 
 const INVALID_RANGE: ErrorMessage = ("range", "Range start bound is greater than end bound");
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
@@ -30,11 +32,11 @@ pub fn router() -> Router<ApiState> {
 /// Create a field in a table.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table or field
-/// - [`ApiError::NotFound`]: Table or field not found
-/// - [`ApiError::UnprocessableEntity`]:
-///     - [`INVALID_RANGE`]
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
+/// - [ApiError::UnprocessableEntity]:
+///     - [INVALID_RANGE]
 ///
 async fn create_field(
     AuthSession { user, .. }: AuthSession,
@@ -55,14 +57,17 @@ async fn create_field(
     Ok(Json(field))
 }
 
-/// Update a field in a table.
+/// Update a field's meta data in a table.
+///
+/// Will perform conversion on the cells if the field kind changes and backup the original cells.
+/// Cells that fail to convert are set to null.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table or field
-/// - [`ApiError::NotFound`]: Table or field not found
-/// - [`ApiError::UnprocessableEntity`]:
-///     - [`INVALID_RANGE`]
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table or field
+/// - [ApiError::NotFound]: Table or field not found
+/// - [ApiError::UnprocessableEntity]:
+///     - [INVALID_RANGE]
 ///
 async fn update_field(
     AuthSession { user, .. }: AuthSession,
@@ -89,9 +94,9 @@ async fn update_field(
 /// Delete a field and all cells in its respective column in the table.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table or field
-/// - [`ApiError::NotFound`]: Table or field not found
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table or field
+/// - [ApiError::NotFound]: Table or field not found
 ///
 async fn delete_field(
     AuthSession { user, .. }: AuthSession,
@@ -115,9 +120,9 @@ async fn delete_field(
 /// Get all fields in a table.
 ///
 /// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table not found
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
 ///
 async fn get_fields(
     AuthSession { user, .. }: AuthSession,
@@ -135,6 +140,17 @@ async fn get_fields(
     Ok(Json(fields))
 }
 
+/// Set the order of all fields in a table.
+/// Ordering numbers must go from `0` to `n-1` where `n` is the total number of fields
+///
+/// # Errors
+/// - [ApiError::Unauthorized]: User not authenticated
+/// - [ApiError::Forbidden]: User does not have access to that table
+/// - [ApiError::NotFound]: Table not found
+/// - [ApiError::UnprocessableEntity]:
+///   - <field_id>: [FIELD_ID_NOT_FOUND]
+///   - <field_id>: [INVALID_ORDERING]
+///
 async fn set_field_order(
     AuthSession { user, .. }: AuthSession,
     State(ApiState { pool, .. }): State<ApiState>,
@@ -142,7 +158,7 @@ async fn set_field_order(
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    
+
     db::check_table_relation(&pool, user_id, table_id)
         .await?
         .to_api_result()?;
@@ -183,7 +199,7 @@ async fn set_field_order(
     Ok(())
 }
 
-/// Validates [`FieldKind`] from requests.
+/// Validates a request [FieldKind].
 fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     match field_kind {
         FieldKind::Integer {
@@ -232,7 +248,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     Ok(())
 }
 
-/// Validates a range definition for validating fields.
+/// Validates the range definition of a field.
 fn validate_range<T>(range_start: Option<T>, range_end: Option<T>) -> ApiResult<()>
 where
     T: PartialOrd,
