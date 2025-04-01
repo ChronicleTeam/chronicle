@@ -249,10 +249,6 @@ export type Chart = {
   table_id: number;
   name: string;
   chart_kind: ChartKind;
-  w: number,
-  h: number,
-  x: number,
-  y: number
 }
 
 export enum ChartKind {

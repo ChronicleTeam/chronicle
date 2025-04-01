@@ -8,10 +8,17 @@
   } from "$lib/api";
   import DashboardEditor from "./DashboardEditor.svelte";
 
+  //
+  // State
+  //
+
+  // promise which fetches the dashboards
   let asyncDashboards: Promise<Dashboard[]> = $state(getDashboards());
 
+  // the currently selected dashboard
   let curDash: Dashboard | null = $state(null);
 
+  // error fields
   let errors = $state({
     dashboard: {
       add: "",
@@ -19,8 +26,14 @@
     },
   });
 
+  // variables for dashboard editor
   let addDashMode = $state(false);
   let addDashName = $state("");
+
+  //
+  // API calls
+  //
+
   const addDashboard = (name: string) =>
     postDashboard(name)
       .then(() => {
