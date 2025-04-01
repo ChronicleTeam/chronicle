@@ -8,7 +8,9 @@
     deleteTable,
     type APIError,
     postImportTable,
+    getExportTable,
   } from "$lib/api";
+  import { goto } from "$app/navigation";
 
   //
   // Constants
@@ -18,6 +20,11 @@
     NONE: 0,
     TABLE: 1,
     FIELDS: 2,
+  };
+
+  const FileTypes = {
+    csv: "text/csv",
+    excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
 
   //
@@ -39,6 +46,7 @@
     table: {
       add: "",
       delete: "",
+      export: "",
     },
   });
 
@@ -70,6 +78,22 @@
         errors.table.add =
           "Error: " + (e.body as { [key: string]: string }).name;
       });
+
+  const exportTable = (type: "csv" | "excel") => {
+    if (curTable) {
+      let t = curTable;
+      getExportTable(curTable, type)
+        .then((r) => {
+          let exportedFile = new File([r], t.name.replaceAll(" ", "_"), {
+            type: FileTypes[type],
+          });
+          open(URL.createObjectURL(exportedFile));
+        })
+        .catch((e) => {
+          errors.table.export = e.body.toString();
+        });
+    }
+  };
 
   const deleteCurTable = () => {
     if (curTable === null) {
@@ -185,6 +209,21 @@
           >Edit</button
         >
       </div>
+      <div class="flex gap-2 mt-2">
+        <button
+          onclick={() => exportTable("csv")}
+          class="px-2 bg-white hover:bg-gray-100 transition rounded"
+          >Export as CSV</button
+        >
+        <button
+          onclick={() => exportTable("excel")}
+          class="px-2 bg-white hover:bg-gray-100 transition rounded"
+          >Export as Excel Spreadsheet</button
+        >
+      </div>
+      {#if errors.table.export}<p class="text-red-500">
+          Could not export table.
+        </p>{/if}
       <h3 class="text-lg mb-2">{curTable.description}</h3>
 
       <!-- Main Table -->

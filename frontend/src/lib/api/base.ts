@@ -74,7 +74,11 @@ export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL +
 // Helper methods
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (response.ok) {
-    return await response.json().catch(() => { });
+    if (response.headers.get("Content-Type") === "application/octet-stream") {
+      return await response.blob() as T
+    } else {
+      return await response.json().catch(() => { });
+    }
   } else if (response.status === 401) {
     //if unauthorized, redirect to login
     clearUser()

@@ -28,6 +28,9 @@ export const postImportTable = async (table: File): Promise<Table> => {
   }
 }
 
+export const getExportTable = async (table: Table, type: "csv" | "excel"): Promise<Blob> => GET<Blob>(`/tables/${table.table_id}/${type}`);
+
+
 export const patchTable = async (table: Table): Promise<Table> => PATCH<Table>(`/tables/${table.table_id}`, {
   name: table.name,
   description: table.description
