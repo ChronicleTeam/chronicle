@@ -21,3 +21,4 @@ jobs:
             ALLOWED_ORIGIN = '${{ secrets.ALLOWED_ORIGIN }}'
             ADMIN_USERNAME = '${{ secrets.ADMIN_USERNAME }}'
             ADMIN_PASSWORD = '${{ secrets.ADMIN_PASSWORD }}'
+            DATABASE_URL = ''
