@@ -2,7 +2,15 @@
   import type { Table } from "$lib/types.d.js";
   import TableEditor from "./TableEditor.svelte";
   import FieldEditor from "./FieldEditor.svelte";
-  import { getTables, postTable, deleteTable, type APIError } from "$lib/api";
+  import {
+    getTables,
+    postCreateTable,
+    deleteTable,
+    type APIError,
+    postImportTable,
+    getExportTable,
+  } from "$lib/api";
+  import { goto } from "$app/navigation";
 
   //
   // Constants
@@ -12,6 +20,11 @@
     NONE: 0,
     TABLE: 1,
     FIELDS: 2,
+  };
+
+  const FileTypes = {
+    csv: "text/csv",
+    excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   };
 
   //
@@ -27,11 +40,13 @@
   // for the table creation input
   let addTableMode = $state(false);
   let addTableField = $state("");
+  let importTableFiles: FileList | null = $state(null);
 
   let errors = $state({
     table: {
       add: "",
       delete: "",
+      export: "",
     },
   });
 
@@ -41,18 +56,44 @@
 
   let asyncTables: Promise<Table[]> = $state(getTables());
 
+  const afterTableCreation = () => {
+    addTableMode = false;
+    asyncTables = getTables();
+    errors.table.add = "";
+    addTableField = "";
+  };
+
   const addTable = (name: string) =>
-    postTable({ name, description: "", table_id: -1, user_id: -1 })
-      .then(() => {
-        addTableMode = false;
-        asyncTables = getTables();
-        errors.table.add = "";
-        addTableField = "";
-      })
+    postCreateTable({ name, description: "", table_id: -1, user_id: -1 })
+      .then(afterTableCreation)
       .catch((e: APIError) => {
         errors.table.add =
           "Error: " + (e.body as { [key: string]: string }).name;
       });
+
+  const importTable = (file: File) =>
+    postImportTable(file)
+      .then(afterTableCreation)
+      .catch((e) => {
+        errors.table.add =
+          "Error: " + (e.body as { [key: string]: string }).name;
+      });
+
+  const exportTable = (type: "csv" | "excel") => {
+    if (curTable) {
+      let t = curTable;
+      getExportTable(curTable, type)
+        .then((r) => {
+          let exportedFile = new File([r], t.name.replaceAll(" ", "_"), {
+            type: FileTypes[type],
+          });
+          open(URL.createObjectURL(exportedFile));
+        })
+        .catch((e) => {
+          errors.table.export = e.body.toString();
+        });
+    }
+  };
 
   const deleteCurTable = () => {
     if (curTable === null) {
@@ -96,21 +137,37 @@
     <!-- Table creation input -->
     <div
       class={[
-        "rounded-xl py-2 border-2 border-dashed border-gray-400 flex flex-col items-center transition gap-3",
+        "rounded-xl p-2 border-2 border-dashed border-gray-400 flex flex-col items-center transition gap-3",
         !addTableMode && "hover:bg-gray-400",
       ]}
     >
       {#if addTableMode}
-        <p class="text-center">New Table</p>
-        <input bind:value={addTableField} id="table-name-input" />
-
-        <div class="flex gap-3">
+        <p class="text-center font-bold">Create New Table:</p>
+        <div class="flex gap-2 items-center">
+          <input bind:value={addTableField} id="table-name-input" />
           <button
             onclick={() => addTable(addTableField)}
             class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
             >Create</button
           >
+        </div>
+        <p class="text-center">or</p>
+        <p class="font-bold">Import existing table:</p>
+        <div class="flex gap-2 items-center">
+          <input
+            type="file"
+            accept=".xlsx,.csv"
+            bind:files={importTableFiles}
+          />
+          <button
+            class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
+            onclick={() =>
+              importTableFiles ? importTable(importTableFiles[0]) : null}
+            disabled={!importTableFiles}>Import</button
+          >
+        </div>
 
+        <div class="flex gap-3">
           <button
             onclick={() => {
               errors.table.add = "";
@@ -152,6 +209,21 @@
           >Edit</button
         >
       </div>
+      <div class="flex gap-2 mt-2">
+        <button
+          onclick={() => exportTable("csv")}
+          class="px-2 bg-white hover:bg-gray-100 transition rounded"
+          >Export as CSV</button
+        >
+        <button
+          onclick={() => exportTable("excel")}
+          class="px-2 bg-white hover:bg-gray-100 transition rounded"
+          >Export as Excel Spreadsheet</button
+        >
+      </div>
+      {#if errors.table.export}<p class="text-red-500">
+          Could not export table.
+        </p>{/if}
       <h3 class="text-lg mb-2">{curTable.description}</h3>
 
       <!-- Main Table -->

@@ -15,7 +15,7 @@
     id?: string;
     class?: ClassValue;
     onclick?: () => void;
-    onkeydown: (e: KeyboardEvent) => void;
+    onkeydown?: (e: KeyboardEvent) => void;
   } = $props();
 </script>
 
