@@ -12,6 +12,7 @@ use axum::{
     Json, Router,
 };
 use itertools::Itertools;
+use tracing::info;
 use std::io::Cursor;
 use umya_spreadsheet::{
     reader::{self, xlsx},
@@ -183,6 +184,8 @@ async fn import_table_from_excel(
 
     let create_tables = io::import_table_from_excel(spreadsheet);
 
+    info!("{create_tables:?}");
+
     let mut tx = pool.begin().await?;
 
     let mut tables = Vec::new();
@@ -194,7 +197,9 @@ async fn import_table_from_excel(
     } in create_tables
     {
         let table = db::create_table(tx.as_mut(), user_id, table).await?;
+        info!("{table:?}");
         let fields = db::create_fields(tx.as_mut(), table.table_id, fields).await?;
+        info!("{fields:?}");
         let entries = db::create_entries(
             tx.as_mut(),
             table.table_id,
