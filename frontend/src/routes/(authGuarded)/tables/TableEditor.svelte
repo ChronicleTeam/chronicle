@@ -49,7 +49,7 @@
     children: [],
   } as TableData);
 
-  // determines the state of the table, whether it is read-only, in the process of adding an entry, or in the process of editing an entry
+  // mode-dependent variables
   let modeState: ModeState = $state({ mode: TableMode.DISPLAY });
   const modeDisplay = () => {
     modeState = { mode: TableMode.DISPLAY };
@@ -67,16 +67,21 @@
     modeState = { mode: TableMode.EDIT_CHILD, child };
   };
 
-  // these are used to change the table state to DISPLAY, INSERT, and EDIT respectively
-  const cancelEntry = () => {
+  /**
+   * Cancel addition of entries
+   */
+  const cancelEntries = () => {
     if (modeState.mode === TableMode.INSERT) {
-      table.entries.pop();
+      modeState.entry_idxes.forEach(() => table.entries.pop());
     }
 
     modeDisplay();
     errors.fields = {};
   };
 
+  /**
+   * Insert a placeholder entry to be added
+   */
   const insertEntry = () => {
     table.entries.push(getNewEntry());
 
@@ -87,6 +92,10 @@
     }
   };
 
+  /**
+   * Edit a particular entry
+   * @param {number} i - The index of the entry in table.entries
+   */
   const editEntry = modeEdit;
 
   let errors: {
@@ -103,7 +112,10 @@
   // Helper methods
   //
 
-  // generates a new entry object with default values
+  /**
+   * Generate a new blank Entry object
+   * @returns {Entry}
+   */
   const getNewEntry = (): Entry => {
     let i = -1;
     while (table.entries.some((e) => e.entry_id === i)) {
@@ -141,8 +153,13 @@
     };
   };
 
-  // generates InputParams to feed into the VariableInput, for use in editing and creating entreis
-  const cellToInputParams = (entryIdx: number, f: Field) => {
+  /**
+   * Generate InputParams for a specific Cell
+   * @param {number} entryIdx - The index of the Entry of the Cell in table.entries
+   * @param {Field} f - The Field of the Cell
+   * @returns {InputParameters}
+   */
+  const cellToInputParams = (entryIdx: number, f: Field): InputParameters => {
     switch (f.field_kind.type) {
       case FieldType.Integer:
       case FieldType.Decimal:
@@ -278,7 +295,7 @@
         ),
       )
         .then(() => {
-          cancelEntry();
+          cancelEntries();
           loadTable();
         })
         .catch((e: APIError) => {
@@ -293,7 +310,7 @@
     if (modeState.mode === TableMode.EDIT) {
       patchEntry(table.table, table.entries[modeState.entry_idx])
         .then(() => {
-          cancelEntry();
+          cancelEntries();
           loadTable();
         })
         .catch((e: APIError) => {
@@ -307,7 +324,7 @@
   const removeEntry = () => {
     if (modeState.mode === TableMode.EDIT) {
       deleteEntry(table.table, table.entries[modeState.entry_idx])
-        .then(cancelEntry)
+        .then(cancelEntries)
         .then(loadTable);
     }
   };
@@ -318,11 +335,10 @@
   onMount(() => {
     loadTable();
   });
-
-  $inspect(modeState, errors);
 </script>
 
 {#if modeState.mode === TableMode.CHILD}
+  <!-- Display child table -->
   <div class="flex items-center gap-2 mb-2">
     <button
       class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
@@ -346,9 +362,11 @@
     delete_table={() => {}}
   />
 {:else}
+  <!-- Display main table -->
   <div class="flex flex-col items-center justify-center gap-3">
     <!-- Main table -->
     <table class=" border border-gray-400 bg-white text-black w-full">
+      <!-- Headers -->
       <thead>
         <tr>
           {#each table.fields as field}
@@ -388,9 +406,12 @@
           {/each}
         </tr>
       </thead>
+
+      <!-- Cells -->
       <tbody>
         {#each table.entries.filter( (e) => (entry_id != null ? e.parent_id === entry_id : true), ) as entry, i}
           <tr>
+            <!-- Regular Cells -->
             {#each table.fields as field, j}
               <td
                 class={[
@@ -453,6 +474,8 @@
                 />
               </td>
             {/each}
+
+            <!-- Child table Cells -->
             {#each table.children as child}
               <td
                 class={[
@@ -513,7 +536,7 @@
           >Save</button
         >
         <button
-          onclick={cancelEntry}
+          onclick={cancelEntries}
           class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
           >Cancel</button
         >

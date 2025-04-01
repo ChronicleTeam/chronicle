@@ -10,7 +10,6 @@
     postImportTable,
     getExportTable,
   } from "$lib/api";
-  import { goto } from "$app/navigation";
 
   //
   // Constants
@@ -143,6 +142,8 @@
     >
       {#if addTableMode}
         <p class="text-center font-bold">Create New Table:</p>
+
+        <!-- Create new table -->
         <div class="flex gap-2 items-center">
           <input bind:value={addTableField} id="table-name-input" />
           <button
@@ -152,6 +153,8 @@
           >
         </div>
         <p class="text-center">or</p>
+
+        <!-- Import from csv or excel -->
         <p class="font-bold">Import existing table:</p>
         <div class="flex gap-2 items-center">
           <input
@@ -167,6 +170,7 @@
           >
         </div>
 
+        <!-- Cancel button -->
         <div class="flex gap-3">
           <button
             onclick={() => {
@@ -209,6 +213,8 @@
           >Edit</button
         >
       </div>
+
+      <!-- Export buttons -->
       <div class="flex gap-2 mt-2">
         <button
           onclick={() => exportTable("csv")}
