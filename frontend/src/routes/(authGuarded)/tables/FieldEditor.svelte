@@ -25,7 +25,7 @@
     patchField,
     deleteField,
     type APIError,
-    postTable,
+    postCreateTable,
     deleteTable,
     getTableChildren,
     getTableData,
@@ -894,7 +894,7 @@
     // add subtables
     changes.subtables.added.forEach((t) => {
       promises.push(
-        postTable(t.table)
+        postCreateTable(t.table)
           .then((response: Table) => {
             let newTableData = {
               table: response,
