@@ -1,4 +1,4 @@
-import type { TableData } from "$lib/types.d.js";
+import type { TableData } from "$lib/types";
 export enum TableMode {
   DISPLAY = 0,
   INSERT = 1,

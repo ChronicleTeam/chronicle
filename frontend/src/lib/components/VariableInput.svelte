@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type InputParameters } from "$lib/types.d.js";
+  import { type InputParameters } from "$lib/types";
   import type { ClassValue } from "svelte/elements";
 
   let {
@@ -8,7 +8,7 @@
     id, // maps to id attribute
     class: innerClass = "", // maps to class attribute
     onclick, // maps to onclick attribute
-    onkeydown,
+    onkeydown, //maps to onkeydown attribute
   }: {
     params: InputParameters;
     disabled?: boolean;
@@ -20,6 +20,7 @@
 </script>
 
 <div class={params.label ? "flex justify-between w-full" : ""}>
+  <!-- Label -->
   {#if params.label ?? false}
     <label class={["mr-2 w-auto", disabled && "text-gray-300"]} for={id}
       >{params.label}:</label
@@ -29,6 +30,7 @@
     {@const opts = Array.isArray(params.selectOptions)
       ? params.selectOptions.map((o) => [o, o])
       : Object.entries(params.selectOptions)}
+    <!-- Select input -->
     <select
       {disabled}
       {id}
@@ -41,6 +43,7 @@
       {/each}
     </select>
   {:else if params.type === "textarea"}
+    <!-- TextArea input -->
     <textarea
       {disabled}
       {id}
@@ -50,6 +53,7 @@
       {onkeydown}
     ></textarea>
   {:else if params.type === "checkbox"}
+    <!-- Checkbox input (binds to "checked" instead of "value") -->
     <input
       {disabled}
       {id}
@@ -59,6 +63,7 @@
       {onkeydown}
     />
   {:else if params.type === "url"}
+    <!-- Url input (becomes usable anchor element when disabled) -->
     {#if disabled}
       <a
         href={"https://" + params.bindGetter().toString()}
@@ -77,6 +82,7 @@
       />
     {/if}
   {:else}
+    <!-- Regular input -->
     <input
       {disabled}
       {id}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Table } from "$lib/types.d.js";
+  import type { Table } from "$lib/types";
   import TableEditor from "./TableEditor.svelte";
   import FieldEditor from "./FieldEditor.svelte";
   import {
@@ -8,9 +8,8 @@
     deleteTable,
     type APIError,
     postImportTable,
-    getExportTable,
+    postExportTable,
   } from "$lib/api";
-  import { goto } from "$app/navigation";
 
   //
   // Constants
@@ -25,6 +24,11 @@
   const FileTypes = {
     csv: "text/csv",
     excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  };
+
+  const FileExtensions = {
+    csv: ".csv",
+    excel: ".xlsx",
   };
 
   //
@@ -82,11 +86,15 @@
   const exportTable = (type: "csv" | "excel") => {
     if (curTable) {
       let t = curTable;
-      getExportTable(curTable, type)
+      postExportTable(curTable, type)
         .then((r) => {
-          let exportedFile = new File([r], t.name.replaceAll(" ", "_"), {
-            type: FileTypes[type],
-          });
+          let exportedFile = new File(
+            [r],
+            t.name.replaceAll(" ", "_") + FileExtensions[type],
+            {
+              type: FileTypes[type],
+            },
+          );
           open(URL.createObjectURL(exportedFile));
         })
         .catch((e) => {
@@ -143,6 +151,8 @@
     >
       {#if addTableMode}
         <p class="text-center font-bold">Create New Table:</p>
+
+        <!-- Create new table -->
         <div class="flex gap-2 items-center">
           <input bind:value={addTableField} id="table-name-input" />
           <button
@@ -152,6 +162,8 @@
           >
         </div>
         <p class="text-center">or</p>
+
+        <!-- Import from csv or excel -->
         <p class="font-bold">Import existing table:</p>
         <div class="flex gap-2 items-center">
           <input
@@ -167,6 +179,7 @@
           >
         </div>
 
+        <!-- Cancel button -->
         <div class="flex gap-3">
           <button
             onclick={() => {
@@ -209,6 +222,8 @@
           >Edit</button
         >
       </div>
+
+      <!-- Export buttons -->
       <div class="flex gap-2 mt-2">
         <button
           onclick={() => exportTable("csv")}

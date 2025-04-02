@@ -1,5 +1,5 @@
 import { GET, POST, PATCH, DELETE, hydrateJSONTableData, POST_FORM } from "./base.js";
-import { type Table, type TableData, type Field, type Entry, } from "../types.d.js";
+import { type Table, type TableData, type Field, type Entry, } from "../types";
 
 //
 // Data Management
@@ -28,7 +28,11 @@ export const postImportTable = async (table: File): Promise<Table> => {
   }
 }
 
-export const getExportTable = async (table: Table, type: "csv" | "excel"): Promise<Blob> => GET<Blob>(`/tables/${table.table_id}/${type}`);
+export const postExportTable = async (table: Table, type: "csv" | "excel"): Promise<Blob> => {
+  let form = new FormData();
+  form.append("file", new Blob())
+  return POST_FORM<Blob>(`/tables/${table.table_id}/${type}`, form);
+}
 
 
 export const patchTable = async (table: Table): Promise<Table> => PATCH<Table>(`/tables/${table.table_id}`, {
