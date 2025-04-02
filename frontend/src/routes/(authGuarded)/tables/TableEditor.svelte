@@ -19,8 +19,8 @@
     IntegerKind,
     MoneyKind,
     DecimalKind,
-  } from "$lib/types.d.js";
-  import { FieldType } from "$lib/types.d.js";
+  } from "$lib/types";
+  import { FieldType } from "$lib/types";
   import {
     getTableData,
     postEntries,

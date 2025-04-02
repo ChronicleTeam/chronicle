@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Dashboard } from "$lib/types.d.js";
+  import { type Dashboard } from "$lib/types";
   import {
     deleteDashboard,
     getDashboards,

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Table } from "$lib/types.d.js";
+  import type { Table } from "$lib/types";
   import TableEditor from "./TableEditor.svelte";
   import FieldEditor from "./FieldEditor.svelte";
   import {

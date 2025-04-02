@@ -1,7 +1,7 @@
 import { goto } from "$app/navigation";
 import { env } from "$env/dynamic/public";
 import { clearUser, user } from "$lib/user.svelte.js";
-import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types.d.js";
+import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types";
 
 const API_URL = `${env.PUBLIC_API_URL}/api`;
 

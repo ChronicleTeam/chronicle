@@ -15,7 +15,7 @@
     type InputParameters,
     type Table,
     typeToStr,
-  } from "$lib/types.d.js";
+  } from "$lib/types";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {

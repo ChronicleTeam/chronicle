@@ -1,5 +1,5 @@
 import { GET, POST, PATCH, DELETE, hydrateJSONTableData, POST_FORM } from "./base.js";
-import { type Table, type TableData, type Field, type Entry, } from "../types.d.js";
+import { type Table, type TableData, type Field, type Entry, } from "../types";
 
 //
 // Data Management

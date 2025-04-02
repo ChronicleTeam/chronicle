@@ -7,12 +7,10 @@
     type ChartData,
     type Dashboard,
     type Cells,
-    type FieldKind,
     type AxisField,
     FieldType,
-    type Axis,
-  } from "$lib/types.d.js";
-  import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
+  } from "$lib/types";
+  import { Chart as ChartGraphic } from "chart.js/auto";
   import { onMount } from "svelte";
   let { dashboard, chart }: { dashboard: Dashboard; chart: Chart } = $props();
   const SORTABLE_FIELDS = [

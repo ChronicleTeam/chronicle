@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type InputParameters } from "$lib/types.d.js";
+  import { type InputParameters } from "$lib/types";
   import type { ClassValue } from "svelte/elements";
 
   let {

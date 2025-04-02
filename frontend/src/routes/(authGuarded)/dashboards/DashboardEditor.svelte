@@ -24,7 +24,7 @@
     type FieldKind,
     type ChartData,
     Aggregate,
-  } from "$lib/types.d.js";
+  } from "$lib/types";
   import { onMount } from "svelte";
   import type { ModeState } from "./types";
   import { EditMode } from "./types";
