@@ -184,15 +184,13 @@ async fn convert_field_kind(
 
     let cells: Vec<(Id, Cell)> = rows
         .into_iter()
-        .filter_map(|row| {
-            Cell::from_field_row(&row, &field_ident.unquote(), &old_field_kind)
-                .map(|cell| {
-                    Some((
-                        row.get("entry_id"),
-                        cell.convert_field_kind(&field.field_kind.0)?,
-                    ))
-                })
-                .transpose()
+        .map(|row| {
+            let cell = Cell::from_field_row(&row, &field_ident.unquote(), &old_field_kind)?;
+            Ok((
+                row.get("entry_id"),
+                cell.convert_field_kind(&field.field_kind.0)
+                    .unwrap_or(Cell::Null),
+            ))
         })
         .collect::<sqlx::Result<_>>()?;
 
@@ -208,8 +206,6 @@ async fn convert_field_kind(
     .execute(tx.as_mut())
     .await?;
 
-    debug!("{field:?}");
-
     let field = create_field(
         tx.as_mut(),
         field.table_id,
@@ -222,14 +218,14 @@ async fn convert_field_kind(
 
     let field_ident = FieldIdentifier::new(field.field_id);
 
-    let mut q = QueryBuilder::<Postgres>::new(format!(
+    QueryBuilder::<Postgres>::new(format!(
         r#"
             UPDATE {table_ident}
             SET {field_ident} = data.cell
             FROM (
         "#
-    ));
-    q.push_values(cells, |mut builder, (id, cell)| {
+    ))
+    .push_values(cells, |mut builder, (id, cell)| {
         builder.push_bind(id);
         cell.push_bind(&mut builder);
     })
@@ -238,11 +234,10 @@ async fn convert_field_kind(
             ) AS data (entry_id, cell)
             WHERE {table_ident}.entry_id = data.entry_id
         "#
-    ));
-
-    debug!("{}", q.sql());
-
-    q.build().execute(tx.as_mut()).await?;
+    ))
+    .build()
+    .execute(tx.as_mut())
+    .await?;
 
     tx.commit().await?;
 
