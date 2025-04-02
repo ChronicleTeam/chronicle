@@ -8,7 +8,7 @@
     deleteTable,
     type APIError,
     postImportTable,
-    getExportTable,
+    postExportTable,
   } from "$lib/api";
 
   //
@@ -24,6 +24,11 @@
   const FileTypes = {
     csv: "text/csv",
     excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  };
+
+  const FileExtensions = {
+    csv: ".csv",
+    excel: ".xlsx",
   };
 
   //
@@ -81,11 +86,15 @@
   const exportTable = (type: "csv" | "excel") => {
     if (curTable) {
       let t = curTable;
-      getExportTable(curTable, type)
+      postExportTable(curTable, type)
         .then((r) => {
-          let exportedFile = new File([r], t.name.replaceAll(" ", "_"), {
-            type: FileTypes[type],
-          });
+          let exportedFile = new File(
+            [r],
+            t.name.replaceAll(" ", "_") + FileExtensions[type],
+            {
+              type: FileTypes[type],
+            },
+          );
           open(URL.createObjectURL(exportedFile));
         })
         .catch((e) => {
