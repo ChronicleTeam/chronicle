@@ -144,7 +144,7 @@
   });
 
   // the central table which represents the inputs for the editable field_kind parameters
-  const optionInputList = $derived(
+  const fieldKindInputList = $derived(
     table.new.fields.map((f: Field, i: number): FieldKindInputParameters[] => {
       switch (f.field_kind.type) {
         case FieldType.Text:
@@ -630,7 +630,7 @@
 
     // update optionalCheckBoxStates
     optionalCheckboxStates.push(
-      optionInputList[table.new.fields.length - 1].map((v) => !v.optional),
+      fieldKindInputList[table.new.fields.length - 1].map((v) => !v.optional),
     );
 
     //clear errors
@@ -659,7 +659,7 @@
    * Update optionalCheckboxStates
    */
   const updateAllOptionalCheckboxes = () => {
-    optionInputList.forEach((val, i) => {
+    fieldKindInputList.forEach((val, i) => {
       updateOptionalCheckbox(i);
     });
   };
@@ -669,7 +669,7 @@
    * @param {number} i - the index of the field in table.new.fields
    */
   const updateOptionalCheckbox = (i: number) => {
-    optionalCheckboxStates[i] = optionInputList[i].map(
+    optionalCheckboxStates[i] = fieldKindInputList[i].map(
       (v) =>
         !v.optional ||
         ((table.new.fields[i].field_kind as any)[v.name] !== null &&
@@ -1069,11 +1069,11 @@
           <input bind:value={table.new.fields[i].name} />
 
           <!-- Field kind parameters -->
-          {#each optionInputList[i] as optionInput, j}
+          {#each fieldKindInputList[i] as fieldKindInput, j}
             <div class="my-2">
               <div class="flex items-center">
                 <!-- Add checkbox to enable/disable input if it is optional -->
-                {#if optionInput.optional}
+                {#if fieldKindInput.optional}
                   <input
                     class="mr-2"
                     type="checkbox"
@@ -1082,11 +1082,11 @@
                       optionalCheckboxStates[i][j] = val;
                       if (val) {
                         (table.new.fields[i].field_kind as any)[
-                          optionInput.name
-                        ] = optionInput.default;
+                          fieldKindInput.name
+                        ] = fieldKindInput.default;
                       } else {
                         delete (table.new.fields[i].field_kind as any)[
-                          optionInput.name
+                          fieldKindInput.name
                         ];
                       }
                     }}
@@ -1098,9 +1098,9 @@
                     "w-24",
                     !optionalCheckboxStates && "text-gray-300 border-gray-300",
                   ]}
-                  params={optionInput}
+                  params={fieldKindInput}
                   disabled={!optionalCheckboxStates[i][j]}
-                  id={optionInput.label + i}
+                  id={fieldKindInput.label + i}
                 />
               </div>
             </div>
