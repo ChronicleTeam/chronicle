@@ -1,10 +1,10 @@
 use super::{entry_from_row, select_columns};
 use crate::{
     db::Relation,
-    model::data::{
+    model::{data::{
         CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
         UpdateTable,
-    },
+    }, viz::ChartIdentifier},
     Id,
 };
 use futures::future::join_all;
@@ -111,6 +111,24 @@ pub async fn delete_table(
     table_id: Id,
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
+
+    let chart_ids: Vec<Id> = sqlx::query_scalar(
+        r#"
+            DELETE FROM chart
+            WHERE table_id = $1
+            RETURNING chart_id
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(tx.as_mut())
+    .await?;
+
+    for chart_id in chart_ids {
+        let chart_ident = ChartIdentifier::new(chart_id, "data_view");
+        sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
+            .execute(tx.as_mut())
+            .await?;
+    }
 
     sqlx::query(
         r#"

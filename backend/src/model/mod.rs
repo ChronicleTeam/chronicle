@@ -10,8 +10,8 @@
 //! - FromRow: Convert from an SQL query.
 
 pub mod data;
-pub mod viz;
 pub mod users;
+pub mod viz;
 
 use chrono::{DateTime, Utc};
 use data::FieldKind;
@@ -19,7 +19,10 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use serde::{Serialize, Serializer};
 use sqlx::{
-    postgres::{PgArgumentBuffer, PgArguments, PgRow}, query::Query, query_builder::Separated, Encode, Postgres, QueryBuilder, Row
+    postgres::{PgArgumentBuffer, PgArguments, PgRow},
+    query::Query,
+    query_builder::Separated,
+    Encode, Postgres, QueryBuilder, Row,
 };
 use std::str::FromStr;
 use viz::Aggregate;
@@ -94,7 +97,7 @@ impl Cell {
             Cell::Boolean(v) => builder.push_bind(v),
             Cell::DateTime(v) => builder.push_bind(v),
             Cell::String(v) => builder.push_bind(v),
-            Cell::Null => builder.push_bind(None::<bool>),
+            Cell::Null => builder.push("NULL"),
         };
     }
 
@@ -106,10 +109,9 @@ impl Cell {
             Cell::Boolean(v) => builder.push_bind(v),
             Cell::DateTime(v) => builder.push_bind(v),
             Cell::String(v) => builder.push_bind(v),
-            Cell::Null => builder.push_bind(None::<bool>),
+            Cell::Null => builder.push("NULL"),
         };
     }
-
 
     /// Get the `Cell` from this PostgreSQL row into the proper type based on `FieldKind`.
     pub fn from_field_row(row: &PgRow, index: &str, field_kind: &FieldKind) -> sqlx::Result<Self> {
