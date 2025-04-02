@@ -81,7 +81,7 @@
       children: [],
     },
     new: {
-      table: table_prop,
+      table: $state.snapshot(table_prop),
       fields: [],
       entries: [],
       children: [],
@@ -1028,6 +1028,8 @@
       errors.fields[f.field_id] = "";
     });
   });
+
+  $inspect(table);
 </script>
 
 <div class="w-full">
