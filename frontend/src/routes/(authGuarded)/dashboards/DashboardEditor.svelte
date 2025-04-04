@@ -340,7 +340,7 @@
   {/if}
 
   <!-- Chart grid/list -->
-  <div class="grid grid-cols-4 grid-rows-1 gap-2 mt-2 h-72">
+  <div class="grid grid-cols-4 grid-rows-1 gap-2 mt-2 h-80">
     {#if errors.chart.load}
       <p class="text-red-500">{errors.chart.load}</p>
     {:else}
