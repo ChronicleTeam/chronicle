@@ -340,7 +340,7 @@
   {/if}
 
   <!-- Chart grid/list -->
-  <div class="grid grid-cols-4 grid-rows-1 gap-2 mt-2">
+  <div class="grid grid-cols-4 grid-rows-1 gap-2 mt-2 h-72">
     {#if errors.chart.load}
       <p class="text-red-500">{errors.chart.load}</p>
     {:else}
@@ -364,7 +364,7 @@
           <!-- Buttons -->
           {#if modeState.mode === EditMode.DISPLAY}
             <button
-              class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition mt-auto"
+              class="text-center py-1 px-2 rounded bg-white hover:bg-slate-200 transition mt-auto"
               onclick={() => editChart(chart)}>Edit</button
             >
           {:else if modeState.mode === EditMode.EDIT_DASH}
@@ -372,6 +372,7 @@
               class="mt-auto rounded"
               initText="Delete"
               confirmText="Confirm Delete"
+              initClass="bg-white hover:bg-slate-200"
               onconfirm={() => {
                 removeChart(chart);
               }}
@@ -400,25 +401,38 @@
           <input bind:value={modeState.newChart.name} />
 
           <!-- Chart kind -->
-          <select bind:value={modeState.newChart.chart_kind}>
-            {#each Object.values(ChartKind) as kind}
-              <option>{kind}</option>
-            {/each}
-          </select>
+
+          <div class="flex gap-2 justify-between items-center">
+            <label for="new-chart-kind-sel">Kind: </label>
+            <select
+              id="new-chart-kind-sel"
+              bind:value={modeState.newChart.chart_kind}
+            >
+              {#each Object.values(ChartKind) as kind}
+                <option>{kind}</option>
+              {/each}
+            </select>
+          </div>
 
           <!-- Source Table -->
-          <select bind:value={modeState.newChart.table_id}>
-            {#await asyncTables}
-              <option value={undefined}>Loading...</option>
-            {:then tables}
-              {#each tables.filter((t) => t.parent_id == null) as t}
-                <option value={t.table_id}>{t.name}</option>
-              {/each}
-            {/await}
-          </select>
+          <div class="flex gap-2 justify-between items-center">
+            <label for="new-chart-table-sel">Table: </label>
+            <select
+              id="new-chart-table-sel"
+              bind:value={modeState.newChart.table_id}
+            >
+              {#await asyncTables}
+                <option value={undefined}>Loading...</option>
+              {:then tables}
+                {#each tables.filter((t) => t.parent_id == null) as t}
+                  <option value={t.table_id}>{t.name}</option>
+                {/each}
+              {/await}
+            </select>
+          </div>
 
           <!-- Buttons -->
-          <div class="flex gap-3">
+          <div class="flex gap-3 justify-center mt-auto">
             <button
               onclick={createChart}
               class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
@@ -436,7 +450,7 @@
       {:else}
         <button
           class={[
-            "rounded-lg border border-black border-2 border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg h-64 ",
+            "rounded-lg border border-black border-2 border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg ",
           ]}
           onclick={() => {
             if (modeState.mode === EditMode.EDIT_DASH) {
@@ -480,7 +494,7 @@
     {#each modeState.axisFields as axis, i}
       <div class="rounded-lg bg-gray-100 p-4 mb-2">
         <!-- Field -->
-        <div class="flex mb-2 gap-2">
+        <div class="flex mb-2 gap-2 justify-between">
           <p>Field:</p>
           <select bind:value={modeState.axisFields[i].axis.field_id}>
             {#if modeState.chartTableData}
@@ -493,7 +507,7 @@
 
         <!-- Axis Kind -->
         {#if charts[modeState.chartIdx].chart_kind !== ChartKind.Table}
-          <div class="flex mb-2 gap-2">
+          <div class="flex mb-2 gap-2 justify-between">
             <p>Kind:</p>
             <select bind:value={modeState.axisFields[i].axis.axis_kind}>
               {#each Object.values(AxisKind).filter( (ak) => (modeState.mode === EditMode.EDIT_CHART ? !modeState.axisFields.some((af: AxisField) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id) : true), ) as kind}
@@ -504,7 +518,7 @@
         {/if}
 
         <!-- Aggregation type -->
-        <div class="flex gap-2">
+        <div class="flex mb-2 gap-2 justify-between">
           <p>Aggregate:</p>
           <select bind:value={modeState.axisFields[i].axis.aggregate}>
             <option value={null}>None</option>
@@ -515,15 +529,18 @@
         </div>
 
         <!-- Button -->
-        <ConfirmButton
-          initText="Delete"
-          confirmText="Confirm Delete"
-          onconfirm={() => {
-            if (modeState.mode === EditMode.EDIT_CHART) {
-              modeState.axisFields.splice(i, 1);
-            }
-          }}
-        />
+        <div class="flex gap-2 justify-center">
+          <ConfirmButton
+            initText="Delete"
+            confirmText="Confirm Delete"
+            initClass="bg-white hover:bg-slate-200"
+            onconfirm={() => {
+              if (modeState.mode === EditMode.EDIT_CHART) {
+                modeState.axisFields.splice(i, 1);
+              }
+            }}
+          />
+        </div>
         {#if errors.axes.save[axis.axis.axis_id.toString()]}<p
             class="text-red-500"
           >
