@@ -340,7 +340,7 @@
   {/if}
 
   <!-- Chart grid/list -->
-  <div class="grid grid-cols-4 grid-rows-1 gap-2">
+  <div class="grid grid-cols-4 grid-rows-1 gap-2 mt-2">
     {#if errors.chart.load}
       <p class="text-red-500">{errors.chart.load}</p>
     {:else}
@@ -436,7 +436,7 @@
       {:else}
         <button
           class={[
-            "rounded-lg border border-black border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg ",
+            "rounded-lg border border-black border-2 border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg h-64 ",
           ]}
           onclick={() => {
             if (modeState.mode === EditMode.EDIT_DASH) {
@@ -493,7 +493,7 @@
 
         <!-- Axis Kind -->
         {#if charts[modeState.chartIdx].chart_kind !== ChartKind.Table}
-          <div class="flex gap-2">
+          <div class="flex mb-2 gap-2">
             <p>Kind:</p>
             <select bind:value={modeState.axisFields[i].axis.axis_kind}>
               {#each Object.values(AxisKind).filter( (ak) => (modeState.mode === EditMode.EDIT_CHART ? !modeState.axisFields.some((af: AxisField) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id) : true), ) as kind}
