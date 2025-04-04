@@ -24,7 +24,7 @@
   ];
 </script>
 
-<div class="p-4 h-screen">
+<div class="p-4 h-full">
   {#await user() then u}
     {#if u}
       <!-- Navbar -->
