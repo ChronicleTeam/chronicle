@@ -43,7 +43,7 @@ pub struct UpdateChart {
 pub struct ChartData {
     pub chart: Chart,
     pub axes: Vec<AxisField>,
-    pub cells: Vec<HashMap<Id, Cell>>,
+    pub cells: Vec<HashMap<Id, Cell>>, // Should be renamed `points`
 }
 
 #[derive(Debug)]
