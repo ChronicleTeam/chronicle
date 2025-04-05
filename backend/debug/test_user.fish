@@ -11,4 +11,3 @@ curl -X POST $ADDR/login \
     -c cookies.txt -b cookies.txt
 
 curl -b cookies.txt -X GET $ADDR/logout
-    

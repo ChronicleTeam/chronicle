@@ -183,7 +183,7 @@ pub async fn delete_entry(
 }
 
 pub async fn check_entry_relation(
-    executor: impl PgExecutor<'_> + Copy,
+    executor: impl PgExecutor<'_>,
     table_id: Id,
     entry_id: Id,
 ) -> sqlx::Result<Relation> {
