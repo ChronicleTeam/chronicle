@@ -6,7 +6,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use sqlx::{types::Json, FromRow};
 use std::{collections::HashMap, fmt};
 
-/// Table field response.
+/// Table field entity.
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Field {
     pub field_id: Id,
@@ -23,14 +23,17 @@ pub struct Field {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum FieldKind {
+    /// Raw text data.
     Text {
         is_required: bool,
     },
+    /// An integer.
     Integer {
         is_required: bool,
         range_start: Option<i64>,
         range_end: Option<i64>,
     },
+    /// A floating-point number.
     Float {
         is_required: bool,
         range_start: Option<f64>,
@@ -39,28 +42,33 @@ pub enum FieldKind {
         number_precision: Option<i64>,
         number_scale: Option<i64>,
     },
+    /// A type for fixed precision money.
     Money {
         is_required: bool,
         range_start: Option<Decimal>,
         range_end: Option<Decimal>,
     },
+    /// A discrete progress ratio.
     Progress {
         total_steps: i64,
     },
+    /// An ISO 8601 date and time.
     DateTime {
         is_required: bool,
         range_start: Option<DateTime<Utc>>,
         range_end: Option<DateTime<Utc>>,
         date_time_format: String,
     },
+    /// A URL.
     WebLink {
         is_required: bool,
     },
+    /// A true or false value.
     Checkbox,
+    /// A value out of a list of possible text values.
     Enumeration {
         is_required: bool,
-        #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-        // This is necessary because of a bug with serde
+        #[serde_as(as = "HashMap<DisplayFromStr, _>")] // This is necessary because of a bug with serde
         values: HashMap<i64, String>,
         default_value: i64,
     },
@@ -97,9 +105,11 @@ pub struct UpdateField {
     pub field_kind: FieldKind,
 }
 
+/// Set the field order request.
 #[derive(Debug, Deserialize)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
+/// DTO for when a field's ID and field kind is needed.
 #[derive(Debug, FromRow)]
 pub struct FieldMetadata {
     pub field_id: Id,
@@ -115,6 +125,7 @@ impl FieldMetadata {
     }
 }
 
+/// Database identifier of the actual SQL table column that a user field points to.
 #[derive(Debug)]
 pub struct FieldIdentifier {
     field_id: Id,

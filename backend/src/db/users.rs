@@ -5,6 +5,7 @@ use tokio::task;
 
 use crate::{model::users::{Credentials, User, UserRole}, Id};
 
+/// The backend type for [axum_login::AuthSession].
 #[derive(Debug, Clone)]
 pub struct Backend {
     pool: PgPool,
@@ -15,6 +16,7 @@ impl Backend {
         Self { pool: db }
     }
 
+    /// Returns true if a user with this username exists.
     pub async fn exists(&self, creds: &Credentials) -> sqlx::Result<bool> {
         sqlx::query_scalar(
             r#"
@@ -30,6 +32,7 @@ impl Backend {
         .await
     }
 
+    /// Create a the user and hashes the password from the credentials.
     pub async fn create_user(&mut self, creds: Credentials) -> sqlx::Result<User> {
         let password_hash = generate_hash(creds.password);
 
@@ -56,6 +59,7 @@ impl Backend {
         Ok(user)
     }
 
+    /// Set the role of this user.
     pub async fn set_role(&mut self, user_id: Id, role: UserRole) -> sqlx::Result<User> {
 
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = self.pool.begin().await?;
@@ -84,7 +88,7 @@ impl Backend {
 }
 
 
-
+/// Error type for [axum_login::AuthnBackend].
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]

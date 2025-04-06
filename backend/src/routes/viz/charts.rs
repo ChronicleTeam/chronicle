@@ -121,7 +121,7 @@ async fn get_charts(
 }
 
 
-/// Get the chart's metadata, axes metadata, and cell data.
+/// Get the chart's metadata, axes metadata, and data points.
 /// 
 /// Used for building and displaying the chart.
 /// 

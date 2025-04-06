@@ -5,6 +5,7 @@ use crate::{
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
+/// Add a dashboard to this user.
 pub async fn create_dashboard(
     conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
@@ -36,6 +37,7 @@ pub async fn create_dashboard(
     Ok(dashboard)
 }
 
+/// Update the dashboard metadata.
 pub async fn update_dashboard(
     conn: impl Acquire<'_, Database = Postgres>,
     dashboard_id: Id,
@@ -68,6 +70,7 @@ pub async fn update_dashboard(
     Ok(dashboard)
 }
 
+/// Delete the dashboard along with its charts.
 pub async fn delete_dashboard(
     conn: impl Acquire<'_, Database = Postgres>,
     dashboard_id: Id,
@@ -107,6 +110,7 @@ pub async fn delete_dashboard(
     Ok(())
 }
 
+/// Get all dashboards belonging to this user.
 pub async fn get_dashboards(
     executor: impl PgExecutor<'_>,
     user_id: Id,
@@ -129,6 +133,7 @@ pub async fn get_dashboards(
     .await
 }
 
+/// Return the [Relation] between the user and this dashboard.
 pub async fn check_dashboard_relation(
     executor: impl PgExecutor<'_>,
     user_id: Id,

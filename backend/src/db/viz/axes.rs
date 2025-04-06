@@ -9,6 +9,7 @@ use crate::{
 };
 use sqlx::{Acquire, Postgres, QueryBuilder};
 
+/// Set the list of axes of this chart using the given table as data source.
 pub async fn set_axes(
     conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,

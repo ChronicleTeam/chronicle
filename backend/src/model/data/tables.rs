@@ -6,7 +6,7 @@ use std::fmt;
 
 use super::{CreateField, Entry, Field};
 
-/// User table metadata response.
+/// User table entity.
 #[derive(Debug, Serialize, FromRow)]
 pub struct Table {
     pub table_id: Id,
@@ -42,6 +42,7 @@ pub struct TableData {
     pub children: Vec<TableData>,
 }
 
+/// DTO for creating tables from imports.
 #[derive(Debug)]
 pub struct CreateTableData {
     pub table: CreateTable,
@@ -49,7 +50,7 @@ pub struct CreateTableData {
     pub entries: Vec<Vec<Cell>>
 }
 
-
+/// Database identifier of the actual SQL table that a user table points to.
 #[derive(Debug)]
 pub struct TableIdentifier {
     table_id: Id,

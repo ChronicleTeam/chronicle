@@ -85,6 +85,7 @@ async fn set_axes(
     Ok(Json(axes))
 }
 
+/// Validate that the axis aggregate and field_kind are compatible
 fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'static str> {
     match (aggregate, field_kind) {
         (Aggregate::Count, _)

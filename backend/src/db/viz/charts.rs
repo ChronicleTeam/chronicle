@@ -13,6 +13,7 @@ use crate::{
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
 
+/// Add a chart to this dashboard and create the actual SQL view.
 pub async fn create_chart(
     conn: impl Acquire<'_, Database = Postgres>,
     dashboard_id: Id,
@@ -61,6 +62,7 @@ pub async fn create_chart(
     Ok(chart)
 }
 
+/// Update the chart metadata.
 pub async fn update_chart(
     conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,
@@ -94,6 +96,7 @@ pub async fn update_chart(
     Ok(chart)
 }
 
+/// Delete this chart along with the actual SQL view and the axes.
 pub async fn delete_chart(
     conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,
@@ -120,6 +123,7 @@ pub async fn delete_chart(
     Ok(())
 }
 
+/// Delete this chart along with the actual SQL view and the axes.
 pub async fn get_chart_table_id(executor: impl PgExecutor<'_>, chart_id: Id) -> sqlx::Result<Id> {
     sqlx::query_scalar(
         r#"
@@ -133,6 +137,7 @@ pub async fn get_chart_table_id(executor: impl PgExecutor<'_>, chart_id: Id) -> 
     .await
 }
 
+/// Get all the charts of this dashboard.
 pub async fn get_charts(
     executor: impl PgExecutor<'_> + Copy,
     dashboard_id: Id,
@@ -156,6 +161,7 @@ pub async fn get_charts(
     .await
 }
 
+/// Get the chart, its axes and associated fields, and its data points.
 pub async fn get_chart_data(
     executor: impl PgExecutor<'_> + Copy,
     chart_id: Id,
@@ -244,6 +250,7 @@ pub async fn get_chart_data(
     Ok(ChartData { chart, axes, cells })
 }
 
+/// Return the [Relation] between the dashboard and this chart.
 pub async fn check_chart_relation(
     executor: impl PgExecutor<'_>,
     dashboard_id: Id,

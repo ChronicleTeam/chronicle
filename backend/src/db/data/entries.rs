@@ -1,4 +1,4 @@
-use super::{entry_from_row, select_columns, set_columns};
+use super::{entry_from_row, select_columns, update_columns};
 use crate::{
     db::{data::insert_columns, Relation},
     model::{
@@ -10,6 +10,7 @@ use crate::{
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
+/// Add an entry to the actual SQL table.
 pub async fn create_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -62,6 +63,7 @@ pub async fn create_entry(
     Ok(entry)
 }
 
+/// Add entries to the actual SQL table.
 pub async fn create_entries(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -113,6 +115,7 @@ pub async fn create_entries(
     Ok(entries)
 }
 
+/// Update an entry in the actual SQL table.
 pub async fn update_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -128,7 +131,7 @@ pub async fn update_entry(
         .map(|field| FieldIdentifier::new(field.field_id))
         .collect_vec();
 
-    let set_columns = set_columns(parent_id.is_some(), &field_idents, 2);
+    let set_columns = update_columns(parent_id.is_some(), &field_idents, 2);
 
     let return_columns = select_columns(parent_id.is_some(), &field_idents);
 
@@ -158,6 +161,7 @@ pub async fn update_entry(
     Ok(entry)
 }
 
+/// Delete an entry in the actual SQL table.
 pub async fn delete_entry(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -182,6 +186,7 @@ pub async fn delete_entry(
     Ok(())
 }
 
+/// Return the [Relation] between the table and this entry.
 pub async fn check_entry_relation(
     executor: impl PgExecutor<'_>,
     table_id: Id,
@@ -201,22 +206,3 @@ pub async fn check_entry_relation(
     .await?
     .map_or(Relation::Absent, |_| Relation::Owned))
 }
-
-// fn bind_cell_scalar<'q, O>(
-//     query: QueryScalar<'q, Postgres, O, PgArguments>,
-//     cell: Cell,
-// ) -> QueryScalar<'q, Postgres, O, PgArguments> {
-//     if let Some(cell) = cell {
-//         match cell {
-//             Cell::Integer(v) => query.bind(v),
-//             Cell::Float(v) => query.bind(v),
-//             Cell::Decimal(v) => query.bind(v),
-//             Cell::Boolean(v) => query.bind(v),
-//             Cell::DateTime(v) => query.bind(v),
-//             Cell::String(v) => query.bind(v),
-//             Cell::Interval(_) => todo!(),
-//         }
-//     } else {
-//         query.bind::<Option<bool>>(None)
-//     }
-// }

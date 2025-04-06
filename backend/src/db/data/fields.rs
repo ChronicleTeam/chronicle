@@ -14,6 +14,7 @@ use sqlx::{types::Json, Acquire, PgExecutor, Postgres, QueryBuilder, Row};
 use std::{collections::HashMap, mem::discriminant};
 use tracing::debug;
 
+/// Add a field to this table and add a column to the actual SQL table.
 pub async fn create_field(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -62,6 +63,7 @@ pub async fn create_field(
     return Ok(field);
 }
 
+/// Add fields to this table and add columns the actual SQL table.
 pub async fn create_fields(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -118,6 +120,9 @@ pub async fn create_fields(
     return Ok(fields);
 }
 
+/// Update a field in this table and change the column in the actual SQL table.
+/// This will create a new field and keep the old one as backup if the [FieldKind]
+/// variant is different.
 pub async fn update_field(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
@@ -164,6 +169,8 @@ pub async fn update_field(
     Ok(field)
 }
 
+/// Create a new field with all the cells converted to the new [FieldKind].
+/// Renames the old field to avoid conflict.
 async fn convert_field_kind(
     conn: impl Acquire<'_, Database = Postgres>,
     field: Field,
@@ -244,6 +251,8 @@ async fn convert_field_kind(
     Ok(field)
 }
 
+
+/// Delete this field and remove the column from the actual SQL table.
 pub async fn delete_field(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
@@ -278,6 +287,7 @@ pub async fn delete_field(
     Ok(())
 }
 
+/// Get all fields of this table.
 pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<Field>> {
     sqlx::query_as(
         r#"
@@ -298,6 +308,7 @@ pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Re
     .await
 }
 
+/// Get all field IDs of this table.
 pub async fn get_field_ids(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<Id>> {
     sqlx::query_scalar(
         r#"
@@ -311,6 +322,7 @@ pub async fn get_field_ids(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx:
     .await
 }
 
+/// Set the order of all fields in this table.
 pub async fn set_field_order(
     conn: impl Acquire<'_, Database = Postgres>,
     order: HashMap<Id, i32>,
@@ -339,6 +351,7 @@ pub async fn set_field_order(
     Ok(())
 }
 
+/// Get the all [FieldMetadata] of this table.
 pub async fn get_fields_metadata(
     executor: impl PgExecutor<'_>,
     table_id: Id,
@@ -357,6 +370,7 @@ pub async fn get_fields_metadata(
     .await
 }
 
+/// Return the [Relation] between the table and this field.
 pub async fn check_field_relation(
     executor: impl PgExecutor<'_>,
     table_id: Id,

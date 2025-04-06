@@ -4,6 +4,7 @@ use sqlx::FromRow;
 
 use crate::Id;
 
+/// The application user.
 #[derive(Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub user_id: Id,
@@ -39,6 +40,7 @@ impl AuthUser for User {
     }
 }
 
+/// User roles. Currently, only exists to restrict user management to `UserRole::Admin`.
 #[derive(Clone, Debug, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "user_role")]
 pub enum UserRole {
@@ -46,12 +48,14 @@ pub enum UserRole {
     Normal,
 }
 
+/// Credentials request type.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
 
+/// User response type.
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub user_id: Id,

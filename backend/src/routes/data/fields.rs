@@ -57,7 +57,7 @@ async fn create_field(
     Ok(Json(field))
 }
 
-/// Update a field's meta data in a table.
+/// Update a field's metadata in a table.
 ///
 /// Will perform conversion on the cells if the field kind changes and backup the original cells.
 /// Cells that fail to convert are set to null.

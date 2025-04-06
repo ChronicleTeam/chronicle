@@ -12,6 +12,7 @@ use itertools::Itertools;
 use sqlx::{postgres::PgRow, Row};
 pub use {entries::*, fields::*, tables::*};
 
+/// All columns of a user dynamic SQL table prepared for a "select" query.
 fn select_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String {
     field_idents
         .into_iter()
@@ -25,6 +26,7 @@ fn select_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String
         .join(", ")
 }
 
+/// All columns of a user dynamic SQL table prepared for an "insert" query.
 fn insert_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String {
     field_idents
         .iter()
@@ -37,7 +39,8 @@ fn insert_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String
         .join(", ")
 }
 
-fn set_columns(with_parent: bool, field_idents: &[FieldIdentifier], position: usize) -> String {
+/// All columns of a user dynamic SQL table prepared for an "update" query.
+fn update_columns(with_parent: bool, field_idents: &[FieldIdentifier], position: usize) -> String {
     field_idents
         .iter()
         .map(|x| x.to_string())
@@ -51,6 +54,8 @@ fn set_columns(with_parent: bool, field_idents: &[FieldIdentifier], position: us
         .join(", ")
 }
 
+
+/// Convert this [PgRow] into an [Entry].
 fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entry> {
     Ok(Entry {
         entry_id: row.get("entry_id"),
