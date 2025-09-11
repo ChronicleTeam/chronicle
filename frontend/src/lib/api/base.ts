@@ -1,9 +1,9 @@
 import { goto } from "$app/navigation";
-import { env } from "$env/dynamic/public";
+import { PUBLIC_API_URL } from "$env/static/public";
 import { clearUser, user } from "$lib/user.svelte.js";
-import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType } from "../types";
+import { type Table, type TableData, type Field, type Entry, type DateTimeKind, FieldType, type FieldKind } from "../types";
 
-const API_URL = `${env.PUBLIC_API_URL}/api`;
+const API_URL = PUBLIC_API_URL;
 
 //
 // General resources
@@ -117,7 +117,7 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
     if (response.headers.get("Content-Type") === "application/octet-stream") {
       return await response.blob() as T
     } else {
-      return await response.json().catch(() => { });
+      return await response.json().catch(() => ({}));
     }
   } else if (response.status === 401) {
     //if unauthorized, redirect to login
@@ -135,23 +135,33 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   throw err
 };
 
-type JSONDateTimeKind = DateTimeKind & {
+type JSONDateTimeKind = Omit<Omit<DateTimeKind, "range_start">, "range_end"> & {
   range_start: string;
   range_end: string;
+};
+
+type JSONFieldKind = FieldKind | JSONDateTimeKind;
+
+type JSONField = Omit<Field, "field_kind"> & {
+  field_kind: JSONFieldKind
+};
+
+type JSONTableData = Omit<TableData, "fields"> & {
+  fields: JSONField[];
 }
 
 /**
  * Hydrate TableData date strings into Date objects
- * @param {TableData} jsonObj - The TableData object to hydrate
+ * @param {JSONTableData} jsonObj - The TableData object to hydrate
  * @returns {TableData} - The hydrated TableData object
  */
-export const hydrateJSONTableData = (jsonObj: TableData): TableData => {
+export const hydrateJSONTableData = (jsonObj: JSONTableData): TableData => {
   let outTable = jsonObj;
 
   for (let i = 0; i < outTable.fields.length; i++) {
     if (outTable.fields[i].field_kind.type === FieldType.DateTime) {
       if ((outTable.fields[i].field_kind as DateTimeKind).range_start !== null && (outTable.fields[i].field_kind as DateTimeKind).range_start !== undefined) {
-        (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as JSONDateTimeKind).range_start)
+        (outTable.fields[i].field_kind as DateTimeKind).range_start = new Date((outTable.fields[i].field_kind as JSONDateTimeKind).range_start);
       }
 
       if ((outTable.fields[i].field_kind as DateTimeKind).range_end !== null && (outTable.fields[i].field_kind as DateTimeKind).range_end !== undefined) {
@@ -164,6 +174,9 @@ export const hydrateJSONTableData = (jsonObj: TableData): TableData => {
     }
   }
 
-  return outTable;
+  return outTable as TableData;
 }
 
+export const _TESTING = {
+  handleResponse
+}
