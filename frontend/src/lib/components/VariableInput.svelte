@@ -19,7 +19,7 @@
   } = $props();
 </script>
 
-<div class={params.label ? "flex justify-between w-full" : ""}>
+<div class={params.label ? "flex justify-between items-center w-full" : ""}>
   <!-- Label -->
   {#if params.label ?? false}
     <label class={["mr-2 w-auto", disabled && "text-gray-300"]} for={id}
@@ -34,6 +34,7 @@
     <select
       {disabled}
       {id}
+      class={innerClass}
       bind:value={params.bindGetter, params.bindSetter}
       {onclick}
       {onkeydown}
@@ -57,6 +58,7 @@
     <input
       {disabled}
       {id}
+      class={innerClass}
       type="checkbox"
       bind:checked={params.bindGetter, params.bindSetter}
       {onclick}

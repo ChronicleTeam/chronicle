@@ -25,7 +25,7 @@
   ];
 </script>
 
-<div class="p-4 h-full">
+<div class="p-4 h-full flex flex-col">
   {#await user() then u}
     {#if u}
       <!-- Navbar -->

@@ -119,7 +119,7 @@
   };
 </script>
 
-<div class="flex flex-wrap gap-4 size-full items-stretch">
+<div class="flex flex-wrap gap-4 w-full grow items-stretch">
   <!-- Sidebar -->
   <div class="basis-[12rem] grow bg-base-300 rounded-lg shadow-sm">
     <ul class="menu w-full">
