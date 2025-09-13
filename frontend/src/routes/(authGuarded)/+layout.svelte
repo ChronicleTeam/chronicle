@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { user } from "$lib/user.svelte";
+  //import { user } from "$lib/user.svelte";
+  const user = async () => "hello";
 
   let { children } = $props();
 
@@ -28,13 +29,36 @@
   {#await user() then u}
     {#if u}
       <!-- Navbar -->
-      <nav class="flex bg-gray-200 mb-4 rounded-lg">
-        {#each links as link}
-          <a
-            class="px-3 py-2 bg-gray-200 hover:bg-white transition rounded-lg font-bold"
-            href={link.page}>{link.text}</a
-          >
-        {/each}
+      <nav class="navbar bg-base-300 mb-4 rounded-lg shadow-sm">
+        <div class="navbar-start">
+          <div class="dropdown">
+            <div tabindex="0" role="button" class="btn btn-square btn-ghost">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="m-1 h-6 w-6 stroke-base-content"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <line x1="0" y1="6" x2="24" y2="6" />
+                <line x1="0" y1="12" x2="24" y2="12" />
+                <line x1="0" y1="18" x2="24" y2="18" />
+              </svg>
+            </div>
+            <ul
+              tabindex="0"
+              class="menu menu-sm dropdown-content bg-base-100 z-1 w-52 p-2 shadow-sm rounded-sm"
+            >
+              {#each links as link}
+                <li>
+                  <a href={link.page}>{link.text}</a>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        </div>
+        <div class="navbar-center">
+          <h1 class="text-base-content text-xl">Chronicle</h1>
+        </div>
       </nav>
       {@render children()}
     {:else}

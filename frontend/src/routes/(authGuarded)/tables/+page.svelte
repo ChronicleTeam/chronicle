@@ -42,7 +42,6 @@
   let editMode = $state(EditMode.NONE);
 
   // for the table creation input
-  let addTableMode = $state(false);
   let addTableField = $state("");
   let importTableFiles: FileList | null = $state(null);
 
@@ -61,7 +60,6 @@
   let asyncTables: Promise<Table[]> = $state(getTables());
 
   const afterTableCreation = () => {
-    addTableMode = false;
     asyncTables = getTables();
     errors.table.add = "";
     addTableField = "";
@@ -123,122 +121,110 @@
 
 <div class="flex flex-wrap gap-4 size-full items-stretch">
   <!-- Sidebar -->
-  <div class="basis-[12rem] grow bg-gray-200 rounded-lg p-3">
-    <!-- Table list -->
-    <h2>Tables</h2>
-    <div class="flex flex-col">
+  <div class="basis-[12rem] grow bg-base-300 rounded-lg shadow-sm">
+    <ul class="menu w-full">
+      <!-- Table list -->
+      <li class="menu-title">Tables</li>
       {#await asyncTables}
         Loading...
       {:then tables}
         {#each tables.filter((t) => t.parent_id == null) as t}
-          <button
-            onclick={() => {
-              curTable = t;
-              editMode = EditMode.TABLE;
-            }}
-            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-xl p-2 mb-2"
-            >{t.name}</button
-          >
+          <li>
+            <button
+              onclick={() => {
+                curTable = t;
+                editMode = EditMode.TABLE;
+              }}
+              class={{ "menu-active": curTable?.table_id === t.table_id }}
+              >{t.name}</button
+            >
+          </li>
         {/each}
       {/await}
-    </div>
+    </ul>
     <!-- Table creation input -->
     <div
-      class={[
-        "rounded-xl p-2 border-2 border-dashed border-gray-400 flex flex-col items-center transition gap-3",
-        !addTableMode && "hover:bg-gray-400",
-      ]}
+      class="collapse collapse-plus bg-base-100 stroke-base-200 rounded-md mx-2 w-auto"
     >
-      {#if addTableMode}
-        <p class="text-center font-bold">Create New Table:</p>
-
+      <input type="checkbox" />
+      <div class="collapse-title text-sm px-3 flex items-center">Add Table</div>
+      <div class="collapse-content flex flex-col">
         <!-- Create new table -->
-        <div class="flex gap-2 items-center">
-          <input bind:value={addTableField} id="table-name-input" />
-          <button
-            onclick={() => addTable(addTableField)}
-            class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
+        <p class="self-start font-semibold mb-4">Create new table</p>
+        <div class="join">
+          <input
+            class="input join-item w-full"
+            placeholder="Table name"
+            bind:value={addTableField}
+            id="table-name-input"
+          />
+          <button onclick={() => addTable(addTableField)} class="btn join-item"
             >Create</button
           >
         </div>
-        <p class="text-center">or</p>
+        <div class="divider">or</div>
 
         <!-- Import from csv or excel -->
-        <p class="font-bold">Import existing table:</p>
-        <div class="flex gap-2 items-center">
+        <p class="self-start font-semibold mb-4">Import existing table</p>
+        <div class="join">
           <input
+            class="file-input join-item"
             type="file"
             accept=".xlsx,.csv"
             bind:files={importTableFiles}
           />
           <button
-            class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
+            class="btn join-item"
             onclick={() =>
               importTableFiles ? importTable(importTableFiles[0]) : null}
             disabled={!importTableFiles}>Import</button
           >
         </div>
-
-        <!-- Cancel button -->
-        <div class="flex gap-3">
-          <button
-            onclick={() => {
-              errors.table.add = "";
-              addTableField = "";
-              addTableMode = false;
-            }}
-            class="px-2 py-1 rounded-lg border-2 border-red-400 hover:bg-red-400 transition"
-            >Cancel</button
-          >
-        </div>
-      {:else}
-        <button
-          onclick={() => {
-            addTableMode = true;
-          }}
-          class="text-center w-full">Add Table</button
-        >
-      {/if}
-      {#if errors.table.add !== ""}
-        <p class="text-red-500">{errors.table.add}</p>
-      {/if}
+        {#if errors.table.add !== ""}
+          <p class="text-error">{errors.table.add}</p>
+        {/if}
+      </div>
     </div>
   </div>
   <!-- Main editor -->
   <div
-    class="bg-gray-200 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
+    class="bg-base-300 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
   >
     {#if editMode === EditMode.NONE || curTable === null}
-      <h2 class="text-lg font-bold">Select a Table</h2>
+      <h2 class="text-xl font-bold">Select a Table</h2>
     {:else if editMode === EditMode.TABLE && curTable !== null}
       <!-- Top bar -->
-      <div class="flex items-center gap-2">
+      <div class="flex justify-between items-center gap-2">
+        <div></div>
         <h2 class="text-lg font-bold">{curTable.name}</h2>
-        <button
-          onclick={() => {
-            editMode = EditMode.FIELDS;
-          }}
-          class="px-2 bg-white hover:bg-gray-100 transition rounded"
-          >Edit</button
-        >
+        <div>
+          <button
+            onclick={() => {
+              editMode = EditMode.FIELDS;
+            }}
+            class="btn">Edit</button
+          >
+          <!-- Export buttons -->
+          <details class="dropdown">
+            <summary class="btn">Export</summary>
+            <ul class="dropdown-content menu bg-base-100 rounded-md m-1 w-64">
+              <li>
+                <button onclick={() => exportTable("csv")}>Export as CSV</button
+                >
+              </li>
+              <li>
+                <button onclick={() => exportTable("excel")}
+                  >Export as Excel Spreadsheet</button
+                >
+              </li>
+            </ul>
+          </details>
+        </div>
       </div>
 
-      <!-- Export buttons -->
-      <div class="flex gap-2 mt-2">
-        <button
-          onclick={() => exportTable("csv")}
-          class="px-2 bg-white hover:bg-gray-100 transition rounded"
-          >Export as CSV</button
-        >
-        <button
-          onclick={() => exportTable("excel")}
-          class="px-2 bg-white hover:bg-gray-100 transition rounded"
-          >Export as Excel Spreadsheet</button
-        >
-      </div>
-      {#if errors.table.export}<p class="text-red-500">
-          Could not export table.
-        </p>{/if}
+      {#if errors.table.export}
+        <p class="text-error">Could not export table.</p>
+      {/if}
       <h3 class="text-lg mb-2">{curTable.description}</h3>
 
       <!-- Main Table -->
@@ -247,7 +233,7 @@
       {/key}
       <!-- Error -->
       {#if errors.table.delete !== ""}
-        <p class="text-red-500">{errors.table.delete}</p>
+        <p class="text-error">{errors.table.delete}</p>
       {/if}
     {:else if editMode === EditMode.FIELDS && curTable !== null}
       <!-- Field editor -->
