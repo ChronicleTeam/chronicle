@@ -6,7 +6,7 @@
 
 
 use crate::{
-    db::AuthSession, error::{ApiError, ApiResult, ErrorMessage, IntoAnyhow}, model::users::{Credentials, User, UserResponse, UserRole}, AppState
+    db::AuthSession, error::{ApiError, ApiResult, IntoAnyhow}, model::users::{Credentials, User, UserResponse, UserRole}, AppState
 };
 use axum::{
     routing::{get, post},
@@ -14,7 +14,9 @@ use axum::{
 };
 use axum_login::AuthUser;
 
-const INVALID_CREDENTIALS: ErrorMessage = ("user", "Invalid credentials");
+const INVALID_CREDENTIALS: &str = "Invalid credentials";
+const ALREADY_LOGGED_IN: &str = "Already logged in";
+const USERNAME_IS_TAKEN: &str = "Username is taken";
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -41,12 +43,12 @@ async fn _register(
     Form(creds): Form<Credentials>,
 ) -> ApiResult<Json<UserResponse>> {
 
-    if auth_session.user.is_some() {
-        return Err(ApiError::BadRequest);
-    }
+    // if auth_session.user.is_some() {
+    //     return Err(ApiError::BadRequest);
+    // }
 
     if auth_session.backend.exists(&creds).await? {
-        return Err(ApiError::Conflict);
+        return Err(ApiError::Conflict(USERNAME_IS_TAKEN.into()));
     }
 
     let user = auth_session.backend.create_user(creds).await?;
@@ -71,7 +73,7 @@ async fn login(
     Form(creds): Form<Credentials>,
 ) -> ApiResult<Json<UserResponse>> {
     if auth_session.user.is_some() {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest(ALREADY_LOGGED_IN.into()));
     }
 
     let user = match auth_session
@@ -81,7 +83,7 @@ async fn login(
     {
         Some(user) => user,
         None => {
-            return Err(ApiError::unprocessable_entity([INVALID_CREDENTIALS]));
+            return Err(ApiError::UnprocessableEntity(INVALID_CREDENTIALS.into()));
         }
     };
 
@@ -132,7 +134,7 @@ async fn create_user(
 
 
     if backend.exists(&creds).await? {
-        return Err(ApiError::Conflict);
+        return Err(ApiError::Conflict(USERNAME_IS_TAKEN.into()));
     }
 
     let user = backend.create_user(creds).await?;
