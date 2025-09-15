@@ -6,10 +6,10 @@ mod entries;
 mod fields;
 mod tables;
 
-use super::ApiState;
+use crate::AppState;
 use axum::Router;
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new()
         .merge(tables::router())
         .merge(fields::router())

@@ -1,12 +1,8 @@
-use super::ApiState;
 use crate::{
-    db::{self, AuthSession},
-    error::{ApiError, ApiResult},
-    model::{
+    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::{
         data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
         Cell,
-    },
-    Id,
+    }, AppState, Id
 };
 use axum::{
     extract::{Path, State},
@@ -25,7 +21,7 @@ const ENUMERATION_VALUE_MISSING: &str = "Enumeration value is does not exist";
 const INVALID_TYPE: &str = "Value is not the correct type";
 const INVALID_FIELD_ID: &str = "Field ID key is invalid";
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new().nest(
         "/tables/{table-id}/entries",
         Router::new()
@@ -50,31 +46,31 @@ pub fn router() -> Router<ApiState> {
 ///
 async fn create_entries(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(CreateEntries { parent_id, entries }): Json<CreateEntries>,
 ) -> ApiResult<Json<Vec<Entry>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
     if let Some(parent_entry_id) = parent_id {
-        let parent_table_id = db::get_table_parent_id(&pool, table_id).await?;
-        db::check_entry_relation(&pool, parent_table_id, parent_entry_id)
+        let parent_table_id = db::get_table_parent_id(&db, table_id).await?;
+        db::check_entry_relation(&db, parent_table_id, parent_entry_id)
             .await?
             .to_api_result()?;
     }
 
-    let fields = db::get_fields_metadata(&pool, table_id).await?;
+    let fields = db::get_fields_metadata(&db, table_id).await?;
 
     let entries = entries
         .into_iter()
         .map(|cells| convert_cells(cells, &fields))
         .try_collect()?;
 
-    let entries = db::create_entries(&pool, table_id, parent_id, fields, entries).await?;
+    let entries = db::create_entries(&db, table_id, parent_id, fields, entries).await?;
 
     Ok(Json(entries))
 }
@@ -95,31 +91,31 @@ async fn create_entries(
 ///
 async fn update_entry(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry { parent_id, cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
-    db::check_entry_relation(&pool, table_id, entry_id)
+    db::check_entry_relation(&db, table_id, entry_id)
         .await?
         .to_api_result()?;
 
     if let Some(parent_entry_id) = parent_id {
-        let parent_table_id = db::get_table_parent_id(&pool, table_id).await?;
-        db::check_entry_relation(&pool, parent_table_id, parent_entry_id)
+        let parent_table_id = db::get_table_parent_id(&db, table_id).await?;
+        db::check_entry_relation(&db, parent_table_id, parent_entry_id)
             .await?
             .to_api_result()?;
     }
 
-    let fields = db::get_fields_metadata(&pool, table_id).await?;
+    let fields = db::get_fields_metadata(&db, table_id).await?;
 
     let cells = convert_cells(cells, &fields)?;
 
-    let entry = db::update_entry(&pool, table_id, entry_id, parent_id, fields, cells).await?;
+    let entry = db::update_entry(&db, table_id, entry_id, parent_id, fields, cells).await?;
 
     Ok(Json(entry))
 }
@@ -133,19 +129,19 @@ async fn update_entry(
 ///
 async fn delete_entry(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
-    db::check_entry_relation(&pool, table_id, entry_id)
+    db::check_entry_relation(&db, table_id, entry_id)
         .await?
         .to_api_result()?;
 
-    db::delete_entry(&pool, table_id, entry_id).await?;
+    db::delete_entry(&db, table_id, entry_id).await?;
 
     Ok(())
 }

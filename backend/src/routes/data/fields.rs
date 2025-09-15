@@ -1,15 +1,14 @@
-use super::ApiState;
 use crate::{
+    AppState, Id,
     db::{self, AuthSession},
     error::{ApiError, ApiResult, ErrorMessage},
     model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
-    Id,
 };
 use anyhow::anyhow;
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{patch, post},
-    Json, Router,
 };
 use itertools::Itertools;
 use std::collections::HashSet;
@@ -19,7 +18,7 @@ const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new().nest(
         "/tables/{table-id}/fields",
         Router::new()
@@ -40,19 +39,19 @@ pub fn router() -> Router<ApiState> {
 ///
 async fn create_field(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
     validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&pool, table_id, create_field).await?;
+    let field = db::create_field(&db, table_id, create_field).await?;
 
     Ok(Json(field))
 }
@@ -71,22 +70,22 @@ async fn create_field(
 ///
 async fn update_field(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
-    db::check_field_relation(&pool, table_id, field_id)
+    db::check_field_relation(&db, table_id, field_id)
         .await?
         .to_api_result()?;
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field).await?;
+    let field = db::update_field(&db, field_id, update_field).await?;
 
     Ok(Json(field))
 }
@@ -100,19 +99,19 @@ async fn update_field(
 ///
 async fn delete_field(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
-    db::check_field_relation(&pool, table_id, field_id)
+    db::check_field_relation(&db, table_id, field_id)
         .await?
         .to_api_result()?;
 
-    db::delete_field(&pool, field_id).await?;
+    db::delete_field(&db, field_id).await?;
 
     Ok(())
 }
@@ -126,16 +125,16 @@ async fn delete_field(
 ///
 async fn get_fields(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let fields = db::get_fields(&pool, table_id).await?;
+    let fields = db::get_fields(&db, table_id).await?;
 
     Ok(Json(fields))
 }
@@ -153,17 +152,17 @@ async fn get_fields(
 ///
 async fn set_field_order(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let mut field_ids: HashSet<_> = db::get_field_ids(&pool, table_id)
+    let mut field_ids: HashSet<_> = db::get_field_ids(&db, table_id)
         .await?
         .into_iter()
         .collect();
@@ -194,7 +193,7 @@ async fn set_field_order(
         return Err(ApiError::unprocessable_entity(error_messages));
     }
 
-    db::set_field_order(&pool, order).await?;
+    db::set_field_order(&db, order).await?;
 
     Ok(())
 }

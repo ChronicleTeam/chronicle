@@ -5,9 +5,8 @@
 //! 
 
 
-use super::ApiState;
 use crate::{
-    db::AuthSession, error::{ApiError, ApiResult, ErrorMessage, IntoAnyhow}, model::users::{Credentials, User, UserResponse, UserRole}
+    db::AuthSession, error::{ApiError, ApiResult, ErrorMessage, IntoAnyhow}, model::users::{Credentials, User, UserResponse, UserRole}, AppState
 };
 use axum::{
     routing::{get, post},
@@ -17,7 +16,7 @@ use axum_login::AuthUser;
 
 const INVALID_CREDENTIALS: ErrorMessage = ("user", "Invalid credentials");
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new()
         // .route("/register", post(register))
         .route("/login", post(login))
