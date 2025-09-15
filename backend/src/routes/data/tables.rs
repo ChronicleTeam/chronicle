@@ -1,4 +1,4 @@
-use super::ApiState;
+use super::AppState;
 use crate::{
     db::{self, AuthSession},
     error::{ApiError, ApiResult, IntoAnyhow},
@@ -18,7 +18,7 @@ use umya_spreadsheet::{
     writer,
 };
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new().nest(
         "/tables",
         Router::new()
@@ -40,12 +40,12 @@ pub fn router() -> Router<ApiState> {
 ///
 async fn create_table(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Json(create_table): Json<CreateTable>,
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let table = db::create_table(&pool, user_id, create_table).await?;
+    let table = db::create_table(&db, user_id, create_table).await?;
 
     Ok(Json(table))
 }
@@ -59,17 +59,17 @@ async fn create_table(
 ///
 async fn update_table(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(update_table): Json<UpdateTable>,
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let table = db::update_table(&pool, table_id, update_table).await?;
+    let table = db::update_table(&db, table_id, update_table).await?;
 
     Ok(Json(table))
 }
@@ -83,16 +83,16 @@ async fn update_table(
 ///
 async fn delete_table(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    db::delete_table(&pool, table_id).await?;
+    db::delete_table(&db, table_id).await?;
 
     Ok(())
 }
@@ -104,11 +104,11 @@ async fn delete_table(
 ///
 async fn get_tables(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let tables = db::get_tables(&pool, user_id).await?;
+    let tables = db::get_tables(&db, user_id).await?;
 
     Ok(Json(tables))
 }
@@ -122,16 +122,16 @@ async fn get_tables(
 ///
 async fn get_table_children(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let tables = db::get_table_children(&pool, table_id).await?;
+    let tables = db::get_table_children(&db, table_id).await?;
 
     Ok(Json(tables))
 }
@@ -147,16 +147,16 @@ async fn get_table_children(
 ///
 async fn get_table_data(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<TableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let data_table = db::get_table_data(&pool, table_id).await?;
+    let data_table = db::get_table_data(&db, table_id).await?;
 
     Ok(Json(data_table))
 }
@@ -169,7 +169,7 @@ async fn get_table_data(
 ///
 async fn import_table_from_excel(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
 ) -> ApiResult<Json<Vec<TableData>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
@@ -183,7 +183,7 @@ async fn import_table_from_excel(
 
     let create_tables = io::import_table_from_excel(spreadsheet);
 
-    let mut tx = pool.begin().await?;
+    let mut tx = db.begin().await?;
 
     let mut tables = Vec::new();
 
@@ -235,13 +235,13 @@ async fn import_table_from_excel(
 ///
 async fn export_table_to_excel(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     mut multipart: Multipart,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
@@ -259,7 +259,7 @@ async fn export_table_to_excel(
     let mut buffer = Vec::new();
     let data = Cursor::new(&mut buffer);
 
-    io::export_table_to_excel(&mut spreadsheet, db::get_table_data(&pool, table_id).await?);
+    io::export_table_to_excel(&mut spreadsheet, db::get_table_data(&db, table_id).await?);
 
     writer::xlsx::write_writer(&spreadsheet, data).into_anyhow()?;
 
@@ -274,7 +274,7 @@ async fn export_table_to_excel(
 ///
 async fn import_table_from_csv(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
 ) -> ApiResult<Json<TableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
@@ -289,7 +289,7 @@ async fn import_table_from_csv(
 
     let create_table = io::import_table_from_csv(csv_reader, &name).into_anyhow()?;
 
-    let mut tx = pool.begin().await?;
+    let mut tx = db.begin().await?;
 
     let table = db::create_table(tx.as_mut(), user_id, create_table.table).await?;
     let fields = db::create_fields(tx.as_mut(), table.table_id, create_table.fields).await?;
@@ -327,18 +327,18 @@ async fn import_table_from_csv(
 ///
 async fn export_table_to_csv(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
     let mut buffer = Vec::new();
     let csv_writer = csv::Writer::from_writer(Cursor::new(&mut buffer));
 
-    io::export_table_to_csv(csv_writer, db::get_table_data(&pool, table_id).await?)
+    io::export_table_to_csv(csv_writer, db::get_table_data(&db, table_id).await?)
         .into_anyhow()?;
 
     Ok(buffer)

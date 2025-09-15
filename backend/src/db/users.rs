@@ -98,7 +98,6 @@ pub enum Error {
     TaskJoin(#[from] task::JoinError),
 }
 
-#[async_trait::async_trait]
 impl AuthnBackend for Backend {
     type User = User;
     type Credentials = Credentials;

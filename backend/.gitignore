@@ -1,5 +1,7 @@
 target/
-/target
-.shuttle*
-Secrets*.toml
+
 cookies.txt
+
+.env
+
+config.toml
