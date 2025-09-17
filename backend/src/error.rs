@@ -151,14 +151,14 @@ where
 }
 
 pub trait IntoAnyhow<T> {
-    fn into_anyhow(self) -> Result<T, anyhow::Error>;
+    fn anyhow(self) -> Result<T, anyhow::Error>;
 }
 
 impl<T, E> IntoAnyhow<T> for Result<T, E>
 where
     E: std::error::Error + Send + Sync + 'static,
 {
-    fn into_anyhow(self) -> Result<T, anyhow::Error> {
+    fn anyhow(self) -> Result<T, anyhow::Error> {
         self.map_err(anyhow::Error::from)
     }
 }

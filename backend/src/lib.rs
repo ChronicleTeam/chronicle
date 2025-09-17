@@ -38,7 +38,6 @@ use tower_sessions_sqlx_store::PostgresStore;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    db::AuthBackend,
     model::users::{Credentials, UserRole},
 };
 
@@ -111,33 +110,13 @@ pub async fn serve() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    let session_store = PostgresStore::new(db.clone());
-    session_store.migrate().await?;
-
     let _deletion_task = tokio::task::spawn(
         session_store
             .clone()
             .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
     );
 
-    // Generate a cryptographic key to sign the session cookie.
-    let key = Key::generate();
-
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(true)
-        .with_same_site(SameSite::None)
-        .with_expiry(Expiry::OnInactivity(time::Duration::days(1)))
-        .with_signed(key);
-
-    // Auth service.
-    //
-    // This combines the session layer with our backend to establish the auth
-    // service which will provide the auth session as a request extension.
-    let backend = AuthBackend::new(db.clone());
-    let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
-
-    tokio::spawn(async move { create_admin_users(backend, app_config.admin).await.unwrap() });
-
+    
     let allowed_origin = app_config
         .allowed_origin
         .into_iter()
