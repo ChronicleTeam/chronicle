@@ -18,6 +18,8 @@ use umya_spreadsheet::{
     writer,
 };
 
+const MISSING_MULTIPART_FIELD: &str = "Missing multipart field";
+
 pub fn router() -> Router<AppState> {
     Router::new().nest(
         "/tables",
@@ -175,7 +177,7 @@ async fn import_table_from_excel(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest("".into()));
     };
 
     let data = field.bytes().await.into_anyhow()?;
@@ -253,7 +255,7 @@ async fn export_table_to_excel(
             reader::xlsx::read_reader(Cursor::new(data), true).into_anyhow()?
         }
     } else {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
     let mut buffer = Vec::new();
@@ -280,7 +282,7 @@ async fn import_table_from_csv(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
     let name = field.file_name().unwrap_or("CSV Import").to_string();

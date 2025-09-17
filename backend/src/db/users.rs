@@ -5,13 +5,14 @@ use tokio::task;
 
 use crate::{model::users::{Credentials, User, UserRole}, Id};
 
+
 /// The backend type for [axum_login::AuthSession].
 #[derive(Debug, Clone)]
-pub struct Backend {
+pub struct AuthBackend {
     pool: PgPool,
 }
 
-impl Backend {
+impl AuthBackend {
     pub fn new(db: PgPool) -> Self {
         Self { pool: db }
     }
@@ -98,7 +99,7 @@ pub enum Error {
     TaskJoin(#[from] task::JoinError),
 }
 
-impl AuthnBackend for Backend {
+impl AuthnBackend for AuthBackend {
     type User = User;
     type Credentials = Credentials;
     type Error = Error;
@@ -151,4 +152,4 @@ impl AuthnBackend for Backend {
     }
 }
 
-pub type AuthSession = axum_login::AuthSession<Backend>;
+pub type AuthSession = axum_login::AuthSession<AuthBackend>;

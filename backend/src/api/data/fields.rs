@@ -1,7 +1,7 @@
 use crate::{
     AppState, Id,
     db::{self, AuthSession},
-    error::{ApiError, ApiResult, ErrorMessage},
+    error::{ApiError, ApiResult},
     model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
 };
 use anyhow::anyhow;
@@ -13,7 +13,7 @@ use axum::{
 use itertools::Itertools;
 use std::collections::HashSet;
 
-const INVALID_RANGE: ErrorMessage = ("range", "Range start bound is greater than end bound");
+const INVALID_RANGE: &str = "Range start bound is greater than end bound";
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
@@ -172,25 +172,23 @@ async fn set_field_order(
         .sorted_by_key(|(_, ordering)| **ordering)
         .enumerate()
         .filter_map(|(idx, (field_id, ordering))| {
-            let key = field_id.to_string();
             if !field_ids.remove(field_id) {
-                Some((key, FIELD_ID_NOT_FOUND))
+                Some(format!("{field_id}: {FIELD_ID_NOT_FOUND}"))
             } else if idx as i32 != *ordering {
-                Some((key, INVALID_ORDERING))
+                Some(format!("{field_id}: {INVALID_ORDERING}"))
             } else {
                 None
             }
         })
         .collect_vec();
-
     error_messages.extend(
-        field_ids
-            .into_iter()
-            .map(|field_id| (field_id.to_string(), FIELD_ID_MISSING)),
+    field_ids
+        .into_iter()
+        .map(|field_id| format!("{field_id}: {FIELD_ID_MISSING}")),
     );
 
-    if error_messages.len() > 0 {
-        return Err(ApiError::unprocessable_entity(error_messages));
+    if !error_messages.is_empty() {
+        return Err(ApiError::UnprocessableEntity(error_messages.join(", ")));
     }
 
     db::set_field_order(&db, order).await?;
@@ -258,6 +256,6 @@ where
     {
         Ok(())
     } else {
-        Err(ApiError::unprocessable_entity([INVALID_RANGE]))
+        Err(ApiError::UnprocessableEntity(INVALID_RANGE.into()))
     }
 }

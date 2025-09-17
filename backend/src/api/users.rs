@@ -4,7 +4,6 @@
 //! front-end and received in the back-end to confirm identity.
 //! 
 
-
 use crate::{
     db::AuthSession, error::{ApiError, ApiResult, IntoAnyhow}, model::users::{Credentials, User, UserResponse, UserRole}, AppState
 };

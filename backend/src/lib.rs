@@ -2,7 +2,7 @@ mod db;
 mod error;
 mod io;
 mod model;
-mod routes;
+mod api;
 
 use std::{
     env, fs,
@@ -38,7 +38,7 @@ use tower_sessions_sqlx_store::PostgresStore;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
-    db::Backend,
+    db::AuthBackend,
     model::users::{Credentials, UserRole},
 };
 
@@ -133,7 +133,7 @@ pub async fn serve() -> anyhow::Result<()> {
     //
     // This combines the session layer with our backend to establish the auth
     // service which will provide the auth session as a request extension.
-    let backend = Backend::new(db.clone());
+    let backend = AuthBackend::new(db.clone());
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
     tokio::spawn(async move { create_admin_users(backend, app_config.admin).await.unwrap() });
@@ -167,7 +167,7 @@ pub async fn serve() -> anyhow::Result<()> {
         .map_response(set_partitioned_cookie)
         .layer(auth_layer);
 
-    let router = routes::router().layer(service).with_state(AppState { db });
+    let router = api::router().layer(service).with_state(AppState { db });
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), app_config.port);
     let listener = TcpListener::bind(addr).await?;
@@ -217,7 +217,7 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
 }
 
 /// Create the admin users from the application secrets.
-async fn create_admin_users(mut backend: Backend, admin_creds: Credentials) -> sqlx::Result<()> {
+async fn create_admin_users(mut backend: AuthBackend, admin_creds: Credentials) -> sqlx::Result<()> {
     if !backend.exists(&admin_creds).await? {
         let user_id = backend.create_user(admin_creds).await?.user_id;
         backend.set_role(user_id, UserRole::Admin).await?;
