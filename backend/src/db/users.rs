@@ -34,16 +34,6 @@ pub async fn create_user(
     Ok(user)
 }
 
-pub async fn create_admin_user(conn: impl Acquire<'_, Database = Postgres>,) -> sqlx::Result<()> {
-    let mut tx = db.begin().await?;
-    if !db::user_exists(tx.as_mut(), admin_creds.username.clone()).await? {
-        let password_hash = task::spawn_blocking(|| generate_hash(admin_creds.password))
-            .await
-            .anyhow()?;
-        let user_id = db::create_user(tx.as_mut(), admin_creds.username, password_hash).await?.user_id;
-        backend.set_role(user_id, UserRole::Admin).await?;
-    }
-}
 
 pub async fn set_user_role(
     conn: impl Acquire<'_, Database = Postgres>,

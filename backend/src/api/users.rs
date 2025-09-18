@@ -100,16 +100,22 @@ pub async fn router(db: PgPool, admin_creds: Credentials) -> anyhow::Result<Rout
     let backend = AuthBackend::new(db.clone());
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-    tokio::spawn(async move { 
-        let mut tx = db.begin().await?;
-        if !db::user_exists(tx.as_mut(), admin_creds.username.clone()).await? {
-            let password_hash = task::spawn_blocking(|| generate_hash(admin_creds.password))
-                .await
-                .anyhow()?;
-            let user_id = db::create_user(tx.as_mut(), admin_creds.username, password_hash).await?.user_id;
-            backend.set_role(user_id, UserRole::Admin).await?;
-        }
-    });
+    let mut tx = db.begin().await?;
+    let admin_user = db::get_user_from_username(tx.as_mut(), admin_creds.username).await?;
+
+    if let Some(admin_user) =  db::get_user_from_username(tx.as_mut(), admin_creds.username).await? {
+
+    } else {
+
+    }
+
+    // if !db::user_exists(tx.as_mut(), username.clone()).await? {
+    //     let password_hash = task::spawn_blocking(|| generate_hash(admin_creds.password))
+    //         .await
+    //         .anyhow()?;
+    //     let user_id = db::create_user(tx.as_mut(), admin_creds.username, password_hash).await?.user_id;
+    //     backend.set_role(user_id, UserRole::Admin).await?;
+    // }
 
     Ok(Router::new()
         // .route("/register", post(register))
@@ -118,6 +124,7 @@ pub async fn router(db: PgPool, admin_creds: Credentials) -> anyhow::Result<Rout
         .route("/user", get(get_user))
         .route("/users", post(create_user)))
 }
+
 
 /// Login the user from the credentials.
 ///
