@@ -1,13 +1,12 @@
 use crate::{
-    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::{
-        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
-        Cell,
+    auth::AuthSession, db, error::{ApiError, ApiResult}, model::{
+        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry}, Cell
     }, AppState, Id
 };
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{patch, post},
-    Json, Router,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -31,12 +30,12 @@ pub fn router() -> Router<AppState> {
 }
 
 /// Create many entries in a table.
-/// 
+///
 /// Can optionally take a parent entry ID.
 ///
 /// # Errors
 /// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table or 
+/// - [`ApiError::Forbidden`]: User does not have access to that table or
 /// - [`ApiError::NotFound`]: Table or parent entry not found
 /// - [`ApiError::UnprocessableEntity`]:
 ///     - <field_id>: [`IS_REQUIRED`]
@@ -76,7 +75,7 @@ async fn create_entries(
 }
 
 /// Update an entry in a table.
-/// 
+///
 /// Can optionally take a parent entry ID.
 ///
 /// # Errors
@@ -156,18 +155,18 @@ fn convert_cells(
         .map(|field| {
             let json_value = raw_cells.remove(&field.field_id).unwrap_or(Value::Null);
             Ok(json_to_cell(json_value, &field.field_kind)
-                .map_err(|message| (field.field_id.to_string(), message))?)
+                .map_err(|message| format!("{}: {message}", field.field_id))?)
         })
         .partition_result();
 
     error_messages.extend(
         raw_cells
             .keys()
-            .map(|field_id| (field_id.to_string(), INVALID_FIELD_ID)),
+            .map(|field_id| format!("{}: {INVALID_FIELD_ID}", field_id)),
     );
 
     if error_messages.len() > 0 {
-        return Err(ApiError::unprocessable_entity(error_messages));
+        return Err(ApiError::UnprocessableEntity(error_messages.join(", ")));
     }
 
     Ok(new_cells)

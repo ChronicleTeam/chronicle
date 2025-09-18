@@ -1,13 +1,13 @@
 use crate::{
-    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::{
+    auth::AuthSession, db::{self}, error::{ApiError, ApiResult}, model::{
         data::FieldKind,
         viz::{Aggregate, Axis, SetAxes},
     }, AppState, Id
 };
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::put,
-    Json, Router,
 };
 use itertools::Itertools;
 use std::collections::HashMap;
@@ -23,10 +23,10 @@ pub fn router() -> Router<AppState> {
 }
 
 /// Set all the axes of the specified chart.
-/// 
+///
 /// This is the only way to modify chart axes because the dynamic view needs to
 /// be rebuilt and it is much more convienient when receiving all the axes at once.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
@@ -34,7 +34,7 @@ pub fn router() -> Router<AppState> {
 /// - [ApiError::UnprocessableEntity]:
 ///     - <field_id>: [FIELD_NOT_FOUND]
 ///     - <field_id>: [INVALID_AXIS_AGGREGATE]
-/// 
+///
 async fn set_axes(
     AuthSession { user, .. }: AuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -52,7 +52,6 @@ async fn set_axes(
 
     let table_id = db::get_chart_table_id(&db, chart_id).await?;
 
-
     let field_kinds: HashMap<_, _> = db::get_fields_metadata(&db, table_id)
         .await?
         .into_iter()
@@ -65,14 +64,14 @@ async fn set_axes(
             let field_kind =
                 &field_kinds
                     .get(&axis.field_id)
-                    .ok_or(ApiError::unprocessable_entity([(
-                        axis.field_id.to_string(),
-                        FIELD_NOT_FOUND,
-                    )]))?;
+                    .ok_or(ApiError::UnprocessableEntity(format!(
+                        "{}: {FIELD_NOT_FOUND}",
+                        axis.field_id,
+                    )))?;
 
             if let Some(aggregate) = &axis.aggregate {
                 validate_axis(&aggregate, field_kind).map_err(|message| {
-                    ApiError::unprocessable_entity([(axis.field_id.to_string(), message)])
+                    ApiError::UnprocessableEntity(format!("{}: {message}", axis.field_id,))
                 })?;
             }
 

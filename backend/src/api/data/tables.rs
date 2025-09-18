@@ -1,10 +1,6 @@
 use super::AppState;
 use crate::{
-    db::{self, AuthSession},
-    error::{ApiError, ApiResult, IntoAnyhow},
-    io,
-    model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
-    Id,
+    auth::AuthSession, db, error::{ApiError, ApiResult, IntoAnyhow}, io, model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable}, Id
 };
 use axum::{
     extract::{Multipart, Path, State},
@@ -17,6 +13,8 @@ use umya_spreadsheet::{
     reader::{self, xlsx},
     writer,
 };
+
+const MISSING_MULTIPART_FIELD: &str = "Missing multipart field";
 
 pub fn router() -> Router<AppState> {
     Router::new().nest(
@@ -175,11 +173,11 @@ async fn import_table_from_excel(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest("".into()));
     };
 
-    let data = field.bytes().await.into_anyhow()?;
-    let spreadsheet = xlsx::read_reader(Cursor::new(data), true).into_anyhow()?;
+    let data = field.bytes().await.anyhow()?;
+    let spreadsheet = xlsx::read_reader(Cursor::new(data), true).anyhow()?;
 
     let create_tables = io::import_table_from_excel(spreadsheet);
 
@@ -245,15 +243,15 @@ async fn export_table_to_excel(
         .await?
         .to_api_result()?;
 
-    let mut spreadsheet = if let Some(field) = multipart.next_field().await.into_anyhow()? {
-        let data = field.bytes().await.into_anyhow()?;
+    let mut spreadsheet = if let Some(field) = multipart.next_field().await.anyhow()? {
+        let data = field.bytes().await.anyhow()?;
         if data.is_empty() {
             umya_spreadsheet::new_file_empty_worksheet()
         } else {
-            reader::xlsx::read_reader(Cursor::new(data), true).into_anyhow()?
+            reader::xlsx::read_reader(Cursor::new(data), true).anyhow()?
         }
     } else {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
     let mut buffer = Vec::new();
@@ -261,7 +259,7 @@ async fn export_table_to_excel(
 
     io::export_table_to_excel(&mut spreadsheet, db::get_table_data(&db, table_id).await?);
 
-    writer::xlsx::write_writer(&spreadsheet, data).into_anyhow()?;
+    writer::xlsx::write_writer(&spreadsheet, data).anyhow()?;
 
     Ok(buffer)
 }
@@ -280,14 +278,14 @@ async fn import_table_from_csv(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
-        return Err(ApiError::BadRequest);
+        return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
     let name = field.file_name().unwrap_or("CSV Import").to_string();
-    let data = field.bytes().await.into_anyhow()?;
+    let data = field.bytes().await.anyhow()?;
     let csv_reader = csv::Reader::from_reader(Cursor::new(data));
 
-    let create_table = io::import_table_from_csv(csv_reader, &name).into_anyhow()?;
+    let create_table = io::import_table_from_csv(csv_reader, &name).anyhow()?;
 
     let mut tx = db.begin().await?;
 
@@ -339,7 +337,7 @@ async fn export_table_to_csv(
     let csv_writer = csv::Writer::from_writer(Cursor::new(&mut buffer));
 
     io::export_table_to_csv(csv_writer, db::get_table_data(&db, table_id).await?)
-        .into_anyhow()?;
+        .anyhow()?;
 
     Ok(buffer)
 }

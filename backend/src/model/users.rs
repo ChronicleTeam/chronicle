@@ -10,7 +10,7 @@ pub struct User {
     pub user_id: Id,
     pub username: String,
     pub password_hash: String,
-    pub role: UserRole,
+    pub is_admin: bool,
 }
 
 impl std::fmt::Debug for User {
@@ -19,7 +19,7 @@ impl std::fmt::Debug for User {
             .field("user_id", &self.user_id)
             .field("username", &self.username)
             .field("password_hash", &"[redacted]")
-            .field("role", &self.role)
+            .field("is_admin", &self.is_admin)
             .finish()
     }
 }
@@ -40,14 +40,6 @@ impl AuthUser for User {
     }
 }
 
-/// User roles. Currently, only exists to restrict user management to `UserRole::Admin`.
-#[derive(Clone, Debug, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "user_role")]
-pub enum UserRole {
-    Admin,
-    Normal,
-}
-
 /// Credentials request type.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {
@@ -55,9 +47,27 @@ pub struct Credentials {
     pub password: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SelectUser {
+    pub user_id: Id,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateUser {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateUser {
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
 /// User response type.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct UserResponse {
     pub user_id: Id,
     pub username: String,
+    pub is_admin: bool
 }

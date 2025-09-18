@@ -1,10 +1,10 @@
 use crate::{
-    db::{self, AuthSession}, error::{ApiError, ApiResult}, model::viz::{Chart, ChartData, CreateChart, UpdateChart}, AppState, Id
+    auth::AuthSession, db, error::{ApiError, ApiResult}, model::viz::{Chart, ChartData, CreateChart, UpdateChart}, AppState, Id
 };
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{get, patch, post},
-    Json, Router,
 };
 
 pub fn router() -> Router<AppState> {
@@ -13,17 +13,17 @@ pub fn router() -> Router<AppState> {
         Router::new()
             .route("/", post(create_chart).get(get_charts))
             .route("/{chart-id}", patch(update_chart).delete(delete_chart))
-            .route("/{chart-id}/data", get(get_chart_data))
+            .route("/{chart-id}/data", get(get_chart_data)),
     )
 }
 
 /// Create a blank chart.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard or table
 /// - [ApiError::NotFound]: Dashboard or table not found
-/// 
+///
 async fn create_chart(
     AuthSession { user, .. }: AuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -45,12 +45,12 @@ async fn create_chart(
 }
 
 /// Update a chart's metadata.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
 /// - [ApiError::NotFound]: Dashboard or chart not found
-/// 
+///
 async fn update_chart(
     AuthSession { user, .. }: AuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -72,12 +72,12 @@ async fn update_chart(
 }
 
 /// Delete a chart and its axes.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
 /// - [ApiError::NotFound]: Dashboard or chart not found
-/// 
+///
 async fn delete_chart(
     AuthSession { user, .. }: AuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -98,12 +98,12 @@ async fn delete_chart(
 }
 
 /// Get all charts for this dashboard.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard
 /// - [ApiError::NotFound]: Dashboard not found
-/// 
+///
 async fn get_charts(
     AuthSession { user, .. }: AuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -120,16 +120,15 @@ async fn get_charts(
     Ok(Json(charts))
 }
 
-
 /// Get the chart's metadata, axes metadata, and data points.
-/// 
+///
 /// Used for building and displaying the chart.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
 /// - [ApiError::NotFound]: Dashboard or chart not found
-/// 
+///
 async fn get_chart_data(
     AuthSession { user, .. }: AuthSession,
     State(AppState { db, .. }): State<AppState>,

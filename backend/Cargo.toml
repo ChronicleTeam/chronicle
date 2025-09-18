@@ -69,6 +69,7 @@ csv = "1.3"
 # User authentication and authorization
 axum-login = "0.18"
 password-auth = "1.0"
+jsonwebtoken = "9.3"
 async-trait = "0.1"
 # axum-messages = "0.8"
 
