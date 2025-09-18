@@ -1,11 +1,8 @@
 use crate::{
-    AppState, Id,
-    db::{self, AuthSession},
-    error::{ApiError, ApiResult},
-    model::{
+    auth::AuthSession, db::{self}, error::{ApiError, ApiResult}, model::{
         data::FieldKind,
         viz::{Aggregate, Axis, SetAxes},
-    },
+    }, AppState, Id
 };
 use axum::{
     Json, Router,

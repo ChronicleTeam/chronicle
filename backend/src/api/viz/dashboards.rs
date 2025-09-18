@@ -1,9 +1,5 @@
 use crate::{
-    db::{self, AuthSession},
-    error::{ApiError, ApiResult},
-    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
-    AppState,
-    Id,
+    auth::AuthSession, db, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, AppState, Id
 };
 use axum::{
     extract::{Path, State},

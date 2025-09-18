@@ -1,19 +1,16 @@
-mod users;
 mod data;
+mod users;
 mod viz;
 
+use crate::AppState;
 use axum::Router;
-use sqlx::PgPool;
-use crate::{model::users::Credentials, AppState};
 
-
-pub async fn router(db: PgPool, admin_creds: Credentials) -> anyhow::Result<Router<AppState>> {
-    Ok(Router::new()
-        .nest(
-            "/api",
-            Router::new()
-                .merge(users::router(db, admin_creds).await?)
-                .merge(data::router())
-                .merge(viz::router()),
-        ))
+pub fn router() -> Router<AppState> {
+    Router::new().nest(
+        "/api",
+        Router::new()
+            .merge(users::router())
+            .merge(data::router())
+            .merge(viz::router()),
+    )
 }

@@ -1,64 +1,102 @@
-use axum_login::{AuthnBackend, UserId};
-use password_auth::{generate_hash, verify_password};
-use sqlx::{Acquire, PgExecutor, PgPool, Postgres};
-use tokio::task;
-
-use crate::{
-    Id,
-    error::{ApiError, IntoAnyhow},
-    model::users::{Credentials, User, UserRole},
-};
+use crate::{model::users::{User, UserResponse}, Id};
+use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
 pub async fn create_user(
     conn: impl Acquire<'_, Database = Postgres>,
     username: String,
     password_hash: String,
+    is_admin: bool,
 ) -> sqlx::Result<User> {
     let mut tx = conn.begin().await?;
     let user = sqlx::query_as(
         r#"
             INSERT INTO app_user (username, password_hash)
-            VALUES ($1, $2)
-            RETURNING
-                user_id,
-                username,
-                password_hash,
-                role
+            VALUES ($1, $2, $3)
+            RETURNING *
         "#,
     )
     .bind(username)
     .bind(password_hash)
+    .bind(is_admin)
     .fetch_one(tx.as_mut())
     .await?;
     tx.commit().await?;
     Ok(user)
 }
 
-
-pub async fn set_user_role(
+pub async fn update_user(
     conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
-    role: UserRole,
+    username: Option<String>,
+    password_hash: Option<String>,
+    is_admin: Option<bool>,
+) -> sqlx::Result<User> {
+    let mut tx: sqlx::Transaction<'_, _> = conn.begin().await?;
+    let mut query = QueryBuilder::new(
+        r#"
+        UPDATE app_user SET
+    "#,
+    );
+    let mut comma = false;
+    let mut check_comma = |query: &mut QueryBuilder<'_, Postgres>| {
+        if comma {
+            query.push(" , ");
+        }
+        comma = true;
+    };
+    if let Some(username) = username {
+        check_comma(&mut query);
+        query.push(" username = ").push_bind(username);
+    }
+    if let Some(password_hash) = password_hash {
+        check_comma(&mut query);
+        query.push(" password_hash = ").push_bind(password_hash);
+    }
+    if let Some(is_admin) = is_admin {
+        check_comma(&mut query);
+        query.push(" is_admin = ").push_bind(is_admin);
+    }
+    let user: User = query
+        .push(r#" WHERE user_id = "#)
+        .push_bind(user_id)
+        .push(r#" RETURNING *"#)
+        .build_query_as()
+        .fetch_one(tx.as_mut())
+        .await?;
+    tx.commit().await?;
+    Ok(user)
+}
+
+pub async fn delete_user(
+    conn: impl Acquire<'_, Database = Postgres>,
+    user_id: Id,
 ) -> sqlx::Result<()> {
-    let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = conn.begin().await?;
+    let mut tx = conn.begin().await?;
     sqlx::query(
         r#"
-            UPDATE app_user
-            SET role = $1
-            WHERE user_id = $2
-            RETURNING
-                user_id,
-                username,
-                password_hash,
-                role
-        "#,
+        DELETE FROM app_user
+        WHERE user_id = $1
+    "#,
     )
-    .bind(role)
     .bind(user_id)
     .execute(tx.as_mut())
     .await?;
     tx.commit().await?;
     Ok(())
+}
+
+pub async fn get_all_users(executor: impl PgExecutor<'_>) -> sqlx::Result<Vec<UserResponse>> {
+    sqlx::query_as(
+        r#"
+            SELECT
+                user_id,
+                username,
+                is_admin
+            FROM app_user
+        "#,
+    )
+    .fetch_all(executor)
+    .await
 }
 
 pub async fn get_user(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Option<User>> {
@@ -68,7 +106,7 @@ pub async fn get_user(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Resul
                 user_id,
                 username,
                 password_hash,
-                role
+                is_admin
             FROM app_user
             WHERE user_id = $1
         "#,
@@ -88,7 +126,7 @@ pub async fn get_user_from_username(
                 user_id,
                 username,
                 password_hash,
-                role
+                is_admin
             FROM app_user
             WHERE username = $1
         "#,
