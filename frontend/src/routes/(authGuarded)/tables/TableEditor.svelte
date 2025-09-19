@@ -495,15 +495,7 @@
                         (modeState.mode === TableMode.EDIT &&
                           modeState.entry_idx === i)
                       )}
-                      class={[
-                        "border-none focus:outline-hidden outline-hidden size-full disabled:pointer-events-none",
-                        (modeState.mode === TableMode.INSERT &&
-                          modeState.entry_idxes.includes(i)) ||
-                        (modeState.mode === TableMode.EDIT &&
-                          modeState.entry_idx === i)
-                          ? "bg-info/25"
-                          : "bg-base-100",
-                      ]}
+                      class="border-none bg-transparent focus:outline-hidden outline-hidden size-full disabled:pointer-events-none"
                       params={cellToInputParams(i, field)}
                       onkeydown={(k) => {
                         if (k.key === "Enter") {
