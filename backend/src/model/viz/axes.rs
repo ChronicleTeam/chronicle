@@ -6,6 +6,7 @@ use sqlx::{types::Json, FromRow};
 
 use crate::{model::data::FieldKind, Id};
 
+/// Chart axis entity.
 #[derive(Debug, Serialize, FromRow)]
 pub struct Axis {
     pub axis_id: Id,
@@ -17,6 +18,8 @@ pub struct Axis {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+
+/// The kind of axis for constructing the actual chart.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
 #[sqlx(type_name = "axis_kind")]
 pub enum AxisKind {
@@ -29,6 +32,7 @@ pub enum AxisKind {
     Detail,
 }
 
+/// The aggregate function of the axis.
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
@@ -40,6 +44,7 @@ pub enum Aggregate {
 }
 
 impl Aggregate {
+    /// Get the SQL function of this aggregate.
     pub fn get_sql_aggregate(&self) -> &'static str {
         match self {
             Aggregate::Sum => "SUM",
@@ -50,6 +55,7 @@ impl Aggregate {
         }
     }
 
+    /// Get the SQL type of this aggregate based on field kind.
     pub fn get_sql_type(&self, field_kind: &FieldKind) -> &'static str {
         match self {
             Aggregate::Sum | Aggregate::Average => match field_kind {
@@ -62,6 +68,7 @@ impl Aggregate {
     }
 }
 
+/// Create axis request.
 #[derive(Debug, Deserialize)]
 pub struct CreateAxis {
     pub field_id: Id,
@@ -69,9 +76,11 @@ pub struct CreateAxis {
     pub aggregate: Option<Aggregate>,
 }
 
+/// Set a chart's axis request.
 #[derive(Debug, Deserialize)]
 pub struct SetAxes(pub Vec<CreateAxis>);
 
+/// An axis and its associated field.
 #[derive(Debug, Serialize, FromRow)]
 pub struct AxisField {
     #[sqlx(flatten)]
@@ -81,6 +90,7 @@ pub struct AxisField {
 }
 
 
+/// Database identifier of the actual SQL view column that a user axis points to.
 #[derive(Debug)]
 pub struct AxisIdentifier {
     axis_id: Id,

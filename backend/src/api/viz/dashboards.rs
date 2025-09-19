@@ -1,9 +1,5 @@
 use crate::{
-    db::{self, AuthSession},
-    error::{ApiError, ApiResult},
-    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
-    routes::ApiState,
-    Id,
+    auth::AuthSession, db, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, AppState, Id
 };
 use axum::{
     extract::{Path, State},
@@ -11,7 +7,7 @@ use axum::{
     Json, Router,
 };
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new().nest(
         "/dashboards",
         Router::new()
@@ -30,12 +26,12 @@ pub fn router() -> Router<ApiState> {
 /// 
 async fn create_dashboard(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Json(create_dashboard): Json<CreateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let dashboard = db::create_dashboard(&pool, user_id, create_dashboard).await?;
+    let dashboard = db::create_dashboard(&db, user_id, create_dashboard).await?;
 
     Ok(Json(dashboard))
 }
@@ -49,17 +45,17 @@ async fn create_dashboard(
 /// 
 async fn update_dashboard(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(dashboard_id): Path<Id>,
     Json(update_dashboard): Json<UpdateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_dashboard_relation(&pool, user_id, dashboard_id)
+    db::check_dashboard_relation(&db, user_id, dashboard_id)
         .await?
         .to_api_result()?;
 
-    let dashboard = db::update_dashboard(&pool, dashboard_id, update_dashboard).await?;
+    let dashboard = db::update_dashboard(&db, dashboard_id, update_dashboard).await?;
 
     Ok(Json(dashboard))
 }
@@ -73,16 +69,16 @@ async fn update_dashboard(
 /// 
 async fn delete_dashboard(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_dashboard_relation(&pool, user_id, dashboard_id)
+    db::check_dashboard_relation(&db, user_id, dashboard_id)
         .await?
         .to_api_result()?;
 
-    db::delete_dashboard(&pool, dashboard_id).await?;
+    db::delete_dashboard(&db, dashboard_id).await?;
 
     Ok(())
 }
@@ -94,11 +90,11 @@ async fn delete_dashboard(
 /// 
 async fn get_dashboards(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
 ) -> ApiResult<Json<Vec<Dashboard>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let dashboards = db::get_dashboards(&pool, user_id).await?;
+    let dashboards = db::get_dashboards(&db, user_id).await?;
 
     Ok(Json(dashboards))
 }

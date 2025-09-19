@@ -15,6 +15,7 @@ use umya_spreadsheet::Spreadsheet;
 const EXCEL_IMPORT_TABLE_DESCRIPTION: &str = "This table was imported from Excel";
 const CSV_IMPORT_TABLE_DESCRIPTION: &str = "This table was imported from CSV";
 
+/// Create the [CreateTableData] DTOs from an Excel spreadsheet.
 pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData> {
     let mut tables: Vec<CreateTableData> = Vec::new();
 
@@ -69,6 +70,7 @@ pub fn import_table_from_excel(spreadsheet: Spreadsheet) -> Vec<CreateTableData>
     tables
 }
 
+/// Convert a [TableData] DTO into the Excel spreadsheet. Currently, child tables are ignored.
 pub fn export_table_to_excel(
     spreadsheet: &mut Spreadsheet,
     TableData {
@@ -133,6 +135,7 @@ pub fn export_table_to_excel(
     }
 }
 
+/// Create a [CreateTableData] DTO from a CSV file.
 pub fn import_table_from_csv<R>(
     mut csv_reader: csv::Reader<R>,
     name: &str,
@@ -187,6 +190,7 @@ where
     })
 }
 
+/// Convert a [TableData] DTO into the CSV file. Currently, child tables are ignored.
 pub fn export_table_to_csv<W>(
     mut csv_writer: csv::Writer<W>,
     TableData {

@@ -1,17 +1,149 @@
-pub mod config;
-pub mod db;
-pub mod error;
-pub mod io;
-pub mod model;
-pub mod routes;
+mod api;
+mod auth;
+mod db;
+mod error;
+mod io;
+mod model;
 
+use crate::model::users::Credentials;
+use axum::http::{HeaderValue, Method, header};
+use serde::Deserialize;
+use sqlx::{
+    PgPool,
+    migrate::Migrator,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
+use std::{
+    env, fs,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
+use tokio::net::TcpListener;
+use tower::ServiceBuilder;
+use tower_http::{
+    catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
+    timeout::TimeoutLayer, trace::TraceLayer,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+static MIGRATOR: Migrator = sqlx::migrate!();
 
 type Id = i32;
 
+/// Global state for the API.
+///
+/// Contains the configuration ([Config]) and the
+/// shared database connection ([PgPool]).
+#[derive(Clone)]
+pub struct AppState {
+    pub db: PgPool,
+}
+
+/// Application configuration
+#[derive(Clone, Deserialize)]
+struct AppConfig {
+    /// Server port.
+    port: u16,
+    allowed_origin: Vec<String>,
+    admin: Credentials,
+    // /// Authentication related configuration.
+    // auth: AuthConfig,
+    /// Database connection info.
+    database: DatabaseConfig,
+}
+
+#[derive(Clone, Deserialize)]
+struct DatabaseConfig {
+    host: String,
+    name: String,
+    username: String,
+    password: String,
+}
+
+/// Create the application [Router].
+/// It creates the routes under the `/api` path and configures
+/// middleware layers for the back-end. The [ApiState] is then
+/// attached to the router.
+///
+/// The secrets provided must contain the following keys:
+/// ```toml
+/// ALLOWED_ORIGIN=<url>
+/// ```
+///
+/// An amount of admin accounts can be defined by repeating this pair of variables:
+/// ```toml
+/// <identifier>_USERNAME=<username>
+/// <identifier>_PASSWORD=<password>
+/// ```
+///
+pub async fn serve() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+    setup_tracing();
+
+    let config: AppConfig = toml::from_str(&fs::read_to_string(&env::var("CONFIG_PATH")?)?)?;
+
+    let db = PgPoolOptions::new()
+        .max_connections(20)
+        .connect_with(
+            PgConnectOptions::new()
+                .host(&config.database.host)
+                .database(&config.database.name)
+                .username(&config.database.username)
+                .password(&config.database.password),
+        )
+        .await?;
+
+    MIGRATOR.run(&db).await?;
+
+    let allowed_origin = config
+        .allowed_origin
+        .into_iter()
+        .map(|x| x.parse::<HeaderValue>())
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Auth
+
+    let service = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http().on_failure(()))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(allowed_origin)
+                .allow_methods([
+                    Method::POST,
+                    Method::GET,
+                    Method::PATCH,
+                    Method::PUT,
+                    Method::DELETE,
+                    Method::OPTIONS,
+                    Method::HEAD,
+                ])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
+                .allow_credentials(true),
+        )
+        .layer(CompressionLayer::new())
+        .layer(CatchPanicLayer::new())
+        .layer(TimeoutLayer::new(Duration::from_secs(300)));
+
+    let router = api::router().layer(service);
+
+    let router = auth::init(router, db.clone()).await?;
+
+    auth::set_admin_user(&db, config.admin).await?;
+
+    let router = router.with_state(AppState { db });
+
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), config.port);
+    let listener = TcpListener::bind(addr).await?;
+    tracing::info!("API docs url http://localhost:{}/docs", config.port);
+    tracing::info!("listening on {}", listener.local_addr()?);
+    axum::serve(listener, router.into_make_service()).await?;
+
+    Ok(())
+}
+
 /// Sets up tracing for debuging and monitoring.
 /// Does nothing if called more than once.
-pub fn setup_tracing() {
+fn setup_tracing() {
     static INIT: std::sync::Once = std::sync::Once::new();
 
     INIT.call_once(|| {

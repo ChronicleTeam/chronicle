@@ -1,16 +1,17 @@
 use super::{entry_from_row, select_columns};
 use crate::{
     db::Relation,
-    model::data::{
+    model::{data::{
         CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
         UpdateTable,
-    },
+    }, viz::ChartIdentifier},
     Id,
 };
 use futures::future::join_all;
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
 
+/// Add a table to this user and create the actual SQL table.
 pub async fn create_table(
     conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
@@ -73,6 +74,8 @@ pub async fn create_table(
     Ok(table)
 }
 
+
+/// Update the table metadata.
 pub async fn update_table(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -106,11 +109,30 @@ pub async fn update_table(
     Ok(table)
 }
 
+/// Delete this table along with the actual SQL table and the fields.
 pub async fn delete_table(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
+
+    let chart_ids: Vec<Id> = sqlx::query_scalar(
+        r#"
+            DELETE FROM chart
+            WHERE table_id = $1
+            RETURNING chart_id
+        "#,
+    )
+    .bind(table_id)
+    .fetch_all(tx.as_mut())
+    .await?;
+
+    for chart_id in chart_ids {
+        let chart_ident = ChartIdentifier::new(chart_id, "data_view");
+        sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
+            .execute(tx.as_mut())
+            .await?;
+    }
 
     sqlx::query(
         r#"
@@ -133,6 +155,7 @@ pub async fn delete_table(
     Ok(())
 }
 
+/// Get the parent ID of this table assuming that it has one.
 pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Id> {
     sqlx::query_scalar(
         r#"
@@ -146,6 +169,7 @@ pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) ->
     .await
 }
 
+/// Get all tables belonging to this user.
 pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<Table>> {
     sqlx::query_as(
         r#"
@@ -166,6 +190,7 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
     .await
 }
 
+/// Get all the children tables of this table.
 pub async fn get_table_children(
     executor: impl PgExecutor<'_>,
     table_id: Id,
@@ -189,6 +214,7 @@ pub async fn get_table_children(
     .await
 }
 
+/// Get the table, its fields, its entries, and its child tables.
 pub async fn get_table_data(
     executor: impl PgExecutor<'_> + Copy,
     table_id: Id,
@@ -295,6 +321,7 @@ pub async fn get_table_data(
     })
 }
 
+/// Return the [Relation] between the user and this table.
 pub async fn check_table_relation(
     executor: impl PgExecutor<'_>,
     user_id: Id,

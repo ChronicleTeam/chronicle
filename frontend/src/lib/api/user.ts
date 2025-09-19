@@ -1,4 +1,4 @@
-import type { User, Credentials } from "$lib/types.js";
+import type { User, Credentials } from "$lib/types";
 import { GET, POST, POST_FORM } from "./base.js";
 
 

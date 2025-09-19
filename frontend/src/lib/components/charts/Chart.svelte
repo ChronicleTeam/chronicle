@@ -7,31 +7,38 @@
     type ChartData,
     type Dashboard,
     type Cells,
-    type FieldKind,
     type AxisField,
     FieldType,
-    type Axis,
-  } from "$lib/types.d.js";
-  import { Chart as ChartGraphic, type ChartTypeRegistry } from "chart.js/auto";
+  } from "$lib/types";
+  import { Chart as ChartGraphic } from "chart.js/auto";
   import { onMount } from "svelte";
   let { dashboard, chart }: { dashboard: Dashboard; chart: Chart } = $props();
+
+  // fields that the Line chart should sort
   const SORTABLE_FIELDS = [
     FieldType.Integer,
     FieldType.Decimal,
     FieldType.Progress,
     FieldType.DateTime,
   ];
+
+  // data to use for the chart
   let chartData: ChartData | null = $state(null);
-  $inspect(chartData);
+
+  // error state
   let error = $state("");
 
-  let enterModal = $state(false);
+  // determines whether modal is active or not
+  let isModalActive = $state(false);
 
   let g: any;
+
+  // Update graph on change
   $effect(() => {
     if (chartData) {
       if (chartData.chart.chart_kind === ChartKind.Table) {
       } else {
+        // Identify axes
         let xAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.X);
         let yAxis = chartData.axes.find((a) => a.axis.axis_kind === AxisKind.Y);
         let colorAxis = chartData.axes.find(
@@ -46,6 +53,8 @@
         let labelAxis = chartData.axes.find(
           (a) => a.axis.axis_kind === AxisKind.Label,
         );
+
+        // ensure x and y axes exist
         if (!xAxis || !yAxis) return;
 
         let options = {
@@ -92,6 +101,7 @@
             });
             break;
           case ChartKind.Line:
+            // sort data first
             let sortedCells = chartData.cells;
             if (SORTABLE_FIELDS.some((t) => xAxis.field_kind.type === t)) {
               sortedCells = chartData.cells.toSorted(
@@ -103,6 +113,8 @@
                 },
               );
             }
+
+            // generate graph
             new ChartGraphic(g, {
               type: "line",
               data: {
@@ -132,6 +144,11 @@
   // Helper method
   //
 
+  /**
+   * Turn Date objects in ChartData to human-readable strings
+   * @param {ChartData} c - ChartData object to stringify
+   * @returns {ChartData} - ChartData object with human-readable strings
+   */
   const stringifyDates = (c: ChartData): ChartData => {
     c.axes.forEach((a: AxisField) => {
       if (a.field_kind.type === FieldType.DateTime) {
@@ -150,7 +167,10 @@
   // Table stuff
   //
 
+  // the column used as basis for sorting
   let selectedColumn = $state({ axis_id: -1, ascending: true });
+
+  // the method used to sort table rows
   let sortingMethod = $derived((rowA: Cells, rowB: Cells) =>
     selectedColumn.axis_id in rowA && selectedColumn.axis_id in rowB
       ? selectedColumn.ascending
@@ -162,9 +182,16 @@
             (rowB[selectedColumn.axis_id] ?? 1)
           ? 1
           : -1
-      : true,
+      : 1,
   );
-  let tableCells = $derived(chartData.cells.toSorted(sortingMethod));
+
+  // the cells to display if ChartKind is Table
+  let tableCells = $derived.by(() => {
+    if (chartData) {
+      return chartData.cells.toSorted(sortingMethod);
+    }
+  });
+
   //
   // Startup
   //
@@ -182,36 +209,39 @@
 </script>
 
 <div
-  class={enterModal
-    ? "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center"
+  class={isModalActive
+    ? "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center" // add modal styling when modal is active
     : ""}
   onclick={() => {
-    enterModal = false;
+    isModalActive = false;
   }}
 >
   <div
     onclick={(e) => {
       e.stopPropagation();
-      enterModal = true;
+      isModalActive = true;
     }}
-    class={enterModal
-      ? "bg-white rounded-lg p-3 size-1/2 transition-all"
-      : "transition-all"}
+    class={isModalActive
+      ? "bg-white rounded-lg p-3 size-1/2 transition-all flex justify-center"
+      : "transition-all flex justify-center"}
   >
     {#if error}
       <p class="text-red-500">({error})</p>
     {:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
+      <!-- Bar or Line type Chart -->
       <div class="size-full flex justify-center items-center">
         <canvas bind:this={g}></canvas>
       </div>
     {:else if chartData}
+      <!-- Table type Chart -->
       <table class="border border-black">
         <thead>
           <tr>
             {#each chartData.axes as axis}
               <th
                 class="border border-black bg-white select-none"
-                onclick={() => {
+                onclick={(e) => {
+                  e.stopPropagation();
                   if (selectedColumn.axis_id === axis.axis.axis_id) {
                     selectedColumn.ascending = !selectedColumn.ascending;
                   } else {
@@ -229,15 +259,17 @@
           </tr>
         </thead>
         <tbody>
-          {#each tableCells as row}
-            <tr>
-              {#each chartData.axes as axis}
-                <td class="p-2 border border-black">
-                  {row[axis.axis.axis_id]}
-                </td>
-              {/each}
-            </tr>
-          {/each}
+          {#if tableCells}
+            {#each tableCells as row}
+              <tr>
+                {#each chartData.axes as axis}
+                  <td class="p-2 border border-black">
+                    {row[axis.axis.axis_id]}
+                  </td>
+                {/each}
+              </tr>
+            {/each}
+          {/if}
         </tbody>
       </table>
     {/if}

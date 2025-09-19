@@ -1,4 +1,6 @@
-mod data;
-mod viz;
+//! This module is responsible for importing and exporting application entities
+//! from and to various file formats.
 
-pub use {data::*, viz::*};
+mod data;
+
+pub use data::*;

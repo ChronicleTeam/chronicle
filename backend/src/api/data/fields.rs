@@ -1,25 +1,21 @@
-use super::ApiState;
 use crate::{
-    db::{self, AuthSession},
-    error::{ApiError, ApiResult, ErrorMessage},
-    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
-    Id,
+    auth::AuthSession, db, error::{ApiError, ApiResult}, model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField}, AppState, Id
 };
 use anyhow::anyhow;
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{patch, post},
-    Json, Router,
 };
 use itertools::Itertools;
 use std::collections::HashSet;
 
-const INVALID_RANGE: ErrorMessage = ("range", "Range start bound is greater than end bound");
+const INVALID_RANGE: &str = "Range start bound is greater than end bound";
 const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
-pub fn router() -> Router<ApiState> {
+pub fn router() -> Router<AppState> {
     Router::new().nest(
         "/tables/{table-id}/fields",
         Router::new()
@@ -40,24 +36,24 @@ pub fn router() -> Router<ApiState> {
 ///
 async fn create_field(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
     validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&pool, table_id, create_field).await?;
+    let field = db::create_field(&db, table_id, create_field).await?;
 
     Ok(Json(field))
 }
 
-/// Update a field's meta data in a table.
+/// Update a field's metadata in a table.
 ///
 /// Will perform conversion on the cells if the field kind changes and backup the original cells.
 /// Cells that fail to convert are set to null.
@@ -71,22 +67,22 @@ async fn create_field(
 ///
 async fn update_field(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
-    db::check_field_relation(&pool, table_id, field_id)
+    db::check_field_relation(&db, table_id, field_id)
         .await?
         .to_api_result()?;
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&pool, field_id, update_field).await?;
+    let field = db::update_field(&db, field_id, update_field).await?;
 
     Ok(Json(field))
 }
@@ -100,19 +96,19 @@ async fn update_field(
 ///
 async fn delete_field(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
-    db::check_field_relation(&pool, table_id, field_id)
+    db::check_field_relation(&db, table_id, field_id)
         .await?
         .to_api_result()?;
 
-    db::delete_field(&pool, field_id).await?;
+    db::delete_field(&db, field_id).await?;
 
     Ok(())
 }
@@ -126,16 +122,16 @@ async fn delete_field(
 ///
 async fn get_fields(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let fields = db::get_fields(&pool, table_id).await?;
+    let fields = db::get_fields(&db, table_id).await?;
 
     Ok(Json(fields))
 }
@@ -153,17 +149,17 @@ async fn get_fields(
 ///
 async fn set_field_order(
     AuthSession { user, .. }: AuthSession,
-    State(ApiState { pool, .. }): State<ApiState>,
+    State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&pool, user_id, table_id)
+    db::check_table_relation(&db, user_id, table_id)
         .await?
         .to_api_result()?;
 
-    let mut field_ids: HashSet<_> = db::get_field_ids(&pool, table_id)
+    let mut field_ids: HashSet<_> = db::get_field_ids(&db, table_id)
         .await?
         .into_iter()
         .collect();
@@ -173,28 +169,26 @@ async fn set_field_order(
         .sorted_by_key(|(_, ordering)| **ordering)
         .enumerate()
         .filter_map(|(idx, (field_id, ordering))| {
-            let key = field_id.to_string();
             if !field_ids.remove(field_id) {
-                Some((key, FIELD_ID_NOT_FOUND))
+                Some(format!("{field_id}: {FIELD_ID_NOT_FOUND}"))
             } else if idx as i32 != *ordering {
-                Some((key, INVALID_ORDERING))
+                Some(format!("{field_id}: {INVALID_ORDERING}"))
             } else {
                 None
             }
         })
         .collect_vec();
-
     error_messages.extend(
-        field_ids
-            .into_iter()
-            .map(|field_id| (field_id.to_string(), FIELD_ID_MISSING)),
+    field_ids
+        .into_iter()
+        .map(|field_id| format!("{field_id}: {FIELD_ID_MISSING}")),
     );
 
-    if error_messages.len() > 0 {
-        return Err(ApiError::unprocessable_entity(error_messages));
+    if !error_messages.is_empty() {
+        return Err(ApiError::UnprocessableEntity(error_messages.join(", ")));
     }
 
-    db::set_field_order(&pool, order).await?;
+    db::set_field_order(&db, order).await?;
 
     Ok(())
 }
@@ -259,6 +253,6 @@ where
     {
         Ok(())
     } else {
-        Err(ApiError::unprocessable_entity([INVALID_RANGE]))
+        Err(ApiError::UnprocessableEntity(INVALID_RANGE.into()))
     }
 }

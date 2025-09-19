@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Table entry response.
+/// Table entry entity.
 #[derive(Debug, Serialize)]
 pub struct Entry {
     pub entry_id: Id,

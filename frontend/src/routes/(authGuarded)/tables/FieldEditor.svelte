@@ -15,7 +15,7 @@
     type InputParameters,
     type Table,
     typeToStr,
-  } from "$lib/types.d.js";
+  } from "$lib/types";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
@@ -27,7 +27,6 @@
     type APIError,
     postCreateTable,
     deleteTable,
-    getTableChildren,
     getTableData,
   } from "$lib/api";
   import { onMount } from "svelte";
@@ -38,8 +37,10 @@
   // Constants and types
   //
 
+  // field type values
   const fieldTypes = Object.values(FieldType);
 
+  // extends the InputParameters type
   type FieldKindInputParameters =
     | (InputParameters & {
         optional: false;
@@ -65,8 +66,10 @@
   // State variables
   //
 
+  // if the current table has a parent
   let isSubtable = $state(table_prop.parent_id != null);
 
+  // old table state (as it is in the backend) and new table state (as the user is changing it to be)
   let table: {
     old: TableData; // original table
     new: TableData; // table undergoing modifications
@@ -78,13 +81,14 @@
       children: [],
     },
     new: {
-      table: table_prop,
+      table: $state.snapshot(table_prop),
       fields: [],
       entries: [],
       children: [],
     },
   });
 
+  // keeps track of changes between table.old and table.new
   let changes: {
     fields: {
       removed: Field[];
@@ -128,6 +132,7 @@
     },
   });
 
+  // error fields
   let errors: {
     fields: string[];
     subtables: string[];
@@ -138,9 +143,8 @@
     metadata: "",
   });
 
-  $inspect(table, changes);
   // the central table which represents the inputs for the editable field_kind parameters
-  const optionInputList = $derived(
+  const fieldKindInputList = $derived(
     table.new.fields.map((f: Field, i: number): FieldKindInputParameters[] => {
       switch (f.field_kind.type) {
         case FieldType.Text:
@@ -546,7 +550,9 @@
   // State methods
   //
 
-  // add a subtable
+  /**
+   * Add a subtable to table.new
+   */
   const addSubtable = (): void => {
     let j = 1;
     let newTableName = "New Table " + j;
@@ -573,16 +579,25 @@
     });
   };
 
-  // remove a subtable
+  /**
+   * Remove a subtable from table.new
+   * @param {number} i - the index of the subtable to remove in table.new.children
+   */
   const removeSubtable = (i: number): void => {
     table.new.children.splice(i, 1);
   };
 
+  /**
+   * Restore a subtable to table.new which is in table.old
+   * @param {number} i - the index of the subtable to restore in changes.subtables.removed
+   */
   const restoreSubtable = (i: number): void => {
     table.new.children.push($state.snapshot(changes.subtables.removed[i]));
   };
 
-  // add a field to the table
+  /**
+   * Add a field to table.new
+   */
   const addField = (): void => {
     // find unique field name
     let j = 1;
@@ -615,7 +630,7 @@
 
     // update optionalCheckBoxStates
     optionalCheckboxStates.push(
-      optionInputList[table.new.fields.length - 1].map((v) => !v.optional),
+      fieldKindInputList[table.new.fields.length - 1].map((v) => !v.optional),
     );
 
     //clear errors
@@ -624,25 +639,37 @@
     });
   };
 
-  // remove a field from the table
+  /**
+   * Remove a field from table.new
+   * @param {number} i - the index of the field to remove in table.new.fields
+   */
   const removeField = (i: number): void => {
     table.new.fields.splice(i, 1);
   };
 
-  // restore a field to the table which was marked to be removed
+  /**
+   * Restore a field to table.new which is in table.old
+   * @param {number} i - the index of the feild to restore in changes.fields.removed
+   */
   const restoreField = (i: number): void => {
     table.new.fields.push($state.snapshot(changes.fields.removed[i]));
   };
 
-  // update methods for the optionalCheckboxStates
+  /**
+   * Update optionalCheckboxStates
+   */
   const updateAllOptionalCheckboxes = () => {
-    optionInputList.forEach((val, i) => {
+    fieldKindInputList.forEach((val, i) => {
       updateOptionalCheckbox(i);
     });
   };
 
+  /**
+   * Update the state of a field's checkboxes in optionalCheckboxStates
+   * @param {number} i - the index of the field in table.new.fields
+   */
   const updateOptionalCheckbox = (i: number) => {
-    optionalCheckboxStates[i] = optionInputList[i].map(
+    optionalCheckboxStates[i] = fieldKindInputList[i].map(
       (v) =>
         !v.optional ||
         ((table.new.fields[i].field_kind as any)[v.name] !== null &&
@@ -650,7 +677,9 @@
     );
   };
 
-  // opens the "Edit Summary" modal
+  /**
+   * Open the modal
+   */
   const openConfirmationModal = () => {
     showConfirmModal = true;
   };
@@ -659,7 +688,11 @@
   // Helper methods
   //
 
-  // generates a FieldKindInput for the is_required value in a field's field_kind
+  /**
+   * Generate FieldKindInputParameters for the is_required FieldKind value for a Field
+   * @param {number} i - The index of the field in table.new.fields associated with the input
+   * @returns {FieldKindInputParameters}
+   */
   const getRequiredFieldKindInput = (i: number): FieldKindInputParameters => {
     return {
       name: "is_required",
@@ -675,7 +708,11 @@
     };
   };
 
-  // generates an FieldKindInput for the type value in a field's field_kind
+  /**
+   * Generate FieldKindInputParameters for the type FieldKind value for a Field
+   * @param {number} i - The index of the field in table.new.fields associated with the input
+   * @returns {FieldKindInputParameters}
+   */
   const getTypeFieldKindInput = (i: number): FieldKindInputParameters => {
     return {
       name: "type",
@@ -758,7 +795,12 @@
     };
   };
 
-  // recursively compares two JavaScript objects and returns true if they have the same key-value pairs
+  /**
+   * Recursively compare two Javascript values
+   * @param {any} a - The first value
+   * @param {any} b - The second value
+   * @returns {boolean} - whether the two values are equivalent
+   */
   const recursiveCompare = (a: any, b: any): boolean => {
     if (typeof a !== typeof b) return false;
     if (a === null || b === null) {
@@ -986,6 +1028,8 @@
       errors.fields[f.field_id] = "";
     });
   });
+
+  $inspect(table);
 </script>
 
 <div class="w-full">
@@ -1027,11 +1071,11 @@
           <input bind:value={table.new.fields[i].name} />
 
           <!-- Field kind parameters -->
-          {#each optionInputList[i] as optionInput, j}
+          {#each fieldKindInputList[i] as fieldKindInput, j}
             <div class="my-2">
               <div class="flex items-center">
                 <!-- Add checkbox to enable/disable input if it is optional -->
-                {#if optionInput.optional}
+                {#if fieldKindInput.optional}
                   <input
                     class="mr-2"
                     type="checkbox"
@@ -1040,11 +1084,11 @@
                       optionalCheckboxStates[i][j] = val;
                       if (val) {
                         (table.new.fields[i].field_kind as any)[
-                          optionInput.name
-                        ] = optionInput.default;
+                          fieldKindInput.name
+                        ] = fieldKindInput.default;
                       } else {
                         delete (table.new.fields[i].field_kind as any)[
-                          optionInput.name
+                          fieldKindInput.name
                         ];
                       }
                     }}
@@ -1056,9 +1100,9 @@
                     "w-24",
                     !optionalCheckboxStates && "text-gray-300 border-gray-300",
                   ]}
-                  params={optionInput}
+                  params={fieldKindInput}
                   disabled={!optionalCheckboxStates[i][j]}
-                  id={optionInput.label + i}
+                  id={fieldKindInput.label + i}
                 />
               </div>
             </div>
@@ -1100,14 +1144,17 @@
       >
     </div>
 
-    <!-- subtables -->
+    <!-- Subtables -->
     {#if !isSubtable}
       <div class="flex justify-end gap-3">
+        <!-- Add subtable button -->
         <button
           class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
           onclick={addSubtable}
           aria-label="add Subtable">Add Subtable</button
         >
+
+        <!-- Subtable sections -->
         {#each table.new.children as subtable, i}
           <div
             class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"

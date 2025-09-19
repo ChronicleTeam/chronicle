@@ -6,6 +6,8 @@ use std::{collections::HashMap, fmt};
 
 use super::AxisField;
 
+
+/// Dashboard chart entity.
 #[derive(Debug, Serialize, FromRow)]
 pub struct Chart {
     pub chart_id: Id,
@@ -17,6 +19,7 @@ pub struct Chart {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+/// The kind of chart to display.
 #[derive(Debug, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "chart_kind")]
 pub enum ChartKind {
@@ -25,6 +28,7 @@ pub enum ChartKind {
     Line,
 }
 
+/// Create chart request.
 #[derive(Debug, Deserialize)]
 pub struct CreateChart {
     pub table_id: Id,
@@ -32,20 +36,22 @@ pub struct CreateChart {
     pub chart_kind: ChartKind,
 }
 
-
+/// Update chart request.
 #[derive(Debug, Deserialize)]
 pub struct UpdateChart {
     pub name: String,
     pub chart_kind: ChartKind,
 }
 
+/// Response for fetching entire chart data.
 #[derive(Debug, Serialize)]
 pub struct ChartData {
     pub chart: Chart,
     pub axes: Vec<AxisField>,
-    pub cells: Vec<HashMap<Id, Cell>>,
+    pub cells: Vec<HashMap<Id, Cell>>, // Should be renamed `points`
 }
 
+/// Database identifier of the actual SQL view that a user chart points to.
 #[derive(Debug)]
 pub struct ChartIdentifier {
     chart_id: Id,

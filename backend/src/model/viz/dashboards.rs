@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use crate::Id;
 
-
+/// Dashboard entity
 #[derive(Serialize, FromRow)]
 pub struct Dashboard {
     pub dashboard_id: Id,
@@ -14,12 +14,14 @@ pub struct Dashboard {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+/// Create dashboard request.
 #[derive(Deserialize)]
 pub struct CreateDashboard {
     pub name: String,
     pub description: String,
 }
 
+/// Update dashboard request.
 #[derive(Deserialize)]
 pub struct UpdateDashboard {
     pub name: String,

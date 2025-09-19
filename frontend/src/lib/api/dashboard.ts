@@ -1,5 +1,5 @@
 import { GET, POST, PUT, DELETE, PATCH, } from "./base.js";
-import { type Dashboard, type Chart, type ChartData, type AxisField, type Axis, type Cells, FieldType } from "../types.d.js"
+import { type Dashboard, type Chart, type ChartData, type AxisField, type Axis, type Cells, FieldType } from "../types"
 
 // Dashboard methods
 

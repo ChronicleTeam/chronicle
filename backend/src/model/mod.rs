@@ -2,16 +2,16 @@
 //! responses and requests and custom return types for
 //! `sqlx` queries.
 //!
-//! Theses types model the database into code.
+//! Theses types model the database and API into code.
 //!
 //! The important trait implementation used are:
 //! - Serialize: Convert into JSON for responses.
 //! - Deserialize: Convert from JSON for requests.
-//! - FromRow: Convert from an SQL query.
+//! - FromRow: Convert from an SQL query result.
 
 pub mod data;
-pub mod viz;
 pub mod users;
+pub mod viz;
 
 use chrono::{DateTime, Utc};
 use data::FieldKind;
@@ -19,12 +19,15 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use serde::{Serialize, Serializer};
 use sqlx::{
-    postgres::{PgArgumentBuffer, PgArguments, PgRow}, query::Query, query_builder::Separated, Encode, Postgres, QueryBuilder, Row
+    postgres::{PgArgumentBuffer, PgArguments, PgRow},
+    query::Query,
+    query_builder::Separated,
+    Encode, Postgres, QueryBuilder, Row,
 };
 use std::str::FromStr;
 use viz::Aggregate;
 
-/// This represents all the data types in user entries and charts.
+/// This represents a cell in user entries and charts which can be any type.
 #[derive(Debug)]
 pub enum Cell {
     Integer(i64),
@@ -71,6 +74,7 @@ impl<'q> Encode<'q, Postgres> for Cell {
 }
 
 impl Cell {
+    /// Call [Query::bind] on the Cell value.
     pub fn bind<'q>(
         self,
         query: Query<'q, Postgres, PgArguments>,
@@ -86,6 +90,7 @@ impl Cell {
         }
     }
 
+    /// Call [Separated::push_bind] on the Cell value.
     pub fn push_bind<'q>(self, builder: &mut Separated<'_, '_, Postgres, &str>) {
         match self {
             Cell::Integer(v) => builder.push_bind(v),
@@ -94,10 +99,11 @@ impl Cell {
             Cell::Boolean(v) => builder.push_bind(v),
             Cell::DateTime(v) => builder.push_bind(v),
             Cell::String(v) => builder.push_bind(v),
-            Cell::Null => builder.push_bind(None::<bool>),
+            Cell::Null => builder.push("NULL"),
         };
     }
 
+    /// Call [QueryBuilder::push_bind] on the Cell value.
     pub fn push_bind_builder<'q>(self, builder: &mut QueryBuilder<'_, Postgres>) {
         match self {
             Cell::Integer(v) => builder.push_bind(v),
@@ -106,10 +112,9 @@ impl Cell {
             Cell::Boolean(v) => builder.push_bind(v),
             Cell::DateTime(v) => builder.push_bind(v),
             Cell::String(v) => builder.push_bind(v),
-            Cell::Null => builder.push_bind(None::<bool>),
+            Cell::Null => builder.push("NULL"),
         };
     }
-
 
     /// Get the `Cell` from this PostgreSQL row into the proper type based on `FieldKind`.
     pub fn from_field_row(row: &PgRow, index: &str, field_kind: &FieldKind) -> sqlx::Result<Self> {
@@ -148,6 +153,8 @@ impl Cell {
         })
     }
 
+    /// Convert this cell to a different variant based on `field_kind`.
+    /// Return `None` if the conversion fails.
     pub fn convert_field_kind(self, field_kind: &FieldKind) -> Option<Self> {
         match field_kind {
             FieldKind::Text { .. } | FieldKind::WebLink { .. } => Some(Cell::String(match self {
@@ -227,10 +234,3 @@ impl Cell {
         }
     }
 }
-
-// fn in_range<T>(value: &T, range_start: Option<&T>, range_end: Option<&T>) -> bool
-// where
-//     T: PartialOrd,
-// {
-//     range_start.map_or(true, |start| value >= start) && range_end.map_or(true, |end| value <= end)
-// }
