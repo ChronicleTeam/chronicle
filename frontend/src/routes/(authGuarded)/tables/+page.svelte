@@ -36,10 +36,10 @@
   //
 
   // currently selected table
-  let curTable: Table | null = $state(null as unknown as Table);
+  let curTable: Table | null = $state({} as unknown as Table);
 
   // current editing mode: whether for the datatable or the fields (or neither, if no table is selected)
-  let editMode = $state(EditMode.NONE);
+  let editMode = $state(EditMode.TABLE);
 
   // for the table creation input
   let addTableField = $state("");

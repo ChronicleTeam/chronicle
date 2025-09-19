@@ -15,6 +15,7 @@
     Checkbox,
     Enumeration,
     InputParameters,
+    TextKind,
     EnumerationKind,
     IntegerKind,
     MoneyKind,
@@ -44,8 +45,48 @@
   // the TableData object being displayed
   let table = $state({
     table: table_prop,
-    fields: [],
-    entries: [],
+    fields: [
+      {
+        table_id: 1,
+        user_id: 1,
+        field_id: 1,
+        name: "Name",
+
+        ordering: 1,
+        field_kind: {
+          type: FieldType.Text,
+          is_required: false,
+        },
+      },
+      {
+        table_id: 1,
+        user_id: 1,
+        field_id: 2,
+        name: "Last Name",
+
+        ordering: 1,
+        field_kind: {
+          type: FieldType.Text,
+          is_required: false,
+        },
+      },
+    ],
+    entries: [
+      {
+        entry_id: 1,
+        cells: {
+          "1": "Bob",
+          "2": "Smith",
+        },
+      },
+      {
+        entry_id: 2,
+        cells: {
+          "1": "John",
+          "2": "Smith",
+        },
+      },
+    ],
     children: [],
   } as TableData);
 
@@ -365,163 +406,168 @@
   <!-- Display main table -->
   <div class="flex flex-col items-center justify-center gap-3">
     <!-- Main table -->
-    <table class=" border border-gray-400 bg-white text-black w-full">
-      <!-- Headers -->
-      <thead>
-        <tr>
-          {#each table.fields as field}
-            <th
-              class=" relative bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
-            >
-              <!-- Floating error bubble -->
-              {#if modeState.mode === TableMode.INSERT && typeof errors.fields === "object" && errors.fields[field.field_id.toString()] !== undefined}
-                <div
-                  class="absolute bottom-full inset-x-0 flex flex-col items-center"
-                >
-                  <div
-                    class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm font-normal"
-                  >
-                    Error: {errors.fields[field.field_id.toString()]}
-                  </div>
-                  <svg width="20" height="10">
-                    <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
-                  </svg>
-                </div>
-              {/if}
-              {field.name}
-            </th>
-          {/each}
-          {#each table.children as child}
-            <th class="bg-gray-200 p-1 border-2 border-gray-400 min-w-36"
-              >{child.table.name}
-              <button
-                class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-                onclick={() => {
-                  modeEditChild({ table_data: child, entry_id: -1 });
-                }}
-              >
-                Edit</button
-              ></th
-            >
-          {/each}
-        </tr>
-      </thead>
-
-      <!-- Cells -->
-      <tbody>
-        {#each table.entries.filter( (e) => (entry_id != null ? e.parent_id === entry_id : true), ) as entry, i}
+    <div
+      class="overflow-x-auto rounded-lg border border-base-content/5 border-base-100"
+    >
+      <table class="table text-content w-full">
+        <!-- Headers -->
+        <thead>
           <tr>
-            <!-- Regular Cells -->
-            {#each table.fields as field, j}
-              <td
-                class={[
-                  "relative text-black border-2 border-gray-400 size-min p-2",
-                  (modeState.mode === TableMode.INSERT &&
-                    modeState.entry_idxes.includes(i)) ||
-                  (modeState.mode === TableMode.EDIT &&
-                    modeState.entry_idx === i)
-                    ? "bg-blue-200"
-                    : "bg-white",
-                ]}
-                ondblclick={() => {
-                  if (modeState.mode === TableMode.DISPLAY) editEntry(i);
-                }}
-              >
+            {#each table.fields as field}
+              <th>
                 <!-- Floating error bubble -->
-                {#if modeState.mode === TableMode.EDIT && modeState.entry_idx === i && typeof errors.fields === "object" && errors.fields[field.field_id.toString()] !== undefined}
-                  <div
-                    class="absolute bottom-full inset-x-0 flex flex-col items-center"
-                  >
-                    <div
-                      class="bg-gray-100 text-center p-3 mx-1 mt-1 rounded-lg text-red-500 text-sm"
-                    >
-                      Error: {errors.fields[field.field_id.toString()]}
-                    </div>
-                    <svg width="20" height="10">
-                      <polygon points="0,0 20,0 10,10" class="fill-gray-100" />
-                    </svg>
-                  </div>
-                {/if}
-
-                <!-- Table cell -->
-                <VariableInput
-                  id={`input-${i}-${j}`}
-                  disabled={!(
-                    (modeState.mode === TableMode.INSERT &&
-                      modeState.entry_idxes.includes(i)) ||
-                    (modeState.mode === TableMode.EDIT &&
-                      modeState.entry_idx === i)
-                  )}
-                  class={[
-                    "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
-                    (modeState.mode === TableMode.INSERT &&
-                      modeState.entry_idxes.includes(i)) ||
-                    (modeState.mode === TableMode.EDIT &&
-                      modeState.entry_idx === i)
-                      ? "bg-blue-200"
-                      : "bg-white",
-                  ]}
-                  params={cellToInputParams(i, field)}
-                  onkeydown={(k) => {
-                    if (k.key === "Enter") {
-                      if (i === table.entries.length - 1) {
-                        insertEntry();
-                      } else {
-                        document.getElementById(`input-${i + 1}-${0}`)?.focus();
-                      }
-                    }
+                <div
+                  class={{
+                    "tooltip tooltip-error tooltip-right ": true,
+                    "tooltip-open":
+                      modeState.mode === TableMode.INSERT &&
+                      typeof errors.fields === "object" &&
+                      errors.fields[field.field_id.toString()] !== undefined,
                   }}
-                />
-              </td>
+                  data-tip={modeState.mode === TableMode.INSERT &&
+                  typeof errors.fields === "object" &&
+                  errors.fields[field.field_id.toString()] !== undefined
+                    ? `Error: ${errors.fields[field.field_id.toString()]}`
+                    : undefined}
+                >
+                  {field.name}
+                </div>
+              </th>
             {/each}
-
-            <!-- Child table Cells -->
             {#each table.children as child}
-              <td
-                class={[
-                  "relative text-black border-2 border-gray-400 size-min p-2",
-                  (modeState.mode === TableMode.INSERT &&
-                    modeState.entry_idxes.includes(i)) ||
-                  (modeState.mode === TableMode.EDIT &&
-                    modeState.entry_idx === i)
-                    ? "bg-blue-200"
-                    : "bg-white",
-                ]}
-                onclick={() => {
-                  if (modeState.mode === TableMode.EDIT) {
-                    modeChild({
-                      table_data: child,
-                      entry_id: entry.entry_id,
-                    });
-                  }
-                }}
-                ondblclick={() => {
-                  if (modeState.mode === TableMode.DISPLAY) {
-                    modeChild({
-                      table_data: child,
-                      entry_id: entry.entry_id,
-                    });
-                  }
-                }}
+              <th
+                >{child.table.name}
+                <button
+                  class="btn"
+                  onclick={() => {
+                    modeEditChild({ table_data: child, entry_id: -1 });
+                  }}
+                >
+                  Edit</button
+                ></th
               >
-                <p>
-                  {child.entries.filter((e) => e.parent_id === entry.entry_id)
-                    .length} entries
-                </p>
-              </td>
             {/each}
           </tr>
-        {/each}
-      </tbody>
-    </table>
-    {#if typeof errors.fields === "string"}<p class="text-red-500">
+        </thead>
+
+        <!-- Cells -->
+        <tbody>
+          {#each table.entries.filter( (e) => (entry_id != null ? e.parent_id === entry_id : true), ) as entry, i}
+            <tr>
+              <!-- Regular Cells -->
+              {#each table.fields as field, j}
+                <td
+                  class={[
+                    (modeState.mode === TableMode.INSERT &&
+                      modeState.entry_idxes.includes(i)) ||
+                    (modeState.mode === TableMode.EDIT &&
+                      modeState.entry_idx === i)
+                      ? "bg-info"
+                      : "bg-base-100",
+                  ]}
+                  ondblclick={() => {
+                    if (modeState.mode === TableMode.DISPLAY) editEntry(i);
+                  }}
+                >
+                  <!-- Floating error bubble -->
+                  <div
+                    class={{
+                      "tooltip tooltip-error": true,
+                      "tooltip-open":
+                        modeState.mode === TableMode.EDIT &&
+                        modeState.entry_idx === i &&
+                        typeof errors.fields === "object" &&
+                        errors.fields[field.field_id.toString()] !== undefined,
+                    }}
+                    data-tip={modeState.mode === TableMode.EDIT &&
+                    modeState.entry_idx === i &&
+                    typeof errors.fields === "object" &&
+                    errors.fields[field.field_id.toString()] !== undefined
+                      ? `Error: ${errors.fields[field.field_id.toString()]}`
+                      : undefined}
+                  >
+                    <!-- Table cell -->
+                    <VariableInput
+                      id={`input-${i}-${j}`}
+                      disabled={!(
+                        (modeState.mode === TableMode.INSERT &&
+                          modeState.entry_idxes.includes(i)) ||
+                        (modeState.mode === TableMode.EDIT &&
+                          modeState.entry_idx === i)
+                      )}
+                      class={[
+                        "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
+                        (modeState.mode === TableMode.INSERT &&
+                          modeState.entry_idxes.includes(i)) ||
+                        (modeState.mode === TableMode.EDIT &&
+                          modeState.entry_idx === i)
+                          ? "bg-info"
+                          : "bg-base-100",
+                      ]}
+                      params={cellToInputParams(i, field)}
+                      onkeydown={(k) => {
+                        if (k.key === "Enter") {
+                          if (i === table.entries.length - 1) {
+                            insertEntry();
+                          } else {
+                            document
+                              .getElementById(`input-${i + 1}-${0}`)
+                              ?.focus();
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </td>
+              {/each}
+
+              <!-- Child table Cells -->
+              {#each table.children as child}
+                <td
+                  class={[
+                    (modeState.mode === TableMode.INSERT &&
+                      modeState.entry_idxes.includes(i)) ||
+                    (modeState.mode === TableMode.EDIT &&
+                      modeState.entry_idx === i)
+                      ? "bg-info"
+                      : "bg-base-100",
+                  ]}
+                  onclick={() => {
+                    if (modeState.mode === TableMode.EDIT) {
+                      modeChild({
+                        table_data: child,
+                        entry_id: entry.entry_id,
+                      });
+                    }
+                  }}
+                  ondblclick={() => {
+                    if (modeState.mode === TableMode.DISPLAY) {
+                      modeChild({
+                        table_data: child,
+                        entry_id: entry.entry_id,
+                      });
+                    }
+                  }}
+                >
+                  <p>
+                    {child.entries.filter((e) => e.parent_id === entry.entry_id)
+                      .length} entries
+                  </p>
+                </td>
+              {/each}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    {#if typeof errors.fields === "string"}
+      <p class="text-error">
         Error: {errors.fields}
-      </p>{/if}
+      </p>
+    {/if}
     <!-- Add row button -->
     {#if (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
-      <button
-        onclick={insertEntry}
-        class="text-center w-full mt-1 py-1 border-2 border-dashed border-gray-400 hover:bg-gray-400 transition"
+      <button onclick={insertEntry} class="btn btn-dash btn-block border-2"
         >+ Add Row</button
       >
     {/if}
@@ -532,13 +578,7 @@
           onclick={modeState.mode === TableMode.INSERT
             ? createEntries
             : updateEntry}
-          class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-          >Save</button
-        >
-        <button
-          onclick={cancelEntries}
-          class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-          >Cancel</button
+          class="btn">Save</button
         >
         {#if modeState.mode === TableMode.EDIT}
           <ConfirmButton
@@ -547,6 +587,7 @@
             onconfirm={removeEntry}
           />
         {/if}
+        <button onclick={cancelEntries} class="btn btn-error">Cancel</button>
       </div>
     {/if}
   </div>
