@@ -61,7 +61,11 @@ impl AuthnBackend for AuthBackend {
 
 pub type AuthSession = axum_login::AuthSession<AuthBackend>;
 
-pub async fn init(router: Router<AppState>, db: PgPool) -> anyhow::Result<Router<AppState>> {
+pub async fn init(
+    router: Router<AppState>,
+    db: PgPool,
+    session_key: String,
+) -> anyhow::Result<Router<AppState>> {
     let session_store = PostgresStore::new(db.clone());
     session_store.migrate().await?;
 
@@ -72,7 +76,7 @@ pub async fn init(router: Router<AppState>, db: PgPool) -> anyhow::Result<Router
     );
 
     // Generate a cryptographic key to sign the session cookie.
-    let session_key = Key::generate();
+    let session_key = Key::from(session_key.as_bytes());
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(true)
