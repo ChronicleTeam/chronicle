@@ -64,7 +64,7 @@
 
 <div class="flex flex-wrap gap-4 size-full items-stretch">
   <!-- Sidebar -->
-  <div class="basis-[12rem] grow bg-gray-200 rounded-lg p-3">
+  <div class="basis-48 grow bg-gray-200 rounded-lg p-3">
     <!-- Dashboard list -->
     <h2>Dashboards</h2>
     <div class="flex flex-col">
@@ -130,7 +130,7 @@
     </div>
   </div>
   <!-- Main editor -->
-  <div class="bg-gray-200 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3">
+  <div class="bg-gray-200 basis-xl grow-5 shrink min-w-0 rounded-lg p-3">
     {#if curDash === null}
       <div class="flex flex-col items-center justify-center">
         <h2 class="text-lg font-bold">Select a Dashboard</h2>

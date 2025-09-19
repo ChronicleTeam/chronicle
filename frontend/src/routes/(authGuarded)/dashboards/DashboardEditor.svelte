@@ -328,7 +328,7 @@
         />
         {#if modeState.metadataChanged}
           <button
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+            class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
             onclick={saveDashboard}>Save Title and Description</button
           >
         {/if}
@@ -364,12 +364,12 @@
           <!-- Buttons -->
           {#if modeState.mode === EditMode.DISPLAY}
             <button
-              class="text-center py-1 px-2 rounded bg-white hover:bg-slate-200 transition mt-auto"
+              class="text-center py-1 px-2 rounded-sm bg-white hover:bg-slate-200 transition mt-auto"
               onclick={() => editChart(chart)}>Edit</button
             >
           {:else if modeState.mode === EditMode.EDIT_DASH}
             <ConfirmButton
-              class="mt-auto rounded"
+              class="mt-auto rounded-sm"
               initText="Delete"
               confirmText="Confirm Delete"
               initClass="bg-white hover:bg-slate-200"
@@ -435,12 +435,12 @@
           <div class="flex gap-3 justify-center mt-auto">
             <button
               onclick={createChart}
-              class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+              class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
               >Create</button
             >
             <button
               onclick={cancelCreateChart}
-              class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+              class="text-center py-1 px-2 rounded-sm bg-red-400 hover:bg-red-500 transition"
               >Cancel</button
             >
           </div>
@@ -466,7 +466,7 @@
   {#if modeState.mode === EditMode.DISPLAY}
     <div class="flex justify-center my-2">
       <button
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
         onclick={() => {
           modeEditDash();
         }}>Edit</button
@@ -475,7 +475,7 @@
   {:else if modeState.mode === EditMode.EDIT_DASH}
     <div class="flex justify-center my-2">
       <button
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
         onclick={() => {
           modeDisplay();
         }}>Back</button
@@ -554,7 +554,7 @@
   <div class="flex gap-2">
     {#if modeState.axisFields.length < Object.values(AxisKind).length || charts[modeState.chartIdx].chart_kind === ChartKind.Table}
       <button
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
         onclick={() => {
           if (modeState.mode === EditMode.EDIT_CHART) {
             modeState.axisFields.push({
@@ -567,7 +567,7 @@
       >
     {/if}
     <button
-      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+      class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
       onclick={() => {
         if (modeState.mode === EditMode.EDIT_CHART) {
           saveChartWithAxisFields(
@@ -579,7 +579,7 @@
     >
     <button
       onclick={cancelEditChart}
-      class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+      class="text-center py-1 px-2 rounded-sm bg-red-400 hover:bg-red-500 transition"
       >Cancel</button
     >
   </div>

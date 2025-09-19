@@ -121,7 +121,7 @@
 
 <div class="flex flex-wrap gap-4 w-full grow items-stretch">
   <!-- Sidebar -->
-  <div class="basis-[12rem] grow bg-base-300 rounded-lg shadow-sm">
+  <div class="basis-48 grow bg-base-300 rounded-lg shadow-xs">
     <ul class="menu w-full">
       <!-- Table list -->
       <li class="menu-title">Tables</li>
@@ -188,7 +188,7 @@
   </div>
   <!-- Main editor -->
   <div
-    class="bg-base-300 basis-[36rem] grow-[5] shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
+    class="bg-base-300 basis-xl grow-5 shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
   >
     {#if editMode === EditMode.NONE || curTable === null}
       <h2 class="text-xl font-bold">Select a Table</h2>

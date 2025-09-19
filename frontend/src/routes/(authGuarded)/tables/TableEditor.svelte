@@ -382,7 +382,7 @@
   <!-- Display child table -->
   <div class="flex items-center gap-2 mb-2">
     <button
-      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+      class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
       onclick={() => {
         modeDisplay();
         loadTable();
@@ -462,7 +462,7 @@
                       modeState.entry_idxes.includes(i)) ||
                     (modeState.mode === TableMode.EDIT &&
                       modeState.entry_idx === i)
-                      ? "bg-info"
+                      ? "bg-info/25"
                       : "bg-base-100",
                   ]}
                   ondblclick={() => {
@@ -496,12 +496,12 @@
                           modeState.entry_idx === i)
                       )}
                       class={[
-                        "border-none focus:outline-hidden outline-none size-full disabled:pointer-events-none",
+                        "border-none focus:outline-hidden outline-hidden size-full disabled:pointer-events-none",
                         (modeState.mode === TableMode.INSERT &&
                           modeState.entry_idxes.includes(i)) ||
                         (modeState.mode === TableMode.EDIT &&
                           modeState.entry_idx === i)
-                          ? "bg-info"
+                          ? "bg-info/25"
                           : "bg-base-100",
                       ]}
                       params={cellToInputParams(i, field)}
@@ -529,7 +529,7 @@
                       modeState.entry_idxes.includes(i)) ||
                     (modeState.mode === TableMode.EDIT &&
                       modeState.entry_idx === i)
-                      ? "bg-info"
+                      ? "bg-info/25"
                       : "bg-base-100",
                   ]}
                   onclick={() => {

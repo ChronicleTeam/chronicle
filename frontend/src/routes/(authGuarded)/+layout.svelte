@@ -29,7 +29,7 @@
   {#await user() then u}
     {#if u}
       <!-- Navbar -->
-      <nav class="navbar bg-base-300 mb-4 rounded-lg shadow-sm">
+      <nav class="navbar bg-base-300 mb-4 rounded-lg shadow-xs">
         <div class="navbar-start">
           <div class="dropdown">
             <div tabindex="0" role="button" class="btn btn-square btn-ghost">
@@ -46,7 +46,7 @@
             </div>
             <ul
               tabindex="0"
-              class="menu menu-sm dropdown-content bg-base-100 z-1 w-52 p-2 shadow-sm rounded-sm"
+              class="menu menu-sm dropdown-content bg-base-100 z-1 w-52 p-2 shadow-xs rounded-xs"
             >
               {#each links as link}
                 <li>
