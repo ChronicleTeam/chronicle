@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 /// <reference types="@vitest/browser/matchers" />
 /// <reference types="@vitest/browser/providers/playwright" />
+/// <reference types="@vitest/browser/context" />
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte'
@@ -22,7 +23,7 @@ export default defineConfig({
           environment: 'node',
         }
       }, {
-        plugins: [tailwindcss(), svelte()],
+        plugins: [tailwindcss(), sveltekit()],
         test: {
           include: ['test/system-testing/**/*.test.ts'],
           name: 'system',
