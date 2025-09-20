@@ -45,7 +45,7 @@ pub enum ApiError {
     Conflict(String),
 
     /// Returns `422 Unprocessable Entity`
-    #[error("error in the request body")]
+    #[error("error in the request body: {0}")]
     UnprocessableEntity(String),
 
     /// Returns `500 Internal Server Error` on a `sqlx::Error`.

@@ -103,7 +103,6 @@ pub async fn set_admin_user(
     creds: Credentials,
 ) -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
-
     if let Some(admin_user) =
         db::get_user_from_username(tx.as_mut(), creds.username.clone()).await?
     {
@@ -132,6 +131,7 @@ pub async fn set_admin_user(
     } else {
         return Err(anyhow!("admin user not found"));
     }
+    tx.commit().await?;
     Ok(())
 }
 

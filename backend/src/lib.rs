@@ -45,7 +45,7 @@ pub struct AppState {
 struct AppConfig {
     /// Server port.
     port: u16,
-    allowed_origin: Vec<String>,
+    allowed_origin: String,
     session_key: String,
     admin: Credentials,
     // /// Authentication related configuration.
@@ -85,7 +85,7 @@ pub async fn serve() -> anyhow::Result<()> {
     let config: AppConfig = Config::builder()
         .add_source(
             Environment::with_prefix("APP")
-                .separator("_")
+                .separator("__")
                 .list_separator(","),
         )
         .build()?
@@ -104,13 +104,11 @@ pub async fn serve() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    let allowed_origin = config
-        .allowed_origin
+    let allowed_origin = [config
+        .allowed_origin]
         .into_iter()
         .map(|x| x.parse::<HeaderValue>())
         .collect::<Result<Vec<_>, _>>()?;
-
-    // Auth
 
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
