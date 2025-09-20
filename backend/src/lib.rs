@@ -7,6 +7,7 @@ mod model;
 
 use crate::model::users::Credentials;
 use axum::http::{HeaderValue, Method, header};
+use config::{Config, Environment};
 use serde::Deserialize;
 use sqlx::{
     PgPool,
@@ -14,7 +15,7 @@ use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
 };
 use std::{
-    env, fs,
+    env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
@@ -44,7 +45,8 @@ pub struct AppState {
 struct AppConfig {
     /// Server port.
     port: u16,
-    allowed_origin: Vec<String>,
+    allowed_origin: String,
+    session_key: String,
     admin: Credentials,
     // /// Authentication related configuration.
     // auth: AuthConfig,
@@ -80,7 +82,14 @@ pub async fn serve() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     setup_tracing();
 
-    let config: AppConfig = toml::from_str(&fs::read_to_string(&env::var("CONFIG_PATH")?)?)?;
+    let config: AppConfig = Config::builder()
+        .add_source(
+            Environment::with_prefix("APP")
+                .separator("__")
+                .list_separator(","),
+        )
+        .build()?
+        .try_deserialize()?;
 
     let db = PgPoolOptions::new()
         .max_connections(20)
@@ -95,13 +104,11 @@ pub async fn serve() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    let allowed_origin = config
-        .allowed_origin
+    let allowed_origin = [config
+        .allowed_origin]
         .into_iter()
         .map(|x| x.parse::<HeaderValue>())
         .collect::<Result<Vec<_>, _>>()?;
-
-    // Auth
 
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
@@ -126,7 +133,7 @@ pub async fn serve() -> anyhow::Result<()> {
 
     let router = api::router().layer(service);
 
-    let router = auth::init(router, db.clone()).await?;
+    let router = auth::init(router, db.clone(), config.session_key).await?;
 
     auth::set_admin_user(&db, config.admin).await?;
 

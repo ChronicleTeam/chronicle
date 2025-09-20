@@ -1,5 +1,5 @@
 {
-  pkgs ? import <nixpkgs> { },
+  pkgs ? import <nixpkgs> { config.allowUnfree = true; },
 }:
 with pkgs;
 let
@@ -19,9 +19,13 @@ mkShell rec {
     nodejs
     nodePackages.npm
     postgresql_17
-
+    
     # For playwright browsers
     playwright-driver.browsers
+    
+    # For Google Cloud
+    google-cloud-sdk
+    terraform
   ];
 
   RUSTUP_TOOLCHAIN = rustToolchain;
