@@ -84,10 +84,15 @@ resource "google_sql_database" "default" {
   instance = google_sql_database_instance.default.name
 }
 
+data "google_secret_manager_secret_version" "db_password" {
+  secret  = var.db_user.password_secret_id
+  version = "latest"
+}
+
 resource "google_sql_user" "default" {
   name     = var.db_user.username
   instance = google_sql_database_instance.default.name
-  password = var.db_user.password
+  password = data.google_secret_manager_secret_version.db_password.secret_data
 }
 
 # resource "google_vpc_access_connector" "default" {
