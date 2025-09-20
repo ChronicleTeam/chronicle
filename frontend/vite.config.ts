@@ -4,10 +4,10 @@
 /// <reference types="@vitest/browser/context" />
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { svelte } from '@sveltejs/vite-plugin-svelte'
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  plugins: [tailwindcss(), sveltekit()],
   test: {
     coverage: {
       provider: 'v8',
