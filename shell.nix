@@ -19,6 +19,11 @@ mkShell rec {
     nodejs
     nodePackages.npm
     postgresql_17
+    
+    # For playwright browsers
+    playwright-driver.browsers
+    
+    # For Google Cloud
     google-cloud-sdk
     terraform
   ];
@@ -28,6 +33,7 @@ mkShell rec {
   CARGO_HOME = "${cache}/.cargo";
 
   shellHook = ''
-    export LD_LIBRARY_PATH=${lib.makeLibraryPath [ stdenv.cc.cc ]}
+    export LD_LIBRARY_PATH=${lib.makeLibraryPath ([ stdenv.cc.cc ] ++ buildInputs)}
+    export PLAYWRIGHT_BROWSERS_PATH=${playwright-driver.browsers}
   '';
 }
