@@ -74,7 +74,15 @@
   };
 
   // list of charts associated with dashboard
-  let charts: Chart[] = $state([]);
+  let charts: Chart[] = $state([
+    {
+      chart_id: 1,
+      dashboard_id: 1,
+      table_id: 1,
+      name: "Chart 1",
+      chart_kind: ChartKind.Bar,
+    },
+  ]);
 
   // error fields
   let errors: {
@@ -301,24 +309,30 @@
       <p>{dashboard.description}</p>
     </div>
   {:else if modeState.mode === EditMode.EDIT_DASH}
-    <div class="flex flex-col items-center">
+    <div class="flex flex-col gap-1 items-center">
       <input
-        bind:value={() => dashboard.name,
-        (s) => {
-          if (modeState.mode === EditMode.EDIT_DASH) {
-            modeState.metadataChanged = true;
-            dashboard.name = s;
+        class="btn"
+        bind:value={
+          () => dashboard.name,
+          (s) => {
+            if (modeState.mode === EditMode.EDIT_DASH) {
+              modeState.metadataChanged = true;
+              dashboard.name = s;
+            }
           }
-        }}
+        }
       />
       <input
-        bind:value={() => dashboard.description,
-        (s) => {
-          if (modeState.mode === EditMode.EDIT_DASH) {
-            modeState.metadataChanged = true;
-            dashboard.description = s;
+        class="btn"
+        bind:value={
+          () => dashboard.description,
+          (s) => {
+            if (modeState.mode === EditMode.EDIT_DASH) {
+              modeState.metadataChanged = true;
+              dashboard.description = s;
+            }
           }
-        }}
+        }
       />
       <div class="flex gap-2">
         <ConfirmButton
@@ -327,14 +341,13 @@
           onconfirm={removeDashboard}
         />
         {#if modeState.metadataChanged}
-          <button
-            class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-            onclick={saveDashboard}>Save Title and Description</button
+          <button class="btn" onclick={saveDashboard}
+            >Save Title and Description</button
           >
         {/if}
       </div>
       {#if errors.dashboard.save}
-        <p class="text-red-500">{errors.dashboard.save}</p>
+        <p class="text-error">{errors.dashboard.save}</p>
       {/if}
     </div>
   {/if}
@@ -342,45 +355,49 @@
   <!-- Chart grid/list -->
   <div class="grid grid-cols-4 grid-rows-1 gap-2 mt-2 h-80">
     {#if errors.chart.load}
-      <p class="text-red-500">{errors.chart.load}</p>
+      <p class="text-error">{errors.chart.load}</p>
     {:else}
       {#each charts as chart}
-        <div class={["rounded-lg bg-gray-100 p-3 flex flex-col "]}>
+        <div
+          class="card bg-base-100 p-3 flex flex-col justify-between shadow-sm"
+        >
           <!-- Chart info -->
-          <p class="font-bold text-center">{chart.name}</p>
-          {#await asyncTables then tables}
-            <p>
-              Source Table: {tables.find(
-                (t: Table) => t.table_id === chart.table_id,
-              )?.name}
-            </p>
-          {:catch}
-            <p>Source Table: <span class="text-red-500">(Not Found)</span></p>
-          {/await}
+          <div>
+            <p class="font-bold text-center">{chart.name}</p>
+            {#await asyncTables then tables}
+              <p>
+                Source Table: {tables.find(
+                  (t: Table) => t.table_id === chart.table_id,
+                )?.name}
+              </p>
+            {:catch}
+              <p>Source Table: <span class="text-error">(Not Found)</span></p>
+            {/await}
+          </div>
 
           <!-- Chart -->
           <ChartComponent {dashboard} {chart} />
 
           <!-- Buttons -->
-          {#if modeState.mode === EditMode.DISPLAY}
-            <button
-              class="text-center py-1 px-2 rounded bg-white hover:bg-slate-200 transition mt-auto"
-              onclick={() => editChart(chart)}>Edit</button
-            >
-          {:else if modeState.mode === EditMode.EDIT_DASH}
-            <ConfirmButton
-              class="mt-auto rounded"
-              initText="Delete"
-              confirmText="Confirm Delete"
-              initClass="bg-white hover:bg-slate-200"
-              onconfirm={() => {
-                removeChart(chart);
-              }}
-            />
-          {/if}
-          {#if errors.chart.edit}
-            <p class="text-red-500">{errors.chart.edit}</p>
-          {/if}
+          <div>
+            {#if modeState.mode === EditMode.DISPLAY}
+              <button class="btn btn-block" onclick={() => editChart(chart)}
+                >Edit</button
+              >
+            {:else if modeState.mode === EditMode.EDIT_DASH}
+              <ConfirmButton
+                class="btn btn-block"
+                initText="Delete"
+                confirmText="Confirm Delete"
+                onconfirm={() => {
+                  removeChart(chart);
+                }}
+              />
+            {/if}
+            {#if errors.chart.edit}
+              <p class="text-error">{errors.chart.edit}</p>
+            {/if}
+          </div>
         </div>
       {:else}
         {#if modeState.mode === EditMode.DISPLAY}
@@ -390,22 +407,24 @@
         {/if}
       {/each}
       {#if errors.chart.create}
-        <p class="text-red-500">Error: {errors.chart.create}</p>
+        <p class="text-error">Error: {errors.chart.create}</p>
       {/if}
     {/if}
     {#if modeState.mode === EditMode.EDIT_DASH}
       <!-- Chart creation input -->
       {#if modeState.newChart}
-        <div class={["rounded-lg bg-gray-100 flex flex-col gap-3 p-3 "]}>
+        <div
+          class="card bg-base-100 p-3 flex flex-col gap-3 justify-between shadow-sm"
+        >
           <!-- Name -->
-          <input bind:value={modeState.newChart.name} />
+          <input class="input w-full" bind:value={modeState.newChart.name} />
 
           <!-- Chart kind -->
-
           <div class="flex gap-2 justify-between items-center">
             <label for="new-chart-kind-sel">Kind: </label>
             <select
               id="new-chart-kind-sel"
+              class="select"
               bind:value={modeState.newChart.chart_kind}
             >
               {#each Object.values(ChartKind) as kind}
@@ -419,6 +438,7 @@
             <label for="new-chart-table-sel">Table: </label>
             <select
               id="new-chart-table-sel"
+              class="select"
               bind:value={modeState.newChart.table_id}
             >
               {#await asyncTables}
@@ -433,14 +453,8 @@
 
           <!-- Buttons -->
           <div class="flex gap-3 justify-center mt-auto">
-            <button
-              onclick={createChart}
-              class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-              >Create</button
-            >
-            <button
-              onclick={cancelCreateChart}
-              class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+            <button onclick={createChart} class="btn">Create</button>
+            <button onclick={cancelCreateChart} class="btn btn-error"
               >Cancel</button
             >
           </div>
@@ -449,9 +463,7 @@
         <!-- "Add Chart" button -->
       {:else}
         <button
-          class={[
-            "rounded-lg border border-black border-2 border-dashed col-start-{space[0]} row-start-{space[1]} text-center text-3xl font-lg ",
-          ]}
+          class={"btn btn-dash border-2 col-start-{space[0]} row-start-{space[1]} text-center text-3xl h-full font-lg"}
           onclick={() => {
             if (modeState.mode === EditMode.EDIT_DASH) {
               modeState.newChart = blankChart();
@@ -466,7 +478,7 @@
   {#if modeState.mode === EditMode.DISPLAY}
     <div class="flex justify-center my-2">
       <button
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        class="btn"
         onclick={() => {
           modeEditDash();
         }}>Edit</button
@@ -475,7 +487,7 @@
   {:else if modeState.mode === EditMode.EDIT_DASH}
     <div class="flex justify-center my-2">
       <button
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        class="btn"
         onclick={() => {
           modeDisplay();
         }}>Back</button
@@ -487,12 +499,12 @@
 
   <!-- Chart metadata -->
   <input class="mb-2" bind:value={charts[modeState.chartIdx].name} />
-  <p class="text-red-500">{errors.chart.save}</p>
+  <p class="text-error">{errors.chart.save}</p>
 
   <!-- Axes -->
   <div class="flex gap-3">
     {#each modeState.axisFields as axis, i}
-      <div class="rounded-lg bg-gray-100 p-4 mb-2">
+      <div class="card p-4 mb-2">
         <!-- Field -->
         <div class="flex mb-2 gap-2 justify-between">
           <p>Field:</p>
@@ -533,7 +545,6 @@
           <ConfirmButton
             initText="Delete"
             confirmText="Confirm Delete"
-            initClass="bg-white hover:bg-slate-200"
             onconfirm={() => {
               if (modeState.mode === EditMode.EDIT_CHART) {
                 modeState.axisFields.splice(i, 1);
@@ -542,7 +553,7 @@
           />
         </div>
         {#if errors.axes.save[axis.axis.axis_id.toString()]}<p
-            class="text-red-500"
+            class="text-error"
           >
             {errors.axes.save[axis.axis.axis_id.toString()]}
           </p>{/if}
@@ -554,7 +565,7 @@
   <div class="flex gap-2">
     {#if modeState.axisFields.length < Object.values(AxisKind).length || charts[modeState.chartIdx].chart_kind === ChartKind.Table}
       <button
-        class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+        class="btn"
         onclick={() => {
           if (modeState.mode === EditMode.EDIT_CHART) {
             modeState.axisFields.push({
@@ -567,7 +578,7 @@
       >
     {/if}
     <button
-      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
+      class="btn"
       onclick={() => {
         if (modeState.mode === EditMode.EDIT_CHART) {
           saveChartWithAxisFields(
@@ -577,10 +588,6 @@
         }
       }}>Save</button
     >
-    <button
-      onclick={cancelEditChart}
-      class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-      >Cancel</button
-    >
+    <button onclick={cancelEditChart} class="btn btn-error">Cancel</button>
   </div>
 {/if}

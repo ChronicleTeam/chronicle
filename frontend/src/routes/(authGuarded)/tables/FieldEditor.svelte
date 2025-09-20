@@ -546,6 +546,8 @@
     },
   });
 
+  let confirmationModal: HTMLDialogElement;
+
   //
   // State methods
   //
@@ -681,7 +683,14 @@
    * Open the modal
    */
   const openConfirmationModal = () => {
-    showConfirmModal = true;
+    confirmationModal?.showModal();
+  };
+
+  /**
+   * Close the modal
+   */
+  const closeConfirmationModal = () => {
+    confirmationModal?.close();
   };
 
   //
@@ -1033,88 +1042,99 @@
 </script>
 
 <div class="w-full">
-  <!-- Top bar -->
-  <label for="name-input">Name: </label>
-  <input
-    id="name-input"
-    bind:value={table.new.table.name}
-    class="text-lg font-bold mb-3"
-    disabled={isSubtable}
-  />
-  <label for="decsription-input">Description: </label>
-  <input
-    id="description-input"
-    bind:value={table.new.table.description}
-    class="text-lg font-bold mb-3"
-    disabled={isSubtable}
-  />
-  {#if errors.metadata !== ""}
-    <p class="text-red-500">{errors.metadata}</p>
-  {/if}
-  {#if !isSubtable}
-    <ConfirmButton
-      initText="Delete Table"
-      confirmText="Confirm Delete"
-      onconfirm={delete_table}
-    />
-  {/if}
-
+  <div class="mb-4">
+    <!-- Top bar -->
+    <label class="input">
+      Name:
+      <input
+        id="name-input"
+        bind:value={table.new.table.name}
+        disabled={isSubtable}
+      />
+    </label>
+    <label class="input">
+      Description:
+      <input
+        id="description-input"
+        bind:value={table.new.table.description}
+        disabled={isSubtable}
+      />
+    </label>
+    {#if errors.metadata !== ""}
+      <p class="text-error">{errors.metadata}</p>
+    {/if}
+    {#if !isSubtable}
+      <ConfirmButton
+        initClass=""
+        confirmClass="btn-error"
+        class="btn"
+        initText="Delete Table"
+        confirmText="Confirm Delete"
+        onconfirm={delete_table}
+      />
+    {/if}
+  </div>
   <!-- Fields  -->
-  <div class="flex justify-between w-full flex-nowrap overflow-scroll gap-3">
+  <div
+    class="flex justify-between w-full flex-nowrap overflow-scroll gap-3 py-4"
+  >
     <div class="flex items-stretch gap-3">
       <!-- Field editing sections -->
       {#each table.new.fields as field, i}
         <div
-          class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+          class="card min-w-64 bg-base-100 p-4 shadow-md flex flex-col gap-3 justify-between"
         >
-          <!-- Field name -->
-          <input bind:value={table.new.fields[i].name} />
+          <div class="flex flex-col gap-3">
+            <!-- Field name -->
+            <input class="input w-full" bind:value={table.new.fields[i].name} />
 
-          <!-- Field kind parameters -->
-          {#each fieldKindInputList[i] as fieldKindInput, j}
-            <div class="my-2">
-              <div class="flex items-center">
-                <!-- Add checkbox to enable/disable input if it is optional -->
-                {#if fieldKindInput.optional}
-                  <input
-                    class="mr-2"
-                    type="checkbox"
-                    bind:checked={() => optionalCheckboxStates[i][j],
-                    (val) => {
-                      optionalCheckboxStates[i][j] = val;
-                      if (val) {
-                        (table.new.fields[i].field_kind as any)[
-                          fieldKindInput.name
-                        ] = fieldKindInput.default;
-                      } else {
-                        delete (table.new.fields[i].field_kind as any)[
-                          fieldKindInput.name
-                        ];
+            <!-- Field kind parameters -->
+            {#each fieldKindInputList[i] as fieldKindInput, j}
+              <div class="my-2">
+                <div class="flex items-center">
+                  <!-- Add checkbox to enable/disable input if it is optional -->
+                  {#if fieldKindInput.optional}
+                    <input
+                      class="checkbox mr-3"
+                      type="checkbox"
+                      bind:checked={
+                        () => optionalCheckboxStates[i][j],
+                        (val) => {
+                          optionalCheckboxStates[i][j] = val;
+                          if (val) {
+                            (table.new.fields[i].field_kind as any)[
+                              fieldKindInput.name
+                            ] = fieldKindInput.default;
+                          } else {
+                            delete (table.new.fields[i].field_kind as any)[
+                              fieldKindInput.name
+                            ];
+                          }
+                        }
                       }
-                    }}
+                    />
+                  {/if}
+                  <!-- The input -->
+                  <VariableInput
+                    class={["textarea", "select", "checkbox"].includes(
+                      fieldKindInput.type,
+                    )
+                      ? fieldKindInput.type
+                      : "input"}
+                    params={fieldKindInput}
+                    disabled={!optionalCheckboxStates[i][j]}
+                    id={fieldKindInput.label + i}
                   />
-                {/if}
-                <!-- The input -->
-                <VariableInput
-                  class={[
-                    "w-24",
-                    !optionalCheckboxStates && "text-gray-300 border-gray-300",
-                  ]}
-                  params={fieldKindInput}
-                  disabled={!optionalCheckboxStates[i][j]}
-                  id={fieldKindInput.label + i}
-                />
+                </div>
               </div>
-            </div>
-          {/each}
-          <button
-            onclick={() => removeField(i)}
-            class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
+            {/each}
+          </div>
+          <button onclick={() => removeField(i)} class="btn btn-error w-full"
             >Remove</button
           >
           <!-- Error -->
           {#if errors.fields[field.field_id] !== ""}
-            <div class="rounded-lg text-red-500">
+            <div class="rounded-lg text-error">
               {errors.fields[field.field_id]}
             </div>
           {/if}
@@ -1123,22 +1143,20 @@
 
       <!-- Deleted but restorable fields -->
       {#each changes.fields.removed as field, i}
-        <div
-          class="p-3 border-2 border-black border-dashed rounded-lg flex flex-col justify-between gap-2 w-64"
+        <button
+          class="btn btn-dash btn-error hover:btn-success border-2 h-72 w-64 flex flex-col"
+          onclick={() => restoreField(i)}
         >
-          <p class="font-bold">
+          <p class="font-bold block">
             {field.name} ({typeToStr(field.field_kind.type)})
           </p>
-          <button
-            class="py-1 px-2 border-2 border-black border-dashed rounded-lg transition"
-            onclick={() => restoreField(i)}>Restore</button
-          >
-        </div>
+          <p class="font-bold block">Click to Restore</p>
+        </button>
       {/each}
 
       <!-- Add field button -->
       <button
-        class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
+        class="btn btn-dash border-2 min-h-72 h-full w-64"
         onclick={addField}
         aria-label="add field">Add Field</button
       >
@@ -1149,7 +1167,7 @@
       <div class="flex justify-end gap-3">
         <!-- Add subtable button -->
         <button
-          class="p-12 text-center text-black text-3xl transition-all rounded-lg border-black border-2 border-dashed w-64"
+          class="btn btn-dash border-2 min-h-72 h-full w-64"
           onclick={addSubtable}
           aria-label="add Subtable">Add Subtable</button
         >
@@ -1157,34 +1175,34 @@
         <!-- Subtable sections -->
         {#each table.new.children as subtable, i}
           <div
-            class="bg-white border-2 w-64 border-gray-400 p-3 rounded-lg flex flex-col justify-between"
+            class="card w-64 bg-base-100 p-4 shadow-md flex flex-col justify-between gap-3"
           >
-            <input bind:value={table.new.children[i].table.name} />
+            <input
+              class="input"
+              bind:value={table.new.children[i].table.name}
+            />
             <button
               onclick={() => removeSubtable(i)}
-              class="rounded-md self-center bg-red-400 hover:bg-red-500 px-2 py-1 transition"
-              >Remove</button
+              class="btn btn-error w-full">Remove</button
             >
 
             {#if errors.subtables[subtable.table.table_id]}
-              <p class="text-red-500">
+              <p class="text-error">
                 {errors.subtables[subtable.table.table_id]}
               </p>
             {/if}
           </div>
         {/each}
         {#each changes.subtables.removed as subtable, i}
-          <div
-            class="p-3 border-2 border-black border-dashed rounded-lg flex flex-col justify-between gap-2 w-64"
+          <button
+            class="btn btn-dash btn-error hover:btn-success border-2 h-72 w-64 flex flex-col"
+            onclick={() => restoreSubtable(i)}
           >
             <p class="font-bold">
               {subtable.table.name}
             </p>
-            <button
-              class="py-1 px-2 border-2 border-black border-dashed rounded-lg transition"
-              onclick={() => restoreSubtable(i)}>Restore</button
-            >
-          </div>
+            <p class="font-bold block">Click to Restore</p>
+          </button>
         {/each}
       </div>
     {/if}
@@ -1194,28 +1212,17 @@
 <!-- Bottom Bar -->
 {#if table.old !== table.new}
   <!-- TODO: actually have the condition check for modifications -->
-  <div class="flex items-center justify-center gap-3 mt-4">
-    <button
-      onclick={openConfirmationModal}
-      class="text-center py-1 px-2 rounded bg-white hover:bg-gray-100 transition"
-      >Save</button
-    >
-    <button
-      onclick={on_save}
-      class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
+  <div class="flex justify-center gap-4">
+    <button onclick={openConfirmationModal} class="btn join-item">Save</button>
+    <button onclick={on_save} class="btn btn-soft btn-error join-item"
       >Cancel</button
     >
   </div>
 {/if}
 
 <!-- Confirmation modal -->
-<div
-  class={[
-    "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center",
-    !showConfirmModal && "hidden",
-  ]}
->
-  <div class="bg-white rounded-lg p-3">
+<dialog class="modal" bind:this={confirmationModal}>
+  <div class="modal-box">
     <h2 class="w-full font-bold text-center">Edit Summary</h2>
     <!-- Table name + description -->
     {#if table.new.table.name !== table.old.table.name}
@@ -1233,14 +1240,14 @@
 
     <!-- Added fields -->
     {#each modalLines.fields.added as line}
-      <p><span class="font-bold">Added Field:</span> {line}</p>
+      <p><span class="font-bold text-success">Added Field:</span> {line}</p>
     {/each}
 
     <!-- Modified fields -->
     {#each modalLines.fields.modified as moddedField}
       {#if moddedField.nameAndType}
         <p>
-          <span class="font-bold">Change Field:</span>
+          <span class="font-bold text-warning">Change Field:</span>
           {moddedField.nameAndType}
         </p>
       {/if}
@@ -1252,7 +1259,7 @@
     <!-- Deleted fields -->
     {#each modalLines.fields.removed as line}
       <p>
-        <span class="font-bold text-red-500">[!]</span>
+        <span class="font-bold text-error">[!]</span>
         <span class="font-bold">Delete Field:</span>
         {line}
       </p>
@@ -1271,7 +1278,7 @@
     <!-- Deleted subtables -->
     {#each modalLines.subtables.removed as line}
       <p>
-        <span class="font-bold text-red-500">[!]</span>
+        <span class="font-bold text-error">[!]</span>
         <span class="font-bold">Delete Field:</span>
         {line}
       </p>
@@ -1279,16 +1286,10 @@
 
     <!-- Button cluster -->
     <div class="flex justify-center items-center gap-2 mt-2">
-      <button
-        class="text-center py-1 px-2 rounded bg-gray-100 hover:bg-gray-200 transition"
-        onclick={saveFields}>Confirm</button
-      >
-      <button
-        class="text-center py-1 px-2 rounded bg-red-400 hover:bg-red-500 transition"
-        onclick={() => {
-          showConfirmModal = false;
-        }}>Cancel</button
+      <button class="btn" onclick={saveFields}>Confirm</button>
+      <button class="btn btn-soft btn-error" onclick={closeConfirmationModal}
+        >Cancel</button
       >
     </div>
   </div>
-</div>
+</dialog>
