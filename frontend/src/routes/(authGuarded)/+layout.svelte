@@ -57,7 +57,7 @@
           </div>
         </div>
         <div class="navbar-center">
-          <h1 class="text-base-content text-xl">Chronicle</h1>
+          <h1 class="text-base-content text-4xl font-bold">Chronicle</h1>
         </div>
       </nav>
       {@render children()}

@@ -1156,7 +1156,7 @@
 
       <!-- Add field button -->
       <button
-        class="btn btn-dash border-2 h-72 w-64"
+        class="btn btn-dash border-2 min-h-72 h-full w-64"
         onclick={addField}
         aria-label="add field">Add Field</button
       >
@@ -1167,7 +1167,7 @@
       <div class="flex justify-end gap-3">
         <!-- Add subtable button -->
         <button
-          class="btn btn-dash border-2 h-72 w-64"
+          class="btn btn-dash border-2 min-h-72 h-full w-64"
           onclick={addSubtable}
           aria-label="add Subtable">Add Subtable</button
         >

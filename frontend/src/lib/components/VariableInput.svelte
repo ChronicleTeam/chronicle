@@ -22,7 +22,7 @@
 <div class={params.label ? "flex justify-between items-center w-full" : ""}>
   <!-- Label -->
   {#if params.label ?? false}
-    <label class={["mr-2 w-auto", disabled && "text-gray-300"]} for={id}
+    <label class={["mr-2 w-auto", disabled && "text-base-content/50"]} for={id}
       >{params.label}:</label
     >
   {/if}
@@ -69,7 +69,7 @@
     {#if disabled}
       <a
         href={"https://" + params.bindGetter().toString()}
-        class={["text-blue-600 underline cursor-pointer", innerClass]}
+        class={["link link-secondary", innerClass]}
         target="_blank">{params.bindGetter().toString()}</a
       >
     {:else}

@@ -147,7 +147,7 @@
       class="collapse collapse-plus bg-base-100 stroke-base-200 rounded-md mx-2 w-auto"
     >
       <input type="checkbox" />
-      <div class="collapse-title text-sm px-3 flex items-center">Add Table</div>
+      <div class="collapse-title text-sm">Add Table</div>
       <div class="collapse-content flex flex-col">
         <!-- Create new table -->
         <p class="self-start font-semibold mb-4">Create new table</p>

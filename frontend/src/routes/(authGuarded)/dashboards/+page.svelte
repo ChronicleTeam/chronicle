@@ -16,7 +16,7 @@
   let asyncDashboards: Promise<Dashboard[]> = $state(getDashboards());
 
   // the currently selected dashboard
-  let curDash: Dashboard | null = $state(null);
+  let curDash: Dashboard | null = $state({} as unknown as Dashboard);
 
   // error fields
   let errors = $state({
@@ -64,73 +64,60 @@
 
 <div class="flex flex-wrap gap-4 size-full items-stretch">
   <!-- Sidebar -->
-  <div class="basis-48 grow bg-gray-200 rounded-lg p-3">
+  <div class="basis-48 grow bg-base-300 rounded-lg shadow-xs">
     <!-- Dashboard list -->
-    <h2>Dashboards</h2>
-    <div class="flex flex-col">
+    <ul class="menu">
+      <li class="menu-title">Dashboards</li>
       {#await asyncDashboards}
         Loading...
       {:then dashboards}
-        {@debug dashboards}
         {#each dashboards as d}
-          <button
-            onclick={() => {
-              curDash = d;
-            }}
-            class="text-left bg-gray-200 hover:bg-gray-400 transition rounded-xl p-2 mb-2"
-            >{d.name}</button
-          >
+          <li>
+            <button
+              onclick={() => {
+                curDash = d;
+              }}
+              class={{
+                "menu-active": curDash?.dashboard_id === d.dashboard_id,
+              }}>{d.name}</button
+            >
+          </li>
         {/each}
       {:catch error}
-        <p class="text-red-500">
+        <li class="text-error">
           Error{#if error.status}
             ({error.status}){/if}: Could not load dashboards
-        </p>
+        </li>
       {/await}
-    </div>
+    </ul>
     <!-- Dashboard creation input -->
     <div
-      class={[
-        "rounded-xl py-2 border-2 border-dashed border-gray-400 flex flex-col items-center transition gap-3",
-        !addDashMode && "hover:bg-gray-400",
-      ]}
+      class="collapse collapse-plus bg-base-100 stroke-base-200 rounded-md mx-2 w-auto"
     >
-      {#if addDashMode}
-        <p class="text-center">New Dashboard</p>
-        <input bind:value={addDashName} id="table-name-input" />
-
-        <div class="flex gap-3">
+      <input type="checkbox" />
+      <div class="collapse-title text-sm">Add Dashboard</div>
+      <div class="collapse-content flex flex-col">
+        <p class="font-semibold mb-4">New Dashboard</p>
+        <div class="join">
+          <input
+            class="input join-item"
+            bind:value={addDashName}
+            id="table-name-input"
+          />
           <button
             onclick={() => addDashboard(addDashName)}
-            class="px-2 py-1 rounded-lg border-2 border-gray-400 hover:bg-gray-400 transition"
-            >Create</button
-          >
-
-          <button
-            onclick={() => {
-              errors.dashboard.add = "";
-              addDashName = "";
-              addDashMode = false;
-            }}
-            class="px-2 py-1 rounded-lg border-2 border-red-400 hover:bg-red-400 transition"
-            >Cancel</button
+            class="btn join-item">Create</button
           >
         </div>
-      {:else}
-        <button
-          onclick={() => {
-            addDashMode = true;
-          }}
-          class="text-center w-full">Add Dashboard</button
-        >
-      {/if}
-      {#if errors.dashboard.add !== ""}
-        <p class="text-red-500">{errors.dashboard.add}</p>
-      {/if}
+
+        {#if errors.dashboard.add !== ""}
+          <p class="text-error">{errors.dashboard.add}</p>
+        {/if}
+      </div>
     </div>
   </div>
   <!-- Main editor -->
-  <div class="bg-gray-200 basis-xl grow-5 shrink min-w-0 rounded-lg p-3">
+  <div class="bg-base-300 basis-xl grow-5 shrink min-w-0 rounded-lg p-3">
     {#if curDash === null}
       <div class="flex flex-col items-center justify-center">
         <h2 class="text-lg font-bold">Select a Dashboard</h2>
@@ -139,7 +126,7 @@
       {#key curDash}
         <DashboardEditor dashboard={curDash} {removeDashboard} />
         {#if errors.dashboard.remove}
-          <p class=" text-red-500">{errors.dashboard.remove}</p>
+          <p class=" text-error">{errors.dashboard.remove}</p>
         {/if}
       {/key}
     {/if}

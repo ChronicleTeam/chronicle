@@ -44,7 +44,12 @@
 
   // the TableData object being displayed
   let table = $state({
-    table: table_prop,
+    table: {
+      table_id: 1,
+      user_id: 1,
+      name: "Users",
+      description: "",
+    },
     fields: [
       {
         table_id: 1,
@@ -87,7 +92,60 @@
         },
       },
     ],
-    children: [],
+    children: [
+      {
+        table: {
+          table_id: 2,
+          user_id: 1,
+          parent_id: 1,
+          name: "Friends",
+          description: "",
+        },
+        fields: [
+          {
+            table_id: 2,
+            user_id: 1,
+            field_id: 1,
+            name: "Name",
+
+            ordering: 1,
+            field_kind: {
+              type: FieldType.Text,
+              is_required: false,
+            },
+          },
+          {
+            table_id: 2,
+            user_id: 1,
+            field_id: 2,
+            name: "Last Name",
+
+            ordering: 1,
+            field_kind: {
+              type: FieldType.Text,
+              is_required: false,
+            },
+          },
+        ],
+        entries: [
+          {
+            entry_id: 1,
+            cells: {
+              "1": "Bob",
+              "2": "Smith",
+            },
+          },
+          {
+            entry_id: 2,
+            cells: {
+              "1": "John",
+              "2": "Smith",
+            },
+          },
+        ],
+        children: [],
+      },
+    ],
   } as TableData);
 
   // mode-dependent variables
@@ -382,7 +440,7 @@
   <!-- Display child table -->
   <div class="flex items-center gap-2 mb-2">
     <button
-      class="text-center py-1 px-2 rounded-sm bg-white hover:bg-gray-100 transition"
+      class="btn"
       onclick={() => {
         modeDisplay();
         loadTable();
@@ -409,7 +467,7 @@
     <div
       class="overflow-x-auto rounded-lg border border-base-content/5 border-base-100"
     >
-      <table class="table text-content w-full">
+      <table class="table text-base-content w-full">
         <!-- Headers -->
         <thead>
           <tr>
