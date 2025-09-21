@@ -517,6 +517,7 @@ dependencies = [
  "axum-extra",
  "axum-login",
  "axum-macros",
+ "base64 0.22.1",
  "chrono",
  "config",
  "csv",

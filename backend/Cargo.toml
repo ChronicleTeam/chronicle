@@ -76,6 +76,7 @@ async-trait = "0.1"
 # url = "2.5.7"
 num-traits = "0.2"
 itertools = "0.14"
+base64 = "0.22"
 
 [dev-dependencies]
 mime = "0.3"

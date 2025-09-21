@@ -20,6 +20,7 @@ mkShell rec {
     nodePackages.npm
     postgresql_17
     google-cloud-sdk
+    tenv
     terraform
   ];
 
