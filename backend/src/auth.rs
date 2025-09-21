@@ -10,6 +10,7 @@ use axum::{
     response::Response,
 };
 use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use password_auth::{generate_hash, verify_password};
 use sqlx::{Acquire, PgPool, Postgres};
 use tokio::task;
@@ -76,7 +77,7 @@ pub async fn init(
     );
 
     // Generate a cryptographic key to sign the session cookie.
-    let session_key = Key::from(session_key.as_bytes());
+    let session_key = Key::from(&BASE64_STANDARD.decode(session_key)?);
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(true)

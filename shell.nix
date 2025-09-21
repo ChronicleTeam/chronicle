@@ -25,6 +25,7 @@ mkShell rec {
     
     # For Google Cloud
     google-cloud-sdk
+    tenv
     terraform
   ];
 
