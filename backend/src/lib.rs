@@ -8,6 +8,7 @@ mod model;
 use crate::model::users::Credentials;
 use axum::http::{HeaderValue, Method, header};
 use config::{Config, Environment};
+use itertools::Itertools;
 use serde::Deserialize;
 use sqlx::{
     PgPool,
@@ -45,7 +46,8 @@ pub struct AppState {
 struct AppConfig {
     /// Server port.
     port: u16,
-    allowed_origin: String,
+    #[serde(deserialize_with = "env_list")]
+    allowed_origin: Vec<String>,
     session_key: String,
     admin: Credentials,
     // /// Authentication related configuration.
@@ -85,11 +87,11 @@ pub async fn serve() -> anyhow::Result<()> {
     let config: AppConfig = Config::builder()
         .add_source(
             Environment::with_prefix("APP")
-                .separator("__")
-                .list_separator(","),
+                .separator("__"),
         )
         .build()?
         .try_deserialize()?;
+    println!("{:?}", config.allowed_origin);
 
     let db = PgPoolOptions::new()
         .max_connections(20)
@@ -104,11 +106,11 @@ pub async fn serve() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    let allowed_origin = [config
-        .allowed_origin]
-        .into_iter()
-        .map(|x| x.parse::<HeaderValue>())
-        .collect::<Result<Vec<_>, _>>()?;
+    let allowed_origin: Vec<_> = config
+        .allowed_origin
+        .iter()
+        .map(|v| HeaderValue::from_str(v))
+        .try_collect()?;
 
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
@@ -167,4 +169,15 @@ fn setup_tracing() {
             .with(tracing_subscriber::fmt::layer())
             .init();
     });
+}
+
+fn env_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(s.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
 }
