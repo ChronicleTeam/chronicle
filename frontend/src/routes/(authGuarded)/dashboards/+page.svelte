@@ -16,7 +16,7 @@
   let asyncDashboards: Promise<Dashboard[]> = $state(getDashboards());
 
   // the currently selected dashboard
-  let curDash: Dashboard | null = $state({} as unknown as Dashboard);
+  let curDash: Dashboard | null = $state(null as unknown as Dashboard);
 
   // error fields
   let errors = $state({
@@ -66,7 +66,7 @@
   <!-- Sidebar -->
   <div class="basis-48 grow bg-base-300 rounded-lg shadow-xs">
     <!-- Dashboard list -->
-    <ul class="menu">
+    <ul class="menu w-full">
       <li class="menu-title">Dashboards</li>
       {#await asyncDashboards}
         Loading...
@@ -117,7 +117,9 @@
     </div>
   </div>
   <!-- Main editor -->
-  <div class="bg-base-300 basis-xl grow-5 shrink min-w-0 rounded-lg p-3">
+  <div
+    class="bg-base-300 shadow-xs basis-xl grow-5 shrink min-w-0 rounded-lg p-3"
+  >
     {#if curDash === null}
       <div class="flex flex-col items-center justify-center">
         <h2 class="text-lg font-bold">Select a Dashboard</h2>

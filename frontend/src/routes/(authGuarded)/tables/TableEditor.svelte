@@ -44,108 +44,10 @@
 
   // the TableData object being displayed
   let table = $state({
-    table: {
-      table_id: 1,
-      user_id: 1,
-      name: "Users",
-      description: "",
-    },
-    fields: [
-      {
-        table_id: 1,
-        user_id: 1,
-        field_id: 1,
-        name: "Name",
-
-        ordering: 1,
-        field_kind: {
-          type: FieldType.Text,
-          is_required: false,
-        },
-      },
-      {
-        table_id: 1,
-        user_id: 1,
-        field_id: 2,
-        name: "Last Name",
-
-        ordering: 1,
-        field_kind: {
-          type: FieldType.Text,
-          is_required: false,
-        },
-      },
-    ],
-    entries: [
-      {
-        entry_id: 1,
-        cells: {
-          "1": "Bob",
-          "2": "Smith",
-        },
-      },
-      {
-        entry_id: 2,
-        cells: {
-          "1": "John",
-          "2": "Smith",
-        },
-      },
-    ],
-    children: [
-      {
-        table: {
-          table_id: 2,
-          user_id: 1,
-          parent_id: 1,
-          name: "Friends",
-          description: "",
-        },
-        fields: [
-          {
-            table_id: 2,
-            user_id: 1,
-            field_id: 1,
-            name: "Name",
-
-            ordering: 1,
-            field_kind: {
-              type: FieldType.Text,
-              is_required: false,
-            },
-          },
-          {
-            table_id: 2,
-            user_id: 1,
-            field_id: 2,
-            name: "Last Name",
-
-            ordering: 1,
-            field_kind: {
-              type: FieldType.Text,
-              is_required: false,
-            },
-          },
-        ],
-        entries: [
-          {
-            entry_id: 1,
-            cells: {
-              "1": "Bob",
-              "2": "Smith",
-            },
-          },
-          {
-            entry_id: 2,
-            cells: {
-              "1": "John",
-              "2": "Smith",
-            },
-          },
-        ],
-        children: [],
-      },
-    ],
+    table: table_prop,
+    fields: [],
+    entries: [],
+    children: [],
   } as TableData);
 
   // mode-dependent variables
@@ -372,6 +274,7 @@
 
   const loadTable = () => {
     getTableData(table_prop).then((response: TableData) => {
+      console.log("done");
       response.fields.sort((f, g) => f.ordering - g.ordering);
 
       if (entry_id) {
@@ -432,6 +335,7 @@
   // Startup
   //
   onMount(() => {
+    console.log("loading table");
     loadTable();
   });
 </script>

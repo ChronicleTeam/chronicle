@@ -39,7 +39,7 @@
   let curTable: Table | null = $state({} as unknown as Table);
 
   // current editing mode: whether for the datatable or the fields (or neither, if no table is selected)
-  let editMode = $state(EditMode.TABLE);
+  let editMode = $state(EditMode.NONE);
 
   // for the table creation input
   let addTableField = $state("");
@@ -188,7 +188,7 @@
   </div>
   <!-- Main editor -->
   <div
-    class="bg-base-300 basis-xl grow-5 shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
+    class="bg-base-300 shadow-xs basis-xl grow-5 shrink min-w-0 rounded-lg p-3 flex flex-col items-center"
   >
     {#if editMode === EditMode.NONE || curTable === null}
       <h2 class="text-xl font-bold">Select a Table</h2>
