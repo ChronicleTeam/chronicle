@@ -18,13 +18,15 @@ export default defineConfig({
       {
         plugins: [tailwindcss(), sveltekit()],
         test: {
-          include: ['test/unit-testing/**'],
+          setupFiles: ['test/unit-testing/setup.ts'],
+          include: ['test/unit-testing/**/*.test.ts'],
           name: 'unit',
           environment: 'node',
         }
       }, {
         plugins: [tailwindcss(), sveltekit()],
         test: {
+          setupFiles: ['test/system-testing/setup.ts'],
           include: ['test/system-testing/**/*.test.ts'],
           name: 'system',
           browser: {

@@ -5,9 +5,6 @@ import { GET, POST, POST_FORM, PUT, PATCH, DELETE, _TESTING, hydrateJSONTableDat
 import { clearUser } from "../../../../src/lib/user.svelte.js";
 import { FieldType, type DateTimeKind } from "../../../../src/lib/types/dataManagement.js";
 
-vi.mock('$env/static/public', () => ({
-  PUBLIC_API_URL: 'example.com/api'
-}));
 vi.mock('$lib/user.svelte.js', () => ({
   clearUser: vi.fn()
 }));
