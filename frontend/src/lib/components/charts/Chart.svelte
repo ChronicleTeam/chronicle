@@ -31,16 +31,6 @@
   // determines whether modal is active or not
   let isModalActive = $state(false);
 
-  let chartModal: HTMLDialogElement;
-
-  const openModal = () => {
-    chartModal?.showModal();
-  };
-
-  const closeModal = () => {
-    chartModal?.close();
-  };
-
   let g: any;
 
   // Update graph on change
@@ -218,64 +208,52 @@
   });
 </script>
 
-{#snippet chartDisplay()}
-  {#if error}
-    <p class="text-error">({error})</p>
-  {:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
-    <!-- Bar or Line type Chart -->
-    <div class="size-full flex justify-center items-center">
-      <canvas bind:this={g}></canvas>
-    </div>
-  {:else if chartData}
-    <!--TODO: Style this table when backend is up again -->
-    <!-- Table type Chart -->
-    <table class="border border-black">
-      <thead>
-        <tr>
-          {#each chartData.axes as axis}
-            <th
-              class="border border-black bg-white select-none"
-              onclick={(e) => {
-                e.stopPropagation();
-                if (selectedColumn.axis_id === axis.axis.axis_id) {
-                  selectedColumn.ascending = !selectedColumn.ascending;
-                } else {
-                  selectedColumn.axis_id = axis.axis.axis_id;
-                  selectedColumn.ascending = true;
-                }
-              }}
-              >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
-                ? selectedColumn.ascending
-                  ? " ↑"
-                  : " ↓"
-                : ""}</th
-            >
-          {/each}
-        </tr>
-      </thead>
-      <tbody>
-        {#if tableCells}
-          {#each tableCells as row}
-            <tr>
-              {#each chartData.axes as axis}
-                <td class="p-2 border border-black">
-                  {row[axis.axis.axis_id]}
-                </td>
-              {/each}
-            </tr>
-          {/each}
-        {/if}
-      </tbody>
-    </table>
-  {/if}
-{/snippet}
-
-<div class=" flex justify-center">
-  {@render chartDisplay()}
-</div>
-
-<dialog bind:this={chartModal} class="modal">
-  <div class="modal-box">
-    {@render chartDisplay()}
+{#if error}
+  <p class="text-error">({error})</p>
+{:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
+  <!-- Bar or Line type Chart -->
+  <div class="size-full flex justify-center items-center">
+    <canvas bind:this={g}></canvas>
   </div>
-</dialog>
+{:else if chartData}
+  <!--TODO: Style this table when backend is up again -->
+  <!-- Table type Chart -->
+  <table class="border border-black">
+    <thead>
+      <tr>
+        {#each chartData.axes as axis}
+          <th
+            class="border border-black bg-white select-none"
+            onclick={(e) => {
+              e.stopPropagation();
+              if (selectedColumn.axis_id === axis.axis.axis_id) {
+                selectedColumn.ascending = !selectedColumn.ascending;
+              } else {
+                selectedColumn.axis_id = axis.axis.axis_id;
+                selectedColumn.ascending = true;
+              }
+            }}
+            >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
+              ? selectedColumn.ascending
+                ? " ↑"
+                : " ↓"
+              : ""}</th
+          >
+        {/each}
+      </tr>
+    </thead>
+    <tbody>
+      {#if tableCells}
+        {#each tableCells as row}
+          <tr>
+            {#each chartData.axes as axis}
+              <td class="p-2 border border-black">
+                {row[axis.axis.axis_id]}
+              </td>
+            {/each}
+          </tr>
+        {/each}
+      {/if}
+    </tbody>
+  </table>
+{/if}

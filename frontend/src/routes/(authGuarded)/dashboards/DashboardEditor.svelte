@@ -10,7 +10,7 @@
     postChart,
     putAxes,
   } from "$lib/api";
-  import ChartComponent from "$lib/components/charts/Chart.svelte";
+  import ChartComponent from "$lib/components/charts/ChartDisplay.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
     type Dashboard,
@@ -74,15 +74,7 @@
   };
 
   // list of charts associated with dashboard
-  let charts: Chart[] = $state([
-    {
-      chart_id: 1,
-      dashboard_id: 1,
-      table_id: 1,
-      name: "Chart 1",
-      chart_kind: ChartKind.Bar,
-    },
-  ]);
+  let charts: Chart[] = $state([]);
 
   // error fields
   let errors: {
@@ -310,30 +302,34 @@
     </div>
   {:else if modeState.mode === EditMode.EDIT_DASH}
     <div class="flex flex-col gap-1 items-center">
-      <input
-        class="btn"
-        bind:value={
-          () => dashboard.name,
-          (s) => {
-            if (modeState.mode === EditMode.EDIT_DASH) {
-              modeState.metadataChanged = true;
-              dashboard.name = s;
+      <label class="input">
+        Name:
+        <input
+          bind:value={
+            () => dashboard.name,
+            (s) => {
+              if (modeState.mode === EditMode.EDIT_DASH) {
+                modeState.metadataChanged = true;
+                dashboard.name = s;
+              }
             }
           }
-        }
-      />
-      <input
-        class="btn"
-        bind:value={
-          () => dashboard.description,
-          (s) => {
-            if (modeState.mode === EditMode.EDIT_DASH) {
-              modeState.metadataChanged = true;
-              dashboard.description = s;
+        />
+      </label>
+      <label class="input">
+        Description:
+        <input
+          bind:value={
+            () => dashboard.description,
+            (s) => {
+              if (modeState.mode === EditMode.EDIT_DASH) {
+                modeState.metadataChanged = true;
+                dashboard.description = s;
+              }
             }
           }
-        }
-      />
+        />
+      </label>
       <div class="flex gap-2">
         <ConfirmButton
           initText="Delete Dashboard"
@@ -498,17 +494,20 @@
   <!-- Chart editor (Axes) -->
 
   <!-- Chart metadata -->
-  <input class="mb-2" bind:value={charts[modeState.chartIdx].name} />
+  <input class="input mb-2" bind:value={charts[modeState.chartIdx].name} />
   <p class="text-error">{errors.chart.save}</p>
 
   <!-- Axes -->
   <div class="flex gap-3">
     {#each modeState.axisFields as axis, i}
-      <div class="card p-4 mb-2">
+      <div class="card bg-base-100 shadow-sm p-4 mb-2">
         <!-- Field -->
-        <div class="flex mb-2 gap-2 justify-between">
+        <div class="flex mb-2 gap-2 items-center justify-between">
           <p>Field:</p>
-          <select bind:value={modeState.axisFields[i].axis.field_id}>
+          <select
+            class="select"
+            bind:value={modeState.axisFields[i].axis.field_id}
+          >
             {#if modeState.chartTableData}
               {#each modeState.chartTableData.fields as field}
                 <option value={field.field_id}>{field.name}</option>
@@ -521,7 +520,10 @@
         {#if charts[modeState.chartIdx].chart_kind !== ChartKind.Table}
           <div class="flex mb-2 gap-2 justify-between">
             <p>Kind:</p>
-            <select bind:value={modeState.axisFields[i].axis.axis_kind}>
+            <select
+              class="select items-center"
+              bind:value={modeState.axisFields[i].axis.axis_kind}
+            >
               {#each Object.values(AxisKind).filter( (ak) => (modeState.mode === EditMode.EDIT_CHART ? !modeState.axisFields.some((af: AxisField) => af.axis.axis_kind === ak && axis.axis.axis_id !== af.axis.axis_id) : true), ) as kind}
                 <option>{kind}</option>
               {/each}
@@ -532,7 +534,10 @@
         <!-- Aggregation type -->
         <div class="flex mb-2 gap-2 justify-between">
           <p>Aggregate:</p>
-          <select bind:value={modeState.axisFields[i].axis.aggregate}>
+          <select
+            class="select items-center"
+            bind:value={modeState.axisFields[i].axis.aggregate}
+          >
             <option value={null}>None</option>
             {#each Object.values(Aggregate) as agg}
               <option>{agg}</option>
