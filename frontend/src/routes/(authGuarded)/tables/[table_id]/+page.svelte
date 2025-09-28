@@ -1,7 +1,5 @@
 <script lang="ts">
   import type {
-    Table,
-    TableData,
     Field,
     Entry,
     Cell,
@@ -15,7 +13,6 @@
     Checkbox,
     Enumeration,
     InputParameters,
-    TextKind,
     EnumerationKind,
     IntegerKind,
     MoneyKind,
@@ -23,32 +20,28 @@
   } from "$lib/types";
   import { FieldType } from "$lib/types";
   import {
-    getTableData,
     postEntries,
     patchEntry,
     deleteEntry,
+    postExportTable,
     type APIError,
   } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
-  import TableEditor from "./TableEditor.svelte";
-  import FieldEditor from "./FieldEditor.svelte";
-  import { onMount } from "svelte";
   import { TableMode, type ModeState, type TableChild } from "./types";
-  let { table_prop, entry_id }: { table_prop: Table; entry_id?: number } =
-    $props();
+  import type { PageProps } from "./$types";
+  import { goto, refreshAll } from "$app/navigation";
 
   //
   // State
   //
 
   // the TableData object being displayed
-  let table = $state({
-    table: table_prop,
-    fields: [],
-    entries: [],
-    children: [],
-  } as TableData);
+  let { data }: PageProps = $props();
+  let table = $state(data.table);
+  $effect(() => {
+    table = data.table;
+  });
 
   // mode-dependent variables
   let modeState: ModeState = $state({ mode: TableMode.DISPLAY });
@@ -105,8 +98,14 @@
           [key: string]: string;
         }
       | string;
+    table: {
+      export: string;
+    };
   } = $state({
     fields: {},
+    table: {
+      export: "",
+    },
   });
 
   //
@@ -123,7 +122,7 @@
       i--;
     }
     return {
-      parent_id: entry_id ?? null,
+      parent_id: null,
       entry_id: i,
       cells: Object.fromEntries(
         table.fields.map((f: Field): [string, Cell] => {
@@ -272,20 +271,6 @@
   // API Calls
   //
 
-  const loadTable = () => {
-    getTableData(table_prop).then((response: TableData) => {
-      console.log("done");
-      response.fields.sort((f, g) => f.ordering - g.ordering);
-
-      if (entry_id) {
-        response.entries = response.entries.filter(
-          (e) => e.parent_id === entry_id,
-        );
-      }
-      table = response;
-    });
-  };
-
   const createEntries = () => {
     if (modeState.mode === TableMode.INSERT) {
       postEntries(
@@ -298,7 +283,7 @@
       )
         .then(() => {
           cancelEntries();
-          loadTable();
+          refreshAll();
         })
         .catch((e: APIError) => {
           if (e.status === 422) {
@@ -313,7 +298,7 @@
       patchEntry(table.table, table.entries[modeState.entry_idx])
         .then(() => {
           cancelEntries();
-          loadTable();
+          refreshAll();
         })
         .catch((e: APIError) => {
           if (e.status === 422) {
@@ -327,222 +312,252 @@
     if (modeState.mode === TableMode.EDIT) {
       deleteEntry(table.table, table.entries[modeState.entry_idx])
         .then(cancelEntries)
-        .then(loadTable);
+        .then(() => refreshAll());
     }
   };
 
-  //
-  // Startup
-  //
-  onMount(() => {
-    console.log("loading table");
-    loadTable();
-  });
+  const FileTypes = {
+    csv: "text/csv",
+    excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  };
+
+  const FileExtensions = {
+    csv: ".csv",
+    excel: ".xlsx",
+  };
+  const exportTable = (type: "csv" | "excel") => {
+    postExportTable(table.table, type)
+      .then((r) => {
+        let exportedFile = new File(
+          [r],
+          table.table.name.replaceAll(" ", "_") + FileExtensions[type],
+          {
+            type: FileTypes[type],
+          },
+        );
+        open(URL.createObjectURL(exportedFile));
+      })
+      .catch((e) => {
+        errors.table.export = e.body.toString();
+      });
+  };
 </script>
 
-{#if modeState.mode === TableMode.CHILD}
-  <!-- Display child table -->
-  <div class="flex items-center gap-2 mb-2">
-    <button
-      class="btn"
-      onclick={() => {
-        modeDisplay();
-        loadTable();
-      }}>Back to <span class="font-bold">{table.table.name}</span></button
-    >
-    <h2 class="text-lg font-bold">{modeState.child.table_data.table.name}</h2>
+<!-- Display main table -->
+<div class=" flex flex-col items-center gap-3">
+  <!-- Top bar -->
+  <div class="flex justify-between items-center gap-2">
+    <div></div>
+    <h2 class="text-lg font-bold">{table.table.name}</h2>
+    <div>
+      <button
+        onclick={() => {
+          goto(`/tables/${table.table.table_id}/edit`);
+        }}
+        class="btn">Edit</button
+      >
+      <!-- Export buttons -->
+      <details class="dropdown">
+        <summary class="btn">Export</summary>
+        <ul class="dropdown-content menu bg-base-100 rounded-md m-1 w-64">
+          <li>
+            <button onclick={() => exportTable("csv")}>Export as CSV</button>
+          </li>
+          <li>
+            <button onclick={() => exportTable("excel")}
+              >Export as Excel Spreadsheet</button
+            >
+          </li>
+        </ul>
+      </details>
+    </div>
   </div>
-  <TableEditor
-    table_prop={modeState.child.table_data.table}
-    entry_id={modeState.child.entry_id}
-  />
-{:else if modeState.mode === TableMode.EDIT_CHILD}
-  <FieldEditor
-    table_prop={modeState.child.table_data.table}
-    on_save={() => {
-      modeDisplay();
-    }}
-    delete_table={() => {}}
-  />
-{:else}
-  <!-- Display main table -->
-  <div class="flex flex-col items-center justify-center gap-3">
-    <!-- Main table -->
-    <div
-      class="overflow-x-auto rounded-lg border border-base-content/5 border-base-100"
-    >
-      <table class="table text-base-content w-full">
-        <!-- Headers -->
-        <thead>
+
+  {#if errors.table.export}
+    <p class="text-error">Could not export table.</p>
+  {/if}
+  <h3 class="text-lg mb-2">{table.table.description}</h3>
+
+  <!-- Main table -->
+  <div
+    class="overflow-x-auto rounded-lg border border-base-content/5 border-base-100"
+  >
+    <table class="table text-base-content w-full">
+      <!-- Headers -->
+      <thead>
+        <tr>
+          {#each table.fields as field}
+            <th>
+              <!-- Floating error bubble -->
+              <div
+                class={{
+                  "tooltip tooltip-error tooltip-right ": true,
+                  "tooltip-open":
+                    modeState.mode === TableMode.INSERT &&
+                    typeof errors.fields === "object" &&
+                    errors.fields[field.field_id.toString()] !== undefined,
+                }}
+                data-tip={modeState.mode === TableMode.INSERT &&
+                typeof errors.fields === "object" &&
+                errors.fields[field.field_id.toString()] !== undefined
+                  ? `Error: ${errors.fields[field.field_id.toString()]}`
+                  : undefined}
+              >
+                {field.name}
+              </div>
+            </th>
+          {/each}
+          {#each table.children as child}
+            <th
+              >{child.table.name}
+              <button
+                class="btn"
+                onclick={() => {
+                  goto(
+                    `/tables/${table.table.table_id}/subtables/${child.table.table_id}/edit`,
+                  );
+                }}
+              >
+                Edit</button
+              ></th
+            >
+          {/each}
+        </tr>
+      </thead>
+
+      <!-- Cells -->
+      <tbody>
+        {#each table.entries as entry, i}
           <tr>
-            {#each table.fields as field}
-              <th>
+            <!-- Regular Cells -->
+            {#each table.fields as field, j}
+              <td
+                class={[
+                  (modeState.mode === TableMode.INSERT &&
+                    modeState.entry_idxes.includes(i)) ||
+                  (modeState.mode === TableMode.EDIT &&
+                    modeState.entry_idx === i)
+                    ? "bg-info/25"
+                    : "bg-base-100",
+                ]}
+                ondblclick={() => {
+                  if (modeState.mode === TableMode.DISPLAY) editEntry(i);
+                }}
+              >
                 <!-- Floating error bubble -->
                 <div
                   class={{
-                    "tooltip tooltip-error tooltip-right ": true,
+                    "tooltip tooltip-error": true,
                     "tooltip-open":
-                      modeState.mode === TableMode.INSERT &&
+                      modeState.mode === TableMode.EDIT &&
+                      modeState.entry_idx === i &&
                       typeof errors.fields === "object" &&
                       errors.fields[field.field_id.toString()] !== undefined,
                   }}
-                  data-tip={modeState.mode === TableMode.INSERT &&
+                  data-tip={modeState.mode === TableMode.EDIT &&
+                  modeState.entry_idx === i &&
                   typeof errors.fields === "object" &&
                   errors.fields[field.field_id.toString()] !== undefined
                     ? `Error: ${errors.fields[field.field_id.toString()]}`
                     : undefined}
                 >
-                  {field.name}
+                  <!-- Table cell -->
+                  <VariableInput
+                    id={`input-${i}-${j}`}
+                    disabled={!(
+                      (modeState.mode === TableMode.INSERT &&
+                        modeState.entry_idxes.includes(i)) ||
+                      (modeState.mode === TableMode.EDIT &&
+                        modeState.entry_idx === i)
+                    )}
+                    class="border-none bg-transparent focus:outline-hidden outline-hidden size-full disabled:pointer-events-none"
+                    params={cellToInputParams(i, field)}
+                    onkeydown={(k) => {
+                      if (k.key === "Enter") {
+                        if (i === table.entries.length - 1) {
+                          insertEntry();
+                        } else {
+                          document
+                            .getElementById(`input-${i + 1}-${0}`)
+                            ?.focus();
+                        }
+                      }
+                    }}
+                  />
                 </div>
-              </th>
+              </td>
             {/each}
+
+            <!-- Child table Cells -->
             {#each table.children as child}
-              <th
-                >{child.table.name}
-                <button
-                  class="btn"
-                  onclick={() => {
-                    modeEditChild({ table_data: child, entry_id: -1 });
-                  }}
-                >
-                  Edit</button
-                ></th
+              <td
+                class={[
+                  (modeState.mode === TableMode.INSERT &&
+                    modeState.entry_idxes.includes(i)) ||
+                  (modeState.mode === TableMode.EDIT &&
+                    modeState.entry_idx === i)
+                    ? "bg-info/25"
+                    : "bg-base-100",
+                ]}
+                onclick={() => {
+                  if (modeState.mode === TableMode.EDIT) {
+                    modeChild({
+                      table_data: child,
+                      entry_id: entry.entry_id,
+                    });
+                  }
+                }}
+                ondblclick={() => {
+                  if (modeState.mode === TableMode.DISPLAY) {
+                    modeChild({
+                      table_data: child,
+                      entry_id: entry.entry_id,
+                    });
+                    goto(
+                      `/tables/${table.table.table_id}/subtables/${child.table.table_id}/${entry.entry_id}`,
+                    );
+                  }
+                }}
               >
+                <p>
+                  {child.entries.filter((e) => e.parent_id === entry.entry_id)
+                    .length} entries
+                </p>
+              </td>
             {/each}
           </tr>
-        </thead>
-
-        <!-- Cells -->
-        <tbody>
-          {#each table.entries.filter( (e) => (entry_id != null ? e.parent_id === entry_id : true), ) as entry, i}
-            <tr>
-              <!-- Regular Cells -->
-              {#each table.fields as field, j}
-                <td
-                  class={[
-                    (modeState.mode === TableMode.INSERT &&
-                      modeState.entry_idxes.includes(i)) ||
-                    (modeState.mode === TableMode.EDIT &&
-                      modeState.entry_idx === i)
-                      ? "bg-info/25"
-                      : "bg-base-100",
-                  ]}
-                  ondblclick={() => {
-                    if (modeState.mode === TableMode.DISPLAY) editEntry(i);
-                  }}
-                >
-                  <!-- Floating error bubble -->
-                  <div
-                    class={{
-                      "tooltip tooltip-error": true,
-                      "tooltip-open":
-                        modeState.mode === TableMode.EDIT &&
-                        modeState.entry_idx === i &&
-                        typeof errors.fields === "object" &&
-                        errors.fields[field.field_id.toString()] !== undefined,
-                    }}
-                    data-tip={modeState.mode === TableMode.EDIT &&
-                    modeState.entry_idx === i &&
-                    typeof errors.fields === "object" &&
-                    errors.fields[field.field_id.toString()] !== undefined
-                      ? `Error: ${errors.fields[field.field_id.toString()]}`
-                      : undefined}
-                  >
-                    <!-- Table cell -->
-                    <VariableInput
-                      id={`input-${i}-${j}`}
-                      disabled={!(
-                        (modeState.mode === TableMode.INSERT &&
-                          modeState.entry_idxes.includes(i)) ||
-                        (modeState.mode === TableMode.EDIT &&
-                          modeState.entry_idx === i)
-                      )}
-                      class="border-none bg-transparent focus:outline-hidden outline-hidden size-full disabled:pointer-events-none"
-                      params={cellToInputParams(i, field)}
-                      onkeydown={(k) => {
-                        if (k.key === "Enter") {
-                          if (i === table.entries.length - 1) {
-                            insertEntry();
-                          } else {
-                            document
-                              .getElementById(`input-${i + 1}-${0}`)
-                              ?.focus();
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                </td>
-              {/each}
-
-              <!-- Child table Cells -->
-              {#each table.children as child}
-                <td
-                  class={[
-                    (modeState.mode === TableMode.INSERT &&
-                      modeState.entry_idxes.includes(i)) ||
-                    (modeState.mode === TableMode.EDIT &&
-                      modeState.entry_idx === i)
-                      ? "bg-info/25"
-                      : "bg-base-100",
-                  ]}
-                  onclick={() => {
-                    if (modeState.mode === TableMode.EDIT) {
-                      modeChild({
-                        table_data: child,
-                        entry_id: entry.entry_id,
-                      });
-                    }
-                  }}
-                  ondblclick={() => {
-                    if (modeState.mode === TableMode.DISPLAY) {
-                      modeChild({
-                        table_data: child,
-                        entry_id: entry.entry_id,
-                      });
-                    }
-                  }}
-                >
-                  <p>
-                    {child.entries.filter((e) => e.parent_id === entry.entry_id)
-                      .length} entries
-                  </p>
-                </td>
-              {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-    {#if typeof errors.fields === "string"}
-      <p class="text-error">
-        Error: {errors.fields}
-      </p>
-    {/if}
-    <!-- Add row button -->
-    {#if (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
-      <button onclick={insertEntry} class="btn btn-dash btn-block border-2"
-        >+ Add Row</button
-      >
-    {/if}
-    <!-- Button cluster to confirm/cancel editing/creating entries -->
-    {#if modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT}
-      <div class="flex justify-center gap-3">
-        <button
-          onclick={modeState.mode === TableMode.INSERT
-            ? createEntries
-            : updateEntry}
-          class="btn">Save</button
-        >
-        {#if modeState.mode === TableMode.EDIT}
-          <ConfirmButton
-            initText="Delete Entry"
-            confirmText="Confirm Delete"
-            onconfirm={removeEntry}
-          />
-        {/if}
-        <button onclick={cancelEntries} class="btn btn-error">Cancel</button>
-      </div>
-    {/if}
+        {/each}
+      </tbody>
+    </table>
   </div>
-{/if}
+  {#if typeof errors.fields === "string"}
+    <p class="text-error">
+      Error: {errors.fields}
+    </p>
+  {/if}
+  <!-- Add row button -->
+  {#if (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
+    <button onclick={insertEntry} class="btn btn-dash btn-block border-2"
+      >+ Add Row</button
+    >
+  {/if}
+  <!-- Button cluster to confirm/cancel editing/creating entries -->
+  {#if modeState.mode === TableMode.INSERT || modeState.mode === TableMode.EDIT}
+    <div class="flex justify-center gap-3">
+      <button
+        onclick={modeState.mode === TableMode.INSERT
+          ? createEntries
+          : updateEntry}
+        class="btn">Save</button
+      >
+      {#if modeState.mode === TableMode.EDIT}
+        <ConfirmButton
+          initText="Delete Entry"
+          confirmText="Confirm Delete"
+          onconfirm={removeEntry}
+        />
+      {/if}
+      <button onclick={cancelEntries} class="btn btn-error">Cancel</button>
+    </div>
+  {/if}
+</div>

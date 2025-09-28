@@ -30,8 +30,10 @@
     getTableData,
   } from "$lib/api";
   import { onMount } from "svelte";
+  import { goto, invalidate, invalidateAll } from "$app/navigation";
+  import type { PageProps } from "./$types";
 
-  let { table_prop, on_save, delete_table } = $props();
+  let { data }: PageProps = $props();
 
   //
   // Constants and types
@@ -67,7 +69,7 @@
   //
 
   // if the current table has a parent
-  let isSubtable = $state(table_prop.parent_id != null);
+  let isSubtable = $state(data.table_prop.parent_id != null);
 
   // old table state (as it is in the backend) and new table state (as the user is changing it to be)
   let table: {
@@ -75,13 +77,13 @@
     new: TableData; // table undergoing modifications
   } = $state({
     old: {
-      table: table_prop,
+      table: data.table_prop,
       fields: [],
       entries: [],
       children: [],
     },
     new: {
-      table: $state.snapshot(table_prop),
+      table: $state.snapshot(data.table_prop),
       fields: [],
       entries: [],
       children: [],
@@ -571,7 +573,7 @@
       table: {
         table_id: id,
         user_id: -1,
-        parent_id: table_prop.table_id,
+        parent_id: data.table_prop.table_id,
         name: newTableName,
         description: "",
       },
@@ -835,8 +837,14 @@
   // API Calls
   //
 
+  const deleteCurrentTable = async () => {
+    await deleteTable(data.table_prop);
+    await invalidateAll();
+    goto("/tables");
+  };
+
   const loadFields = () => {
-    getTableData(table_prop).then((td) => {
+    getTableData(data.table_prop.table_id.toString()).then((td) => {
       // update fields
       table.old.fields = td.fields.toSorted((f, g) => f.ordering - g.ordering);
       table.new.fields = $state.snapshot(table.old.fields);
@@ -1019,7 +1027,7 @@
     // quit or reload
     Promise.allSettled(promises).then((results) => {
       if (results.every((r) => r.status == "fulfilled" && r.value.ok)) {
-        on_save();
+        goto(`/tables/${data.table_prop.table_id}`);
       }
     });
   };
@@ -1037,8 +1045,6 @@
       errors.fields[f.field_id] = "";
     });
   });
-
-  $inspect(table);
 </script>
 
 <div class="w-full">
@@ -1070,7 +1076,7 @@
         class="btn"
         initText="Delete Table"
         confirmText="Confirm Delete"
-        onconfirm={delete_table}
+        onconfirm={deleteCurrentTable}
       />
     {/if}
   </div>
@@ -1214,8 +1220,9 @@
   <!-- TODO: actually have the condition check for modifications -->
   <div class="flex justify-center gap-4">
     <button onclick={openConfirmationModal} class="btn join-item">Save</button>
-    <button onclick={on_save} class="btn btn-soft btn-error join-item"
-      >Cancel</button
+    <button
+      onclick={() => goto(`/tables/${data.table_prop.table_id}`)}
+      class="btn btn-soft btn-error join-item">Cancel</button
     >
   </div>
 {/if}
