@@ -1,4 +1,4 @@
-import type { AxisField, TableData, Chart } from "$lib/types";
+import type { Chart } from "$lib/types";
 
 export enum EditMode {
   DISPLAY = 0,
@@ -12,10 +12,4 @@ export type ModeState = {
   mode: EditMode.EDIT_DASH;
   metadataChanged: boolean;
   newChart: Chart | null;
-} | {
-  mode: EditMode.EDIT_CHART;
-  chartIdx: number;
-  chartTableData: TableData;
-  axisFields: AxisField[];
-
-}
+} 

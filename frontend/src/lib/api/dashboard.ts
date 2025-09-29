@@ -19,9 +19,9 @@ export const deleteDashboard = async (d: Dashboard): Promise<void> => DELETE(`/d
 
 // Chart methods
 
-export const getCharts = async (d: Dashboard): Promise<Chart[]> => GET<Chart[]>(`/dashboards/${d.dashboard_id}/charts`);
+export const getCharts = async (dashboard_id: string): Promise<Chart[]> => GET<Chart[]>(`/dashboards/${dashboard_id}/charts`);
 
-export const getChartData = async (d: Dashboard, c: Chart): Promise<ChartData> => GET<ChartData>(`/dashboards/${d.dashboard_id}/charts/${c.chart_id}/data`).then((c: ChartData) => {
+export const getChartData = async (dashboard_id: string, chart_id: string): Promise<ChartData> => GET<ChartData>(`/dashboards/${dashboard_id}/charts/${chart_id}/data`).then((c: ChartData) => {
   c.axes = c.axes.map((a: AxisField) => {
     a.axis.aggregate = a.axis.aggregate ?? undefined;
     return a;
