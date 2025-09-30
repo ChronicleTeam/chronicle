@@ -54,12 +54,6 @@
   const modeEdit = (entry_idx: number) => {
     modeState = { mode: TableMode.EDIT, entry_idx };
   };
-  const modeChild = (child: TableChild) => {
-    modeState = { mode: TableMode.CHILD, child };
-  };
-  const modeEditChild = (child: TableChild) => {
-    modeState = { mode: TableMode.EDIT_CHILD, child };
-  };
 
   /**
    * Cancel addition of entries
@@ -501,18 +495,13 @@
                 ]}
                 onclick={() => {
                   if (modeState.mode === TableMode.EDIT) {
-                    modeChild({
-                      table_data: child,
-                      entry_id: entry.entry_id,
-                    });
+                    goto(
+                      `/tables/${table.table.table_id}/subtables/${child.table.table_id}/${entry.entry_id}`,
+                    );
                   }
                 }}
                 ondblclick={() => {
                   if (modeState.mode === TableMode.DISPLAY) {
-                    modeChild({
-                      table_data: child,
-                      entry_id: entry.entry_id,
-                    });
                     goto(
                       `/tables/${table.table.table_id}/subtables/${child.table.table_id}/${entry.entry_id}`,
                     );

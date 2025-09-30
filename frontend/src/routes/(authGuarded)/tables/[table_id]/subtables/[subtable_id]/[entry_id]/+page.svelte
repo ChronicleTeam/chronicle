@@ -1,7 +1,5 @@
 <script lang="ts">
   import type {
-    Table,
-    TableData,
     Field,
     Entry,
     Cell,
@@ -15,7 +13,6 @@
     Checkbox,
     Enumeration,
     InputParameters,
-    TextKind,
     EnumerationKind,
     IntegerKind,
     MoneyKind,
@@ -23,14 +20,12 @@
   } from "$lib/types";
   import { FieldType } from "$lib/types";
   import {
-    getTableData,
     postEntries,
     patchEntry,
     deleteEntry,
     postExportTable,
     type APIError,
   } from "$lib/api";
-  import { page } from "$app/state";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import { TableMode, type ModeState, type TableChild } from "./types";
@@ -43,7 +38,6 @@
 
   // the TableData object being displayed
   let { data }: PageProps = $props();
-  let parentId = $derived(data.parentId);
   let entryId = $derived(data.entryId);
   let table = $state(data.table);
   $effect(() => {
@@ -60,12 +54,6 @@
   };
   const modeEdit = (entry_idx: number) => {
     modeState = { mode: TableMode.EDIT, entry_idx };
-  };
-  const modeChild = (child: TableChild) => {
-    modeState = { mode: TableMode.CHILD, child };
-  };
-  const modeEditChild = (child: TableChild) => {
-    modeState = { mode: TableMode.EDIT_CHILD, child };
   };
 
   /**
@@ -357,12 +345,6 @@
     <div></div>
     <h2 class="text-lg font-bold">{table.table.name}</h2>
     <div>
-      <!-- <button
-        onclick={() => {
-          goto(`/tables/${table.table.table_id}/edit`);
-        }}
-        class="btn">Edit</button
-      > -->
       <!-- Export buttons -->
       <details class="dropdown">
         <summary class="btn">Export</summary>
@@ -508,18 +490,13 @@
                 ]}
                 onclick={() => {
                   if (modeState.mode === TableMode.EDIT) {
-                    modeChild({
-                      table_data: child,
-                      entry_id: entry.entry_id,
-                    });
+                    goto(
+                      `/tables/${table.table.table_id}/subtables/${child.table.table_id}/${entry.entry_id}`,
+                    );
                   }
                 }}
                 ondblclick={() => {
                   if (modeState.mode === TableMode.DISPLAY) {
-                    modeChild({
-                      table_data: child,
-                      entry_id: entry.entry_id,
-                    });
                     goto(
                       `/tables/${table.table.table_id}/subtables/${child.table.table_id}/${entry.entry_id}`,
                     );
