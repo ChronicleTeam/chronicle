@@ -20,7 +20,6 @@
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import {
     patchTable,
-    getFields,
     postField,
     patchField,
     deleteField,
@@ -30,7 +29,7 @@
     getTableData,
   } from "$lib/api";
   import { onMount } from "svelte";
-  import { goto, invalidate, invalidateAll } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
   import type { PageProps } from "./$types";
 
   let { data }: PageProps = $props();
