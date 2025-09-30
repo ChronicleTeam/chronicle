@@ -28,9 +28,6 @@
   // error state
   let error = $state("");
 
-  // determines whether modal is active or not
-  let isModalActive = $state(false);
-
   let g: any;
 
   // Update graph on change
@@ -197,7 +194,7 @@
   //
 
   onMount(() => {
-    getChartData(dashboard, chart)
+    getChartData(dashboard.dashboard_id.toString(), chart.chart_id.toString())
       .then((r: ChartData) => {
         chartData = r;
         chartData = stringifyDates(chartData);
