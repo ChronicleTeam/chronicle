@@ -145,7 +145,7 @@ resource "google_cloudbuild_trigger" "backend" {
     }
     step {
       name = "gcr.io/cloud-builders/docker"
-      args = ["build", "-t", "$_IMAGE_URL:$COMMIT_SHA", "."]
+      args = ["build", "-t", "$_IMAGE_URL:$COMMIT_SHA", "backend"]
     }
     step {
       name = "gcr.io/cloud-builders/docker"
