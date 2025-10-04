@@ -10,6 +10,7 @@ use axum::{
     response::Response,
 };
 use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use password_auth::{generate_hash, verify_password};
 use sqlx::{Acquire, PgPool, Postgres};
 use tokio::task;
@@ -61,7 +62,11 @@ impl AuthnBackend for AuthBackend {
 
 pub type AuthSession = axum_login::AuthSession<AuthBackend>;
 
-pub async fn init(router: Router<AppState>, db: PgPool) -> anyhow::Result<Router<AppState>> {
+pub async fn init(
+    router: Router<AppState>,
+    db: PgPool,
+    session_key: String,
+) -> anyhow::Result<Router<AppState>> {
     let session_store = PostgresStore::new(db.clone());
     session_store.migrate().await?;
 
@@ -72,7 +77,7 @@ pub async fn init(router: Router<AppState>, db: PgPool) -> anyhow::Result<Router
     );
 
     // Generate a cryptographic key to sign the session cookie.
-    let session_key = Key::generate();
+    let session_key = Key::from(&BASE64_STANDARD.decode(session_key)?);
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(true)
@@ -99,7 +104,6 @@ pub async fn set_admin_user(
     creds: Credentials,
 ) -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
-
     if let Some(admin_user) =
         db::get_user_from_username(tx.as_mut(), creds.username.clone()).await?
     {
@@ -128,6 +132,7 @@ pub async fn set_admin_user(
     } else {
         return Err(anyhow!("admin user not found"));
     }
+    tx.commit().await?;
     Ok(())
 }
 
