@@ -1,4 +1,4 @@
-use crate::{model::Cell, Id};
+use crate::{Id, model::Cell};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -47,7 +47,7 @@ pub struct TableData {
 pub struct CreateTableData {
     pub table: CreateTable,
     pub fields: Vec<CreateField>,
-    pub entries: Vec<Vec<Cell>>
+    pub entries: Vec<Vec<Cell>>,
 }
 
 /// Database identifier of the actual SQL table that a user table points to.

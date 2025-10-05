@@ -6,11 +6,12 @@ mod axes;
 mod charts;
 mod dashboards;
 
-use crate::AppState;
-use axum::Router;
+use aide::axum::ApiRouter;
 
-pub fn router() -> Router<AppState> {
-    Router::new()
+use crate::AppState;
+
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new()
         .merge(dashboards::router())
         .merge(charts::router())
         .merge(axes::router())

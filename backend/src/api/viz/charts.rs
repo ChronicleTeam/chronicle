@@ -1,16 +1,22 @@
 use crate::{
-    auth::AuthSession, db, error::{ApiError, ApiResult}, model::viz::{Chart, ChartData, CreateChart, UpdateChart}, AppState, Id
+    AppState, Id,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::viz::{Chart, ChartData, CreateChart, UpdateChart},
 };
+use aide::{NoApi, axum::ApiRouter};
 use axum::{
-    Json, Router,
+    Json,
     extract::{Path, State},
     routing::{get, patch, post},
 };
+use axum_login::AuthSession;
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/dashboards/{dashboard-id}/charts",
-        Router::new()
+        ApiRouter::new()
             .route("/", post(create_chart).get(get_charts))
             .route("/{chart-id}", patch(update_chart).delete(delete_chart))
             .route("/{chart-id}/data", get(get_chart_data)),
@@ -25,7 +31,7 @@ pub fn router() -> Router<AppState> {
 /// - [ApiError::NotFound]: Dashboard or table not found
 ///
 async fn create_chart(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(dashboard_id): Path<Id>,
     Json(create_chart): Json<CreateChart>,
@@ -52,7 +58,7 @@ async fn create_chart(
 /// - [ApiError::NotFound]: Dashboard or chart not found
 ///
 async fn update_chart(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(update_chart): Json<UpdateChart>,
@@ -79,7 +85,7 @@ async fn update_chart(
 /// - [ApiError::NotFound]: Dashboard or chart not found
 ///
 async fn delete_chart(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
@@ -105,7 +111,7 @@ async fn delete_chart(
 /// - [ApiError::NotFound]: Dashboard not found
 ///
 async fn get_charts(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Chart>>> {
@@ -130,7 +136,7 @@ async fn get_charts(
 /// - [ApiError::NotFound]: Dashboard or chart not found
 ///
 async fn get_chart_data(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<Json<ChartData>> {

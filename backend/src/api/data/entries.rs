@@ -1,13 +1,20 @@
 use crate::{
-    auth::AuthSession, db, error::{ApiError, ApiResult}, model::{
-        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry}, Cell
-    }, AppState, Id
+    AppState, Id,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::{
+        Cell,
+        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
+    },
 };
+use aide::{NoApi, axum::ApiRouter};
 use axum::{
-    Json, Router,
+    Json,
     extract::{Path, State},
     routing::{patch, post},
 };
+use axum_login::AuthSession;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
@@ -20,10 +27,10 @@ const ENUMERATION_VALUE_MISSING: &str = "Enumeration value is does not exist";
 const INVALID_TYPE: &str = "Value is not the correct type";
 const INVALID_FIELD_ID: &str = "Field ID key is invalid";
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/tables/{table-id}/entries",
-        Router::new()
+        ApiRouter::new()
             .route("/", post(create_entries))
             .route("/{entry-id}", patch(update_entry).delete(delete_entry)),
     )
@@ -44,7 +51,7 @@ pub fn router() -> Router<AppState> {
 ///     - <field_id>: [`INVALID_FIELD_ID`]
 ///
 async fn create_entries(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(CreateEntries { parent_id, entries }): Json<CreateEntries>,
@@ -89,7 +96,7 @@ async fn create_entries(
 ///     - [`INVALID_FIELD_ID`]
 ///
 async fn update_entry(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry { parent_id, cells }): Json<UpdateEntry>,
@@ -127,7 +134,7 @@ async fn update_entry(
 /// - [`ApiError::NotFound`]: Table or entry not found
 ///
 async fn delete_entry(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {

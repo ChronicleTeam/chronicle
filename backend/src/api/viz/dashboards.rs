@@ -1,16 +1,22 @@
 use crate::{
-    auth::AuthSession, db, error::{ApiError, ApiResult}, model::viz::{CreateDashboard, Dashboard, UpdateDashboard}, AppState, Id
+    AppState, Id,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
 };
+use aide::{NoApi, axum::ApiRouter};
 use axum::{
+    Json,
     extract::{Path, State},
     routing::{patch, post},
-    Json, Router,
 };
+use axum_login::AuthSession;
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/dashboards",
-        Router::new()
+        ApiRouter::new()
             .route("/", post(create_dashboard).get(get_dashboards))
             .route(
                 "/{dashboard-id}",
@@ -20,12 +26,12 @@ pub fn router() -> Router<AppState> {
 }
 
 /// Create a blank dashboard.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
-/// 
+///
 async fn create_dashboard(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Json(create_dashboard): Json<CreateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
@@ -37,14 +43,14 @@ async fn create_dashboard(
 }
 
 /// Update a dashboard's metadata.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard
 /// - [ApiError::NotFound]: Dashboard not found
-/// 
+///
 async fn update_dashboard(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(dashboard_id): Path<Id>,
     Json(update_dashboard): Json<UpdateDashboard>,
@@ -61,14 +67,14 @@ async fn update_dashboard(
 }
 
 /// Delete a dashboard and all of it's charts and chart axes.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
 /// - [ApiError::Forbidden]: User does not have access to this dashboard
 /// - [ApiError::NotFound]: Dashboard not found
-/// 
+///
 async fn delete_dashboard(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<()> {
@@ -84,12 +90,12 @@ async fn delete_dashboard(
 }
 
 /// Get all dashboards of the user.
-/// 
+///
 /// # Errors
 /// - [ApiError::Unauthorized]: User not authenticated
-/// 
+///
 async fn get_dashboards(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
 ) -> ApiResult<Json<Vec<Dashboard>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;

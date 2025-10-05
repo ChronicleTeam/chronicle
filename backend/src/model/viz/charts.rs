@@ -1,11 +1,10 @@
-use crate::{model::Cell, Id};
+use crate::{Id, model::Cell};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use std::{collections::HashMap, fmt};
 
 use super::AxisField;
-
 
 /// Dashboard chart entity.
 #[derive(Debug, Serialize, FromRow)]

@@ -1,24 +1,30 @@
 use crate::{
-    auth::AuthSession, db::{self}, error::{ApiError, ApiResult}, model::{
+    AppState, Id,
+    auth::AppAuthSession,
+    db::{self},
+    error::{ApiError, ApiResult},
+    model::{
         data::FieldKind,
         viz::{Aggregate, Axis, SetAxes},
-    }, AppState, Id
+    },
 };
+use aide::{NoApi, axum::ApiRouter};
 use axum::{
-    Json, Router,
+    Json,
     extract::{Path, State},
     routing::put,
 };
+use axum_login::AuthSession;
 use itertools::Itertools;
 use std::collections::HashMap;
 
 const FIELD_NOT_FOUND: &str = "Field not found";
 const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/dashboards/{dashboard-id}/charts/{chart-id}/axes",
-        Router::new().route("/", put(set_axes)),
+        ApiRouter::new().route("/", put(set_axes)),
     )
 }
 
@@ -36,7 +42,7 @@ pub fn router() -> Router<AppState> {
 ///     - <field_id>: [INVALID_AXIS_AGGREGATE]
 ///
 async fn set_axes(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
     Json(SetAxes(axes)): Json<SetAxes>,

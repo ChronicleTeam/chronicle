@@ -6,16 +6,25 @@
 
 use crate::{
     AppState,
-    auth::AuthSession,
+    auth::AppAuthSession,
     db::{self},
+    docs::{AUTHENTICATION_TAG, USERS_TAG},
     error::{ApiError, ApiResult, IntoAnyhow},
     model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
 };
-use axum::{
-    Form, Json, Router,
-    extract::{Path, State},
-    routing::{get, patch, post},
+use aide::{
+    NoApi,
+    axum::{
+        ApiRouter,
+        routing::{get_with, patch_with, post_with},
+    },
+    transform::TransformOperation,
 };
+use axum::{
+    Form, Json,
+    extract::{Path, State},
+};
+use axum_login::AuthSession;
 use password_auth::generate_hash;
 use tokio::task;
 
@@ -23,42 +32,42 @@ const INVALID_CREDENTIALS: &str = "Invalid credentials";
 const ALREADY_LOGGED_IN: &str = "Already logged in";
 const USERNAME_IS_TAKEN: &str = "Username is taken";
 
-pub fn router() -> Router<AppState> {
-    Router::new()
-        // .route("/register", post(register))
-        .route("/login", post(login))
-        .route("/logout", get(logout))
-        .route("/user", get(get_auth_user))
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new()
+        .api_route("/login", post_with(login, login_docs))
+        .api_route("/logout", get_with(logout, logout_docs))
+        .api_route("/user", get_with(get_auth_user, get_auth_user_docs))
         .nest(
             "/users",
-            Router::new()
-                .route("/", post(create_user).get(get_all_users))
-                .route("/{user_id}", patch(update_user).delete(delete_user)),
+            ApiRouter::new()
+                .api_route(
+                    "/",
+                    post_with(create_user, create_user_docs)
+                        .get_with(get_all_users, get_all_users_docs),
+                )
+                .api_route(
+                    "/{user_id}",
+                    patch_with(update_user, update_user_docs)
+                        .delete_with(delete_user, delete_user_docs),
+                ),
         )
 }
 
-/// Login the user from the credentials.
-///
-/// # Errors
-/// - [ApiError::BadRequest]: User is already authenticated
-/// - [ApiError::UnprocessableEntity]:
-///   - [INVALID_CREDENTIALS]
-///
 async fn login(
-    mut auth_session: AuthSession,
+    mut session: AppAuthSession,
     Form(creds): Form<Credentials>,
 ) -> ApiResult<Json<UserResponse>> {
-    if auth_session.user.is_some() {
+    if session.user.is_some() {
         return Err(ApiError::BadRequest(ALREADY_LOGGED_IN.into()));
     }
 
-    let user = auth_session
+    let user = session
         .authenticate(creds)
         .await
         .anyhow()?
         .ok_or(ApiError::UnprocessableEntity(INVALID_CREDENTIALS.into()))?;
 
-    auth_session.login(&user).await.anyhow()?;
+    session.login(&user).await.anyhow()?;
 
     Ok(Json(UserResponse {
         user_id: user.user_id,
@@ -67,15 +76,29 @@ async fn login(
     }))
 }
 
-/// Logout the user. Does nothing if the user is not logged in.
-pub async fn logout(mut auth_session: AuthSession) -> ApiResult<()> {
-    auth_session.logout().await.anyhow()?;
+fn login_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("login")
+        .description("Login the user from the credentials")
+        .response_with::<200, Json<UserResponse>, _>(|r| r.description("Success"))
+        .response_with::<400, (), _>(|r| r.description("User is already authenticated"))
+        .response_with::<422, String, _>(|r| r.description(INVALID_CREDENTIALS))
+        .tag(AUTHENTICATION_TAG)
+}
+
+pub async fn logout(mut session: AppAuthSession) -> ApiResult<()> {
+    session.logout().await.anyhow()?;
     Ok(())
 }
-/// Get the currently logged in username and user ID.
-/// Returns null if the user is not logged in.
+
+fn logout_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("logout")
+        .description("Logout the user. Does nothing if the user is not logged in.")
+        .response_with::<200, (), _>(|r| r.description("Success"))
+        .tag(AUTHENTICATION_TAG)
+}
+
 async fn get_auth_user(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
 ) -> ApiResult<Json<Option<UserResponse>>> {
     Ok(Json(user.map(|user| UserResponse {
         user_id: user.user_id,
@@ -84,17 +107,18 @@ async fn get_auth_user(
     })))
 }
 
-/// Create a user from credentials. Request user must have the role [UserRole::Admin].
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User is not [UserRole::Admin]
-/// - [ApiError::Conflict]: User name is already taken
+fn get_auth_user_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("get_auth_user")
+        .description("Get the currently logged in user or nothing if not logged in.")
+        .response_with::<200, Json<Option<UserResponse>>, _>(|r| r.description("Success"))
+        .tag(AUTHENTICATION_TAG)
+}
+
 async fn create_user(
     State(AppState { db }): State<AppState>,
-    AuthSession {
+    NoApi(AuthSession {
         user: auth_user, ..
-    }: AuthSession,
+    }): AppAuthSession,
     Form(create_user): Form<CreateUser>,
 ) -> ApiResult<Json<UserResponse>> {
     let auth_user = auth_user.ok_or(ApiError::Unauthorized)?;
@@ -121,11 +145,21 @@ async fn create_user(
     }))
 }
 
+fn create_user_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("create_user")
+        .description("Create a new user. Requires admin priviledges.")
+        .response_with::<200, Json<UserResponse>, _>(|r| r.description("Success"))
+        .response_with::<401, (), _>(|r| r.description("User is not authenticated"))
+        .response_with::<403, (), _>(|r| r.description("User is not an admin"))
+        .response_with::<409, (), _>(|r| r.description("Username is taken"))
+        .tag(USERS_TAG)
+}
+
 async fn update_user(
     State(AppState { db }): State<AppState>,
-    AuthSession {
+    NoApi(AuthSession {
         user: auth_user, ..
-    }: AuthSession,
+    }): AppAuthSession,
     Path(SelectUser { user_id }): Path<SelectUser>,
     Form(update_user): Form<UpdateUser>,
 ) -> ApiResult<()> {
@@ -165,10 +199,20 @@ async fn update_user(
     Ok(())
 }
 
+fn update_user_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("update_user")
+        .description("Update a user's username or password. Requires admin privileges.")
+        .response_with::<200, (), _>(|r| r.description("Success"))
+        .response_with::<401, (), _>(|r| r.description("User is not authenticated"))
+        .response_with::<403, (), _>(|r| r.description("User is not an admin"))
+        .response_with::<409, (), _>(|r| r.description("Username is taken"))
+        .tag(USERS_TAG)
+}
+
 async fn delete_user(
-    AuthSession {
+    NoApi(AuthSession {
         user: auth_user, ..
-    }: AuthSession,
+    }): AppAuthSession,
     State(AppState { db }): State<AppState>,
     Path(SelectUser { user_id }): Path<SelectUser>,
 ) -> ApiResult<()> {
@@ -182,10 +226,19 @@ async fn delete_user(
     Ok(())
 }
 
+fn delete_user_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("delete_user")
+        .description("Delete a user Requires admin privileges.")
+        .response_with::<200, (), _>(|r| r.description("Success"))
+        .response_with::<401, (), _>(|r| r.description("User not authenticated"))
+        .response_with::<403, (), _>(|r| r.description("User is not an admin"))
+        .tag(USERS_TAG)
+}
+
 async fn get_all_users(
-    AuthSession {
+    NoApi(AuthSession {
         user: auth_user, ..
-    }: AuthSession,
+    }): AppAuthSession,
     State(AppState { db }): State<AppState>,
 ) -> ApiResult<Json<Vec<UserResponse>>> {
     let auth_user = auth_user.ok_or(ApiError::Unauthorized)?;
@@ -194,4 +247,37 @@ async fn get_all_users(
     }
     let users = db::get_all_users(&db).await?;
     Ok(Json(users))
+}
+
+fn get_all_users_docs(op: TransformOperation) -> TransformOperation {
+    op.summary("get_all_users")
+        .description("Retrieve all users. Requires admin privileges.")
+        .response_with::<200, Json<Vec<UserResponse>>, _>(|r| r.description("Success"))
+        .response_with::<401, (), _>(|r| r.description("User is not authenticated"))
+        .response_with::<403, (), _>(|r| r.description("User is not an admin"))
+        .tag(USERS_TAG)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{AppConfig, init_app, setup_tracing};
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn login(db: PgPool) -> anyhow::Result<()> {
+        setup_tracing();
+        let mut app = init_app(AppConfig::build()?).await?;
+
+        let password = String::from("test123");
+        let user = db::create_user(
+            &db,
+            "test@example.com".into(),
+            generate_hash(password),
+            true,
+        )
+        .await?;
+
+        Ok(())
+    }
 }
