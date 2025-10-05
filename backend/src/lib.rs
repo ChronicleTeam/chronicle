@@ -1,6 +1,7 @@
 mod api;
 mod auth;
 mod db;
+mod docs;
 mod error;
 mod io;
 mod model;
@@ -37,8 +38,7 @@ type Id = i32;
 
 /// Global state for the API.
 ///
-/// Contains the configuration ([Config]) and the
-/// shared database connection ([PgPool]).
+/// Contains the shared database connection ([PgPool]).
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
@@ -53,8 +53,6 @@ struct AppConfig {
     allowed_origin: Vec<String>,
     session_key: String,
     admin: Credentials,
-    // /// Authentication related configuration.
-    // auth: AuthConfig,
     /// Database connection info.
     database: DatabaseConfig,
 }
@@ -157,6 +155,8 @@ async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
     let router = auth::init(router, db.clone(), config.session_key).await?;
 
     auth::set_admin_user(&db, config.admin).await?;
+
+    let router = docs::init(router)?;
 
     let router = router.with_state(AppState { db });
 

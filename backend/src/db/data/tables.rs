@@ -1,11 +1,14 @@
 use super::{entry_from_row, select_columns};
 use crate::{
-    db::Relation,
-    model::{data::{
-        CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
-        UpdateTable,
-    }, viz::ChartIdentifier},
     Id,
+    db::Relation,
+    model::{
+        data::{
+            CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
+            UpdateTable,
+        },
+        viz::ChartIdentifier,
+    },
 };
 use futures::future::join_all;
 use itertools::Itertools;
@@ -66,7 +69,6 @@ pub async fn create_table(
 
     Ok(table)
 }
-
 
 /// Update the table metadata.
 pub async fn update_table(

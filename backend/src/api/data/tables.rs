@@ -1,12 +1,19 @@
 use super::AppState;
 use crate::{
-    auth::AuthSession, db, error::{ApiError, ApiResult, IntoAnyhow}, io, model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable}, Id
+    Id,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult, IntoAnyhow},
+    io,
+    model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
 };
+use aide::{NoApi, axum::ApiRouter};
 use axum::{
+    Json,
     extract::{Multipart, Path, State},
     routing::{get, patch, post},
-    Json, Router,
 };
+use axum_login::AuthSession;
 use itertools::Itertools;
 use std::io::Cursor;
 use umya_spreadsheet::{
@@ -16,10 +23,10 @@ use umya_spreadsheet::{
 
 const MISSING_MULTIPART_FIELD: &str = "Missing multipart field";
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/tables",
-        Router::new()
+        ApiRouter::new()
             .route("/", post(create_table).get(get_tables))
             .route("/{table-id}", patch(update_table).delete(delete_table))
             .route("/{table-id}/children", get(get_table_children))
@@ -37,7 +44,7 @@ pub fn router() -> Router<AppState> {
 /// - [ApiError::Unauthorized]: User not authenticated
 ///
 async fn create_table(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Json(create_table): Json<CreateTable>,
 ) -> ApiResult<Json<Table>> {
@@ -56,7 +63,7 @@ async fn create_table(
 /// - [ApiError::NotFound]: Table not found
 ///
 async fn update_table(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(update_table): Json<UpdateTable>,
@@ -80,7 +87,7 @@ async fn update_table(
 /// - [ApiError::NotFound]: Table not found
 ///
 async fn delete_table(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<()> {
@@ -101,7 +108,7 @@ async fn delete_table(
 /// - [ApiError::Unauthorized]: User not authenticated
 ///
 async fn get_tables(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
@@ -119,7 +126,7 @@ async fn get_tables(
 /// - [ApiError::NotFound]: Table not found
 ///
 async fn get_table_children(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Table>>> {
@@ -144,7 +151,7 @@ async fn get_table_children(
 /// - [ApiError::NotFound]: Table not found
 ///
 async fn get_table_data(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<TableData>> {
@@ -166,7 +173,7 @@ async fn get_table_data(
 /// - [ApiError::BadRequest]: Multipart has zero fields
 ///
 async fn import_table_from_excel(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
 ) -> ApiResult<Json<Vec<TableData>>> {
@@ -232,7 +239,7 @@ async fn import_table_from_excel(
 /// - [ApiError::BadRequest]: Multipart has zero fields
 ///
 async fn export_table_to_excel(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     mut multipart: Multipart,
@@ -271,7 +278,7 @@ async fn export_table_to_excel(
 /// - [ApiError::BadRequest]: Multipart has zero fields
 ///
 async fn import_table_from_csv(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
 ) -> ApiResult<Json<TableData>> {
@@ -324,7 +331,7 @@ async fn import_table_from_csv(
 /// - [ApiError::NotFound]: Table not found
 ///
 async fn export_table_to_csv(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Vec<u8>> {
@@ -336,8 +343,7 @@ async fn export_table_to_csv(
     let mut buffer = Vec::new();
     let csv_writer = csv::Writer::from_writer(Cursor::new(&mut buffer));
 
-    io::export_table_to_csv(csv_writer, db::get_table_data(&db, table_id).await?)
-        .anyhow()?;
+    io::export_table_to_csv(csv_writer, db::get_table_data(&db, table_id).await?).anyhow()?;
 
     Ok(buffer)
 }

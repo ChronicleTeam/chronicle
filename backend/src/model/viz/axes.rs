@@ -2,9 +2,9 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{types::Json, FromRow};
+use sqlx::{FromRow, types::Json};
 
-use crate::{model::data::FieldKind, Id};
+use crate::{Id, model::data::FieldKind};
 
 /// Chart axis entity.
 #[derive(Debug, Serialize, FromRow)]
@@ -17,7 +17,6 @@ pub struct Axis {
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
-
 
 /// The kind of axis for constructing the actual chart.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
@@ -88,7 +87,6 @@ pub struct AxisField {
     pub field_name: String,
     pub field_kind: Json<FieldKind>,
 }
-
 
 /// Database identifier of the actual SQL view column that a user axis points to.
 #[derive(Debug)]

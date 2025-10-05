@@ -1,9 +1,9 @@
 use crate::{
-    model::{
-        data::{CreateField, CreateTable, CreateTableData, Field, FieldKind, TableData},
-        Cell,
-    },
     Id,
+    model::{
+        Cell,
+        data::{CreateField, CreateTable, CreateTableData, Field, FieldKind, TableData},
+    },
 };
 use itertools::Itertools;
 use std::{

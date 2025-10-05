@@ -2,8 +2,8 @@ use crate::Id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
-use sqlx::{types::Json, FromRow};
+use serde_with::{DisplayFromStr, serde_as};
+use sqlx::{FromRow, types::Json};
 use std::{collections::HashMap, fmt};
 
 /// Table field entity.
@@ -24,9 +24,7 @@ pub struct Field {
 #[serde(tag = "type")]
 pub enum FieldKind {
     /// Raw text data.
-    Text {
-        is_required: bool,
-    },
+    Text { is_required: bool },
     /// An integer.
     Integer {
         is_required: bool,
@@ -49,9 +47,7 @@ pub enum FieldKind {
         range_end: Option<Decimal>,
     },
     /// A discrete progress ratio.
-    Progress {
-        total_steps: i64,
-    },
+    Progress { total_steps: i64 },
     /// An ISO 8601 date and time.
     DateTime {
         is_required: bool,
@@ -60,15 +56,14 @@ pub enum FieldKind {
         date_time_format: String,
     },
     /// A URL.
-    WebLink {
-        is_required: bool,
-    },
+    WebLink { is_required: bool },
     /// A true or false value.
     Checkbox,
     /// A value out of a list of possible text values.
     Enumeration {
         is_required: bool,
-        #[serde_as(as = "HashMap<DisplayFromStr, _>")] // This is necessary because of a bug with serde
+        #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+        // This is necessary because of a bug with serde
         values: HashMap<i64, String>,
         default_value: i64,
     },

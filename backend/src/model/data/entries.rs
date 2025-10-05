@@ -1,4 +1,4 @@
-use crate::{model::Cell, Id};
+use crate::{Id, model::Cell};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,14 +18,14 @@ pub struct Entry {
 
 /// Create entry request. Keys map to field IDs.
 #[derive(Debug, Deserialize)]
-pub struct CreateEntries{
+pub struct CreateEntries {
     pub parent_id: Option<Id>,
     pub entries: Vec<HashMap<Id, Value>>,
 }
 
 /// Update entry request. Keys map to field IDs.
 #[derive(Debug, Deserialize)]
-pub struct UpdateEntry{
+pub struct UpdateEntry {
     pub parent_id: Option<Id>,
     pub cells: HashMap<Id, Value>,
 }

@@ -19,10 +19,10 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use serde::{Serialize, Serializer};
 use sqlx::{
+    Encode, Postgres, QueryBuilder, Row,
     postgres::{PgArgumentBuffer, PgArguments, PgRow},
     query::Query,
     query_builder::Separated,
-    Encode, Postgres, QueryBuilder, Row,
 };
 use std::str::FromStr;
 use viz::Aggregate;
