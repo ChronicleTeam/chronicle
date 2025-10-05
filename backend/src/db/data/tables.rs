@@ -27,14 +27,7 @@ pub async fn create_table(
         r#"
             INSERT INTO meta_table (user_id, parent_id, name, description)
             VALUES ($1, $2, $3, $4) 
-            RETURNING
-                table_id,
-                user_id,
-                parent_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            RETURNING *
         "#,
     )
     .bind(user_id)
@@ -88,14 +81,7 @@ pub async fn update_table(
             UPDATE meta_table
             SET name = $1, description = $2
             WHERE table_id = $3
-            RETURNING
-                table_id,
-                user_id,
-                parent_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            RETURNING *
         "#,
     )
     .bind(name)
@@ -173,14 +159,7 @@ pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) ->
 pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<Table>> {
     sqlx::query_as(
         r#"
-            SELECT
-                table_id,
-                user_id,
-                parent_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            SELECT *
             FROM meta_table
             WHERE user_id = $1
         "#,
@@ -197,14 +176,7 @@ pub async fn get_table_children(
 ) -> sqlx::Result<Vec<Table>> {
     sqlx::query_as(
         r#"
-            SELECT
-                table_id,
-                user_id,
-                parent_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            SELECT *
             FROM meta_table
             WHERE parent_id = $1
         "#,
@@ -221,14 +193,7 @@ pub async fn get_table_data(
 ) -> sqlx::Result<TableData> {
     let table: Table = sqlx::query_as(
         r#"
-            SELECT 
-                table_id,
-                user_id,
-                parent_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            SELECT *
             FROM meta_table
             WHERE table_id = $1
         "#,
@@ -239,14 +204,7 @@ pub async fn get_table_data(
 
     let fields: Vec<Field> = sqlx::query_as(
         r#"
-            SELECT
-                field_id,
-                table_id,
-                name,
-                ordering,
-                field_kind,
-                created_at,
-                updated_at
+            SELECT *
             FROM meta_field
             WHERE table_id = $1
             ORDER BY field_id

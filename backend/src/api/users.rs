@@ -195,3 +195,25 @@ async fn get_all_users(
     let users = db::get_all_users(&db).await?;
     Ok(Json(users))
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{init_app, setup_tracing, AppConfig};
+    use super::*;
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn login(db: PgPool) -> anyhow::Result<()> {
+        setup_tracing();
+        let mut app = init_app(AppConfig::build()?).await?;
+
+        let password = String::from("test123");
+        let user = db::create_user(&db, "test@example.com".into(), generate_hash(password), true).await?;
+
+        
+        
+        
+
+        Ok(())
+    }
+}
