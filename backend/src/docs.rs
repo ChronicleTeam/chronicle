@@ -1,8 +1,9 @@
 use aide::{
+    OperationOutput,
     axum::ApiRouter,
     openapi::{ApiKeyLocation, OpenApi, SecurityScheme},
     swagger::Swagger,
-    transform::TransformOpenApi,
+    transform::{TransformOpenApi, TransformOperation},
 };
 use axum::{Extension, Json, Router, routing::get};
 use std::{fs::File, io::BufWriter, sync::Arc};
@@ -23,6 +24,34 @@ pub const CHARTS_TAG: &str = "Charts";
 pub const AXES_TAG: &str = "Axes";
 
 pub const SECURITY_SCHEME: &str = "cookieAuth";
+
+pub trait TransformOperationExt {
+    fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self;
+}
+
+impl TransformOperationExt for TransformOperation<'_> {
+    fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self {
+        self.response_with::<N, R, _>(|r| r.description(description))
+    }
+}
+
+pub fn template<'a, R: OperationOutput>(
+    mut op: TransformOperation<'a>,
+    summary: &'a str,
+    description: &'a str,
+    secure: bool,
+    tag: &str,
+) -> TransformOperation<'a> {
+    if secure {
+        op = op
+            .response_with::<401, (), _>(|r| r.description("User is not authenticated"))
+            .security_requirement(SECURITY_SCHEME)
+    }
+    op.summary(summary)
+        .description(description)
+        .response_description::<200, R>("Success")
+        .tag(tag)
+}
 
 /// Initialize API documentation endpoints.
 pub fn init(app: ApiRouter<AppState>) -> anyhow::Result<Router<AppState>> {

@@ -1,5 +1,6 @@
 use crate::{Id, model::Cell};
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::fmt;
@@ -7,7 +8,7 @@ use std::fmt;
 use super::{CreateField, Entry, Field};
 
 /// User table entity.
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
 pub struct Table {
     pub table_id: Id,
     pub user_id: Id,
@@ -19,7 +20,7 @@ pub struct Table {
 }
 
 /// Create table request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateTable {
     pub parent_id: Option<Id>,
     pub name: String,
@@ -27,14 +28,14 @@ pub struct CreateTable {
 }
 
 /// Update table request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct UpdateTable {
     pub name: String,
     pub description: String,
 }
 
 /// Response for fetching entire table data.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct TableData {
     pub table: Table,
     pub fields: Vec<Field>,

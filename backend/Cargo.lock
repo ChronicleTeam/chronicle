@@ -2498,6 +2498,7 @@ dependencies = [
  "dyn-clone",
  "indexmap 2.11.1",
  "ref-cast",
+ "rust_decimal",
  "schemars_derive",
  "serde",
  "serde_json",
