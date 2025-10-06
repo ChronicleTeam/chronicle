@@ -17,6 +17,7 @@ use chrono::{DateTime, Utc};
 use data::FieldKind;
 use num_traits::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
+use schemars::JsonSchema;
 use serde::{Serialize, Serializer};
 use sqlx::{
     Encode, Postgres, QueryBuilder, Row,
@@ -28,7 +29,7 @@ use std::str::FromStr;
 use viz::Aggregate;
 
 /// This represents a cell in user entries and charts which can be any type.
-#[derive(Debug)]
+#[derive(Debug, JsonSchema)]
 pub enum Cell {
     Integer(i64),
     Float(f64),

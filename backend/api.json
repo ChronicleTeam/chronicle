@@ -12,7 +12,7 @@
           "Authentication"
         ],
         "summary": "login",
-        "description": "Login the user from the credentials",
+        "description": "ogin the user from the credentials.",
         "requestBody": {
           "description": "Credentials request type.",
           "content": {
@@ -116,7 +116,12 @@
           "403": {
             "description": "User is not an admin"
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -154,7 +159,12 @@
           "409": {
             "description": "Username is taken"
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     },
     "/api/users/{user_id}": {
@@ -163,7 +173,7 @@
           "Users"
         ],
         "summary": "delete_user",
-        "description": "Delete a user Requires admin privileges.",
+        "description": "Delete a user. Requires admin privileges.",
         "parameters": [
           {
             "in": "path",
@@ -181,19 +191,24 @@
             "description": "Success"
           },
           "401": {
-            "description": "User not authenticated"
+            "description": "User is not authenticated"
           },
           "403": {
             "description": "User is not an admin"
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       },
       "patch": {
         "tags": [
           "Users"
         ],
-        "summary": "update_user",
-        "description": "Update a user's username or password. Requires admin privileges.",
+        "summary": "delete_user",
+        "description": "Delete a user. Requires admin privileges.",
         "parameters": [
           {
             "in": "path",
@@ -229,7 +244,392 @@
           "409": {
             "description": "Username is taken"
           }
-        }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables": {
+      "get": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "get_tables",
+        "description": "Get all tables belonging to the user.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Table"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "create_table",
+        "description": "Create an empty user table.",
+        "requestBody": {
+          "description": "Create table request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTable"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Table"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}": {
+      "delete": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "delete_table",
+        "description": "Delete a table, including all fields and entries.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "403": {
+            "description": "User does not have access to that table"
+          },
+          "404": {
+            "description": "Table not found"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "update_table",
+        "description": "Update a table's meta data.",
+        "requestBody": {
+          "description": "Update table request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTable"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Table"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "403": {
+            "description": "User does not have access to that table"
+          },
+          "404": {
+            "description": "Table not found"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/children": {
+      "get": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "get_table_children",
+        "description": "Get all table children for the specified table.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Table"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "403": {
+            "description": "User does not have access to that table"
+          },
+          "404": {
+            "description": "Table not found"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/data": {
+      "get": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "get_table_data",
+        "description": "Get all the meta data, fields, and entries of a table.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "403": {
+            "description": "User does not have access to that table"
+          },
+          "404": {
+            "description": "Table not found"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/excel": {
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "import_table_from_excel",
+        "description": "Takes an Excel file and attempts to convert it into a table.",
+        "requestBody": {
+          "description": "multipart form data",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TableData"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "400": {
+            "description": "Multipart has zero fields"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/excel": {
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "export_table_to_excel",
+        "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
+        "requestBody": {
+          "description": "multipart form data",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "403": {
+            "description": "User does not have access to that table"
+          },
+          "404": {
+            "description": "Table not found"
+          },
+          "400": {
+            "description": "Multipart has zero fields"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/csv": {
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "import_table_from_csv",
+        "description": "Takes a CSV file and attempts to convert it into a table.",
+        "requestBody": {
+          "description": "multipart form data",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "400": {
+            "description": "Multipart has zero fields"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/csv": {
+      "post": {
+        "tags": [
+          "Tables"
+        ],
+        "summary": "export_table_to_csv",
+        "description": "Converts the specified table into a CSV file.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "403": {
+            "description": "User does not have access to that table"
+          },
+          "404": {
+            "description": "Table not found"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
       }
     }
   },
@@ -243,6 +643,119 @@
       }
     },
     "schemas": {
+      "Cell": {
+        "description": "This represents a cell in user entries and charts which can be any type.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "Null"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "Integer": {
+                "type": "integer",
+                "format": "int64"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "Integer"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "Float": {
+                "type": "number",
+                "format": "double"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "Float"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "Decimal": {
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][0-9]+)?$"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "Decimal"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "Boolean": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "Boolean"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "DateTime": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "DateTime"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "String": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "String"
+            ]
+          }
+        ]
+      },
+      "CreateTable": {
+        "description": "Create table request.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ]
+      },
       "CreateUser": {
         "type": "object",
         "properties": {
@@ -274,6 +787,336 @@
           "password"
         ]
       },
+      "Entry": {
+        "description": "Table entry entity.",
+        "type": "object",
+        "properties": {
+          "cells": {
+            "description": "Keys map to field IDs.",
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Cell"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "entry_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "entry_id",
+          "created_at",
+          "cells"
+        ]
+      },
+      "Field": {
+        "description": "Table field entity.",
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ordering": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "field_id",
+          "table_id",
+          "name",
+          "ordering",
+          "field_kind",
+          "created_at"
+        ]
+      },
+      "FieldKind": {
+        "description": "The field kind and associated options.",
+        "oneOf": [
+          {
+            "description": "Raw text data.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Text"
+              },
+              "is_required": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "is_required"
+            ]
+          },
+          {
+            "description": "An integer.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Integer"
+              },
+              "is_required": {
+                "type": "boolean"
+              },
+              "range_end": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "range_start": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              }
+            },
+            "required": [
+              "type",
+              "is_required"
+            ]
+          },
+          {
+            "description": "A floating-point number.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Float"
+              },
+              "is_required": {
+                "type": "boolean"
+              },
+              "number_precision": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "number_scale": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "range_end": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "double"
+              },
+              "range_start": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "double"
+              },
+              "scientific_notation": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "is_required",
+              "scientific_notation"
+            ]
+          },
+          {
+            "description": "A type for fixed precision money.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Money"
+              },
+              "is_required": {
+                "type": "boolean"
+              },
+              "range_end": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][0-9]+)?$"
+              },
+              "range_start": {
+                "type": [
+                  "string",
+                  "number",
+                  "null"
+                ],
+                "pattern": "^-?[0-9]+(\\.[0-9]+)?([eE][0-9]+)?$"
+              }
+            },
+            "required": [
+              "type",
+              "is_required"
+            ]
+          },
+          {
+            "description": "A discrete progress ratio.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Progress"
+              },
+              "total_steps": {
+                "type": "integer",
+                "format": "int64"
+              }
+            },
+            "required": [
+              "type",
+              "total_steps"
+            ]
+          },
+          {
+            "description": "An ISO 8601 date and time.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "DateTime"
+              },
+              "date_time_format": {
+                "type": "string"
+              },
+              "is_required": {
+                "type": "boolean"
+              },
+              "range_end": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "range_start": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "type",
+              "is_required",
+              "date_time_format"
+            ]
+          },
+          {
+            "description": "A URL.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "WebLink"
+              },
+              "is_required": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "is_required"
+            ]
+          },
+          {
+            "description": "A true or false value.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Checkbox"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          {
+            "description": "A value out of a list of possible text values.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Enumeration"
+              },
+              "default_value": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "is_required": {
+                "type": "boolean"
+              },
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "type",
+              "is_required",
+              "values",
+              "default_value"
+            ]
+          }
+        ]
+      },
       "SelectUser": {
         "type": "object",
         "properties": {
@@ -284,6 +1127,100 @@
         },
         "required": [
           "user_id"
+        ]
+      },
+      "Table": {
+        "description": "User table entity.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id",
+          "user_id",
+          "name",
+          "description",
+          "created_at"
+        ]
+      },
+      "TableData": {
+        "description": "Response for fetching entire table data.",
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableData"
+            }
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            }
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            }
+          },
+          "table": {
+            "$ref": "#/components/schemas/Table"
+          }
+        },
+        "required": [
+          "table",
+          "fields",
+          "entries",
+          "children"
+        ]
+      },
+      "UpdateTable": {
+        "description": "Update table request.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
         ]
       },
       "UpdateUser": {

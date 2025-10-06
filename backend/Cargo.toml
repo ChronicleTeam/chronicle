@@ -76,13 +76,12 @@ async-trait = "0.1"
 aide = { version = "0.15", features = [
   "axum",
   "axum-json",
-  # "axum-query",
   "axum-form",
-  # "axum-extra-headers",
+  "axum-multipart",
   "macros",
   "swagger"
 ] }
-schemars = { version = "0.9", features = ["uuid1", "chrono04"] }
+schemars = { version = "0.9", features = ["uuid1", "chrono04", "rust_decimal1"] }
 
 
 # Utility
