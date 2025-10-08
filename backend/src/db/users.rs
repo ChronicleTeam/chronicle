@@ -1,5 +1,6 @@
 use crate::{
     Id,
+    error::ApiResult,
     model::users::{AccessRole, User, UserResponse},
 };
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
@@ -239,4 +240,25 @@ pub async fn delete_access(
 
     tx.commit().await?;
     Ok(())
+}
+
+/// Return the [Relation] between the user and this table.
+pub async fn get_access(
+    executor: impl PgExecutor<'_>,
+    user_id: Id,
+    resource_id: Id,
+    table_name: &str,
+    resource_id_name: &str,
+) -> sqlx::Result<Option<AccessRole>> {
+    sqlx::query_scalar::<_, AccessRole>(&format!(
+        r#"
+            SELECT access_role
+            FROM {table_name}
+            WHERE user_id = $1 AND {resource_id_name} = $2
+        "#
+    ))
+    .bind(user_id)
+    .bind(resource_id)
+    .fetch_optional(executor)
+    .await
 }

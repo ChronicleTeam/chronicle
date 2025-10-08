@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use crate::Id;
+use crate::{error::{ApiError, ApiResult}, Id};
 
 /// The application user.
 #[derive(Clone, Serialize, Deserialize, FromRow)]
@@ -47,6 +47,20 @@ pub enum AccessRole {
     Viewer,
     Editor,
     Owner,
+}
+
+pub trait AccessRoleCheck {
+    fn check(self, required: AccessRole) -> ApiResult<()>;
+}
+
+impl AccessRoleCheck for Option<AccessRole> {
+    fn check(self, required: AccessRole) -> ApiResult<()> {
+        match (self, required) {
+            (None, _) => Err(ApiError::NotFound),
+            (Some(x), required) if x == required => Ok(()),
+
+        }
+    }
 }
 
 /// Credentials request type.

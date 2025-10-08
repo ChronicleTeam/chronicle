@@ -223,7 +223,8 @@ async fn import_table_from_excel(
         entries,
     } in create_tables
     {
-        let table = db::create_table(tx.as_mut(), user_id, table).await?;
+        let table = db::create_table(tx.as_mut(), table).await?;
+        db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
         let fields = db::create_fields(tx.as_mut(), table.table_id, fields).await?;
         let entries = db::create_entries(
             tx.as_mut(),
@@ -319,7 +320,8 @@ async fn import_table_from_csv(
 
     let mut tx = db.begin().await?;
 
-    let table = db::create_table(tx.as_mut(), user_id, create_table.table).await?;
+    let table = db::create_table(tx.as_mut(), create_table.table).await?;
+    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
     let fields = db::create_fields(tx.as_mut(), table.table_id, create_table.fields).await?;
     let entries = db::create_entries(
         tx.as_mut(),
