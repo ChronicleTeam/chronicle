@@ -41,6 +41,14 @@ impl AuthUser for User {
     }
 }
 
+#[derive(Debug, Clone, sqlx::Type, PartialEq, Eq, PartialOrd, Ord)]
+#[sqlx(type_name = "access_role")]
+pub enum AccessRole {
+    Viewer,
+    Editor,
+    Owner,
+}
+
 /// Credentials request type.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct Credentials {

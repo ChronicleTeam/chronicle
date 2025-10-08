@@ -1,12 +1,6 @@
 use super::AppState;
 use crate::{
-    Id,
-    auth::AppAuthSession,
-    db,
-    docs::{self, TABLES_TAG, TransformOperationExt},
-    error::{ApiError, ApiResult, IntoAnyhow},
-    io,
-    model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
+    auth::AppAuthSession, db, docs::{self, TransformOperationExt, TABLES_TAG}, error::{ApiError, ApiResult, IntoAnyhow}, io, model::{data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable}, users::AccessRole}, Id
 };
 use aide::{
     NoApi, OperationOutput,
@@ -66,7 +60,12 @@ pub fn router() -> ApiRouter<AppState> {
             .api_route(
                 "/{table-id}/csv",
                 post_with(export_table_to_csv, export_table_to_csv_docs),
-            ),
+            )
+            // .api_route(
+            //     "/{table-id}/access",
+            //     patch_with(grant_table_access, grant_table_access_docs)
+            //         .delete_with(update_table_access, update_table_access_docs),
+            // ),
     )
 }
 
@@ -77,7 +76,11 @@ async fn create_table(
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let table = db::create_table(&db, user_id, create_table).await?;
+    let mut tx = db.begin().await?;
+
+    let table = db::create_table(tx.as_mut(), create_table).await?;
+
+    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
 
     Ok(Json(table))
 }

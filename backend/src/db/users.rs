@@ -1,6 +1,6 @@
 use crate::{
     Id,
-    model::users::{User, UserResponse},
+    model::users::{AccessRole, User, UserResponse},
 };
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
@@ -152,4 +152,91 @@ pub async fn user_exists(executor: impl PgExecutor<'_>, username: String) -> sql
     .bind(username)
     .fetch_one(executor)
     .await
+}
+
+pub async fn create_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = (Id, AccessRole)>,
+    resource_id: Id,
+    table_name: &str,
+    resource_id_name: &str,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    QueryBuilder::new(format!(
+        r#"INSERT INTO {table_name} (user_id, {resource_id_name}, access_role)"#
+    ))
+    .push_values(users, |mut builder, (user_id, access_role)| {
+        builder
+            .push_bind(user_id)
+            .push_bind(resource_id)
+            .push_bind(access_role);
+    })
+    .build()
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn update_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = (Id, AccessRole)>,
+    resource_id: Id,
+    table_name: &str,
+    resource_id_name: &str,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    QueryBuilder::new(format!(
+        r#"
+            UPDATE {table_name} AS t
+            SET access_role = v.access_role
+            FROM (
+        "#
+    ))
+    .push_values(users, |mut builder, (user_id, access_role)| {
+        builder.push_bind(user_id).push_bind(access_role);
+    })
+    .push(format!(
+        r#"
+            ) AS v(user_id, access_role)
+            WHERE t.user_id = v.user_id
+            AND t.{resource_id_name} = 
+        "#
+    ))
+    .push_bind(resource_id)
+    .build()
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn delete_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = Id>,
+    resource_id: Id,
+    table_name: &str,
+    resource_id_name: &str,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    QueryBuilder::new(format!(
+        r#"DELETE FROM {table_name} WHERE {resource_id_name} = "#
+    ))
+    .push_bind(resource_id)
+    .push(format!(" AND user_id IN ("))
+    .push_values(users, |mut builder, user_id| {
+        builder.push_bind(user_id);
+    })
+    .push(")")
+    .build()
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+    Ok(())
 }

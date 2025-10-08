@@ -4,18 +4,25 @@ Can have a parent table or children tables. Represents an actual SQL table.
 */
 CREATE TABLE meta_table (
     table_id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL REFERENCES app_user(user_id),
+    -- user_id INT NOT NULL REFERENCES app_user(user_id),
     parent_id INT REFERENCES meta_table(table_id),
     name TEXT COLLATE case_insensitive NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ,
     UNIQUE (user_id, name)
 );
 
 SELECT trigger_updated_at('meta_table');
 
-SELECT trigger_rename_duplicate('meta_table', 'table_id', 'user_id');
+CREATE TABLE meta_table_access (
+    user_id INT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+    table_id INT NOT NULL REFERENCES meta_table(table_id) ON DELETE CASCADE,
+    access_role access_role NOT NULL,
+    PRIMARY KEY (user_id, table_id)
+)
+
+-- SELECT trigger_rename_duplicate('meta_table', 'table_id', 'user_id');
 
 /*
 All dynamic tables are put under this schema.
