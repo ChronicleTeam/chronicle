@@ -3,7 +3,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use crate::{error::{ApiError, ApiResult}, Id};
+use crate::{
+    Id,
+    error::{ApiError, ApiResult},
+};
 
 /// The application user.
 #[derive(Clone, Serialize, Deserialize, FromRow)]
@@ -55,10 +58,19 @@ pub trait AccessRoleCheck {
 
 impl AccessRoleCheck for Option<AccessRole> {
     fn check(self, required: AccessRole) -> ApiResult<()> {
-        match (self, required) {
-            (None, _) => Err(ApiError::NotFound),
-            (Some(x), required) if x == required => Ok(()),
-
+        use AccessRole::*;
+        if let Some(actual) = self {
+            if match actual {
+                Viewer => matches!(required, Viewer),
+                Editor => matches!(required, Editor | Viewer),
+                Owner => true,
+            } {
+                Ok(())
+            } else {
+                Err(ApiError::Forbidden)
+            }
+        } else {
+            Err(ApiError::NotFound)
         }
     }
 }
