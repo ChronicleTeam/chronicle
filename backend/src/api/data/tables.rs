@@ -165,7 +165,7 @@ async fn get_tables(
 }
 
 fn get_tables_docs(op: TransformOperation) -> TransformOperation {
-    tables_docs::<Json<Vec<Table>>>(op, "get_tables", "Get all tables belonging to the user.")
+    tables_docs::<Json<Vec<GetTable>>>(op, "get_tables", "Get all tables accessible to the user.")
 }
 
 async fn get_table_children(
