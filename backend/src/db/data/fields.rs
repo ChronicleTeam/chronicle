@@ -1,6 +1,5 @@
 use crate::{
     Id,
-    db::Relation,
     model::{
         Cell,
         data::{
@@ -370,24 +369,22 @@ pub async fn get_fields_metadata(
 }
 
 /// Return the [Relation] between the table and this field.
-pub async fn check_field_relation(
+pub async fn field_exists(
     executor: impl PgExecutor<'_>,
     table_id: Id,
     field_id: Id,
-) -> sqlx::Result<Relation> {
-    sqlx::query_scalar::<_, Id>(
+) -> sqlx::Result<bool> {
+    sqlx::query_scalar(
         r#"
-            SELECT table_id
-            FROM meta_field
-            WHERE field_id = $1
+            SELECT EXISTS (
+                SELECT 1
+                FROM meta_field
+                WHERE table_id = $1 field_id = $2
+            )
         "#,
     )
+    .bind(table_id)
     .bind(field_id)
-    .fetch_optional(executor)
+    .fetch_one(executor)
     .await
-    .map(|id| match id {
-        None => Relation::Absent,
-        Some(id) if id == table_id => Relation::Owned,
-        Some(_) => Relation::NotOwned,
-    })
 }

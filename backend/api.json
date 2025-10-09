@@ -207,8 +207,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "delete_user",
-        "description": "Delete a user. Requires admin privileges.",
+        "summary": "update_user",
+        "description": "Update the user's username of password. Requires admin privileges.",
         "parameters": [
           {
             "in": "path",
@@ -233,7 +233,14 @@
         },
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "User is not authenticated"
@@ -329,6 +336,18 @@
         ],
         "summary": "delete_table",
         "description": "Delete a table, including all fields and entries.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success"
@@ -355,6 +374,18 @@
         ],
         "summary": "update_table",
         "description": "Update a table's meta data.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "requestBody": {
           "description": "Update table request.",
           "content": {
@@ -401,6 +432,18 @@
         ],
         "summary": "get_table_children",
         "description": "Get all table children for the specified table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -439,6 +482,18 @@
         ],
         "summary": "get_table_data",
         "description": "Get all the meta data, fields, and entries of a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -520,6 +575,18 @@
         ],
         "summary": "export_table_to_excel",
         "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "requestBody": {
           "description": "multipart form data",
           "content": {
@@ -608,6 +675,18 @@
         ],
         "summary": "export_table_to_csv",
         "description": "Converts the specified table into a CSV file.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -643,6 +722,14 @@
       }
     },
     "schemas": {
+      "AccessRole": {
+        "type": "string",
+        "enum": [
+          "Viewer",
+          "Editor",
+          "Owner"
+        ]
+      },
       "Cell": {
         "description": "This represents a cell in user entries and charts which can be any type.",
         "oneOf": [
@@ -1117,6 +1204,33 @@
           }
         ]
       },
+      "GetTable": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "table": {
+            "$ref": "#/components/schemas/Table"
+          }
+        },
+        "required": [
+          "table",
+          "access_role"
+        ]
+      },
+      "SelectTable": {
+        "type": "object",
+        "properties": {
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id"
+        ]
+      },
       "SelectUser": {
         "type": "object",
         "properties": {
@@ -1160,15 +1274,10 @@
               "null"
             ],
             "format": "date-time"
-          },
-          "user_id": {
-            "type": "integer",
-            "format": "int32"
           }
         },
         "required": [
           "table_id",
-          "user_id",
           "name",
           "description",
           "created_at"

@@ -1,9 +1,5 @@
 use crate::{
-    AppState, Id,
-    auth::AppAuthSession,
-    db,
-    error::{ApiError, ApiResult},
-    model::viz::{Chart, ChartData, CreateChart, UpdateChart},
+    auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::{users::{AccessRole, AccessRoleCheck}, viz::{Chart, ChartData, CreateChart, UpdateChart}}, AppState, Id
 };
 use aide::{NoApi, axum::ApiRouter};
 use axum::{
@@ -41,9 +37,9 @@ async fn create_chart(
     db::check_dashboard_relation(&db, user_id, dashboard_id)
         .await?
         .to_api_result()?;
-    db::check_table_relation(&db, user_id, create_chart.table_id)
+    db::get_table_access(&db, user_id, create_chart.table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let chart = db::create_chart(&db, dashboard_id, create_chart).await?;
 

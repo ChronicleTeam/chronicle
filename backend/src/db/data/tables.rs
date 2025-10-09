@@ -1,11 +1,15 @@
 use super::{entry_from_row, select_columns};
 use crate::{
-    db::{self, Relation}, model::{
+    Id,
+    db,
+    model::{
         data::{
-            CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
-            UpdateTable,
-        }, users::AccessRole, viz::ChartIdentifier
-    }, Id
+            CreateTable, Field, FieldIdentifier, FieldMetadata, GetTable, Table, TableData,
+            TableIdentifier, UpdateTable,
+        },
+        users::AccessRole,
+        viz::ChartIdentifier,
+    },
 };
 use futures::future::join_all;
 use itertools::Itertools;
@@ -138,8 +142,8 @@ pub async fn delete_table(
     Ok(())
 }
 
-/// Get the parent ID of this table assuming that it has one.
-pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Id> {
+/// Get the parent ID of this table.
+pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Option<Id>> {
     sqlx::query_scalar(
         r#"
             SELECT parent_id
@@ -148,17 +152,18 @@ pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) ->
         "#,
     )
     .bind(table_id)
-    .fetch_one(executor)
+    .fetch_optional(executor)
     .await
 }
 
 /// Get all tables belonging to this user.
-pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<Table>> {
-    todo!();
+pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<GetTable>> {
     sqlx::query_as(
         r#"
             SELECT *
-            FROM meta_table
+            FROM meta_table AS t
+            JOIN meta_table_access AS a
+            ON t.table_id = a.resource_id
             WHERE user_id = $1
         "#,
     )
@@ -277,36 +282,36 @@ pub async fn get_table_data(
     })
 }
 
-/// Return the [Relation] between the user and this table.
-pub async fn check_table_relation(
-    executor: impl PgExecutor<'_>,
-    user_id: Id,
-    table_id: Id,
-) -> sqlx::Result<Relation> {
-    todo!();
-    sqlx::query_scalar::<_, Id>(
-        r#"
-            SELECT user_id
-            FROM meta_table
-            WHERE table_id = $1
-        "#,
-    )
-    .bind(table_id)
-    .fetch_optional(executor)
-    .await
-    .map(|id| match id {
-        None => Relation::Absent,
-        Some(id) if id == user_id => Relation::Owned,
-        Some(_) => Relation::NotOwned,
-    })
-}
+// /// Return the [Relation] between the user and this table.
+// pub async fn check_table_relation(
+//     executor: impl PgExecutor<'_>,
+//     user_id: Id,
+//     table_id: Id,
+// ) -> sqlx::Result<Relation> {
+//     todo!();
+//     sqlx::query_scalar::<_, Id>(
+//         r#"
+//             SELECT user_id
+//             FROM meta_table
+//             WHERE table_id = $1
+//         "#,
+//     )
+//     .bind(table_id)
+//     .fetch_optional(executor)
+//     .await
+//     .map(|id| match id {
+//         None => Relation::Absent,
+//         Some(id) if id == user_id => Relation::Owned,
+//         Some(_) => Relation::NotOwned,
+//     })
+// }
 
 pub async fn create_table_access(
     conn: impl Acquire<'_, Database = Postgres>,
     users: impl IntoIterator<Item = (Id, AccessRole)>,
     resource_id: Id,
 ) -> sqlx::Result<()> {
-    db::create_access(conn, users, resource_id, "meta_table_access", "table_id").await
+    db::create_access(conn, users, resource_id, "meta_table_access").await
 }
 
 pub async fn update_table_access(
@@ -314,7 +319,7 @@ pub async fn update_table_access(
     users: impl IntoIterator<Item = (Id, AccessRole)>,
     resource_id: Id,
 ) -> sqlx::Result<()> {
-    db::update_access(conn, users, resource_id, "meta_table_access", "table_id").await
+    db::update_access(conn, users, resource_id, "meta_table_access").await
 }
 
 pub async fn delete_table_access(
@@ -322,5 +327,13 @@ pub async fn delete_table_access(
     users: impl IntoIterator<Item = Id>,
     resource_id: Id,
 ) -> sqlx::Result<()> {
-    db::delete_access(conn, users, resource_id, "meta_table_access", "table_id").await
+    db::delete_access(conn, users, resource_id, "meta_table_access").await
+}
+
+pub async fn get_table_access(
+    executor: impl PgExecutor<'_>,
+    user_id: Id,
+    resource_id: Id,
+) -> sqlx::Result<Option<AccessRole>> {
+    db::get_access(executor, user_id, resource_id, "meta_table_access").await
 }

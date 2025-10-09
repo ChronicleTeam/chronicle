@@ -1,6 +1,5 @@
 use crate::{
     Id,
-    error::ApiResult,
     model::users::{AccessRole, User, UserResponse},
 };
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
@@ -160,12 +159,11 @@ pub async fn create_access(
     users: impl IntoIterator<Item = (Id, AccessRole)>,
     resource_id: Id,
     table_name: &str,
-    resource_id_name: &str,
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
 
     QueryBuilder::new(format!(
-        r#"INSERT INTO {table_name} (user_id, {resource_id_name}, access_role)"#
+        r#"INSERT INTO {table_name} (user_id, resource_id, access_role)"#
     ))
     .push_values(users, |mut builder, (user_id, access_role)| {
         builder
@@ -186,7 +184,6 @@ pub async fn update_access(
     users: impl IntoIterator<Item = (Id, AccessRole)>,
     resource_id: Id,
     table_name: &str,
-    resource_id_name: &str,
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
 
@@ -204,7 +201,7 @@ pub async fn update_access(
         r#"
             ) AS v(user_id, access_role)
             WHERE t.user_id = v.user_id
-            AND t.{resource_id_name} = 
+            AND t.resource_id = 
         "#
     ))
     .push_bind(resource_id)
@@ -221,12 +218,11 @@ pub async fn delete_access(
     users: impl IntoIterator<Item = Id>,
     resource_id: Id,
     table_name: &str,
-    resource_id_name: &str,
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
 
     QueryBuilder::new(format!(
-        r#"DELETE FROM {table_name} WHERE {resource_id_name} = "#
+        r#"DELETE FROM {table_name} WHERE resource_id = "#
     ))
     .push_bind(resource_id)
     .push(format!(" AND user_id IN ("))
@@ -248,13 +244,12 @@ pub async fn get_access(
     user_id: Id,
     resource_id: Id,
     table_name: &str,
-    resource_id_name: &str,
 ) -> sqlx::Result<Option<AccessRole>> {
     sqlx::query_scalar::<_, AccessRole>(&format!(
         r#"
             SELECT access_role
             FROM {table_name}
-            WHERE user_id = $1 AND {resource_id_name} = $2
+            WHERE user_id = $1 AND resource_id = $2
         "#
     ))
     .bind(user_id)

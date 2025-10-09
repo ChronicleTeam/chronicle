@@ -6,6 +6,7 @@ use crate::{
     model::{
         Cell,
         data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
+        users::{AccessRole, AccessRoleCheck},
     },
 };
 use aide::{NoApi, axum::ApiRouter};
@@ -19,6 +20,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
 use serde_json::Value;
+use sqlx::PgExecutor;
 use std::{collections::HashMap, str::FromStr};
 
 const IS_REQUIRED: &str = "A value is required";
@@ -26,6 +28,8 @@ const OUT_OF_RANGE: &str = "Value is out of range";
 const ENUMERATION_VALUE_MISSING: &str = "Enumeration value is does not exist";
 const INVALID_TYPE: &str = "Value is not the correct type";
 const INVALID_FIELD_ID: &str = "Field ID key is invalid";
+const PARENT_ID_NOT_FOUND: &str = "Entry parent ID not found";
+const NO_PARENT_TABLE: &str = "This table has no parent table";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
@@ -58,15 +62,12 @@ async fn create_entries(
 ) -> ApiResult<Json<Vec<Entry>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
 
     if let Some(parent_entry_id) = parent_id {
-        let parent_table_id = db::get_table_parent_id(&db, table_id).await?;
-        db::check_entry_relation(&db, parent_table_id, parent_entry_id)
-            .await?
-            .to_api_result()?;
+        check_parent_id(&db, parent_entry_id, table_id).await?;
     }
 
     let fields = db::get_fields_metadata(&db, table_id).await?;
@@ -103,18 +104,14 @@ async fn update_entry(
 ) -> ApiResult<Json<Entry>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
-    db::check_entry_relation(&db, table_id, entry_id)
-        .await?
-        .to_api_result()?;
-
+        .check(AccessRole::Editor)?;
+    if !db::entry_exists(&db, table_id, entry_id).await? {
+        return Err(ApiError::NotFound);
+    }
     if let Some(parent_entry_id) = parent_id {
-        let parent_table_id = db::get_table_parent_id(&db, table_id).await?;
-        db::check_entry_relation(&db, parent_table_id, parent_entry_id)
-            .await?
-            .to_api_result()?;
+        check_parent_id(&db, parent_entry_id, table_id).await?;
     }
 
     let fields = db::get_fields_metadata(&db, table_id).await?;
@@ -140,15 +137,29 @@ async fn delete_entry(
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
-    db::check_entry_relation(&db, table_id, entry_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
+    if !db::entry_exists(&db, table_id, entry_id).await? {
+        return Err(ApiError::NotFound);
+    }
 
     db::delete_entry(&db, table_id, entry_id).await?;
 
+    Ok(())
+}
+
+async fn check_parent_id(
+    executor: impl PgExecutor<'_> + Clone,
+    parent_entry_id: Id,
+    table_id: Id,
+) -> ApiResult<()> {
+    let parent_table_id = db::get_table_parent_id(executor.clone(), table_id)
+        .await?
+        .ok_or(ApiError::UnprocessableEntity(NO_PARENT_TABLE.into()))?;
+    if !db::entry_exists(executor, parent_table_id, parent_entry_id).await? {
+        return Err(ApiError::UnprocessableEntity(PARENT_ID_NOT_FOUND.into()));
+    }
     Ok(())
 }
 

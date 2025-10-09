@@ -44,7 +44,7 @@ impl AuthUser for User {
     }
 }
 
-#[derive(Debug, Clone, sqlx::Type, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, sqlx::Type, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema)]
 #[sqlx(type_name = "access_role")]
 pub enum AccessRole {
     Viewer,

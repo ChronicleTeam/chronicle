@@ -1,6 +1,17 @@
 use super::AppState;
 use crate::{
-    auth::AppAuthSession, db, docs::{self, TransformOperationExt, TABLES_TAG}, error::{ApiError, ApiResult, IntoAnyhow}, io, model::{data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable}, users::AccessRole}, Id
+    auth::AppAuthSession,
+    db,
+    docs::{self, TABLES_TAG, TransformOperationExt},
+    error::{ApiError, ApiResult, IntoAnyhow},
+    io,
+    model::{
+        data::{
+            CreateTable, CreateTableData, FieldMetadata, GetTable, SelectTable, Table, TableData,
+            UpdateTable,
+        },
+        users::{AccessRole, AccessRoleCheck},
+    },
 };
 use aide::{
     NoApi, OperationOutput,
@@ -60,12 +71,11 @@ pub fn router() -> ApiRouter<AppState> {
             .api_route(
                 "/{table-id}/csv",
                 post_with(export_table_to_csv, export_table_to_csv_docs),
-            )
-            // .api_route(
-            //     "/{table-id}/access",
-            //     patch_with(grant_table_access, grant_table_access_docs)
-            //         .delete_with(update_table_access, update_table_access_docs),
-            // ),
+            ), // .api_route(
+               //     "/{table-id}/access",
+               //     post_with(create_table_access, create_table_access_docs)
+               //         .patch_with(update_table_access, update_table_access_docs),
+               // ),
     )
 }
 
@@ -75,13 +85,18 @@ async fn create_table(
     Json(create_table): Json<CreateTable>,
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-
     let mut tx = db.begin().await?;
 
-    let table = db::create_table(tx.as_mut(), create_table).await?;
+    if let Some(parent_table_id) = create_table.parent_id {
+        db::get_table_access(&db, user_id, parent_table_id)
+            .await?
+            .check(AccessRole::Owner)?;
+    }
 
+    let table = db::create_table(tx.as_mut(), create_table).await?;
     db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
 
+    tx.commit().await?;
     Ok(Json(table))
 }
 
@@ -92,17 +107,19 @@ fn create_table_docs(op: TransformOperation) -> TransformOperation {
 async fn update_table(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     Json(update_table): Json<UpdateTable>,
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(tx.as_mut(), user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
 
-    let table = db::update_table(&db, table_id, update_table).await?;
+    let table = db::update_table(tx.as_mut(), table_id, update_table).await?;
 
+    tx.commit().await?;
     Ok(Json(table))
 }
 
@@ -113,16 +130,18 @@ fn update_table_docs(op: TransformOperation) -> TransformOperation {
 async fn delete_table(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(tx.as_mut(), user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
-    db::delete_table(&db, table_id).await?;
+    db::delete_table(tx.as_mut(), table_id).await?;
 
+    tx.commit().await?;
     Ok(())
 }
 
@@ -137,7 +156,7 @@ fn delete_table_docs(op: TransformOperation) -> TransformOperation {
 async fn get_tables(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-) -> ApiResult<Json<Vec<Table>>> {
+) -> ApiResult<Json<Vec<GetTable>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let tables = db::get_tables(&db, user_id).await?;
@@ -152,13 +171,13 @@ fn get_tables_docs(op: TransformOperation) -> TransformOperation {
 async fn get_table_children(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let tables = db::get_table_children(&db, table_id).await?;
 
@@ -176,13 +195,13 @@ fn get_table_children_docs(op: TransformOperation) -> TransformOperation {
 async fn get_table_data(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Json<TableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let data_table = db::get_table_data(&db, table_id).await?;
 
@@ -205,7 +224,7 @@ async fn import_table_from_excel(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
-        return Err(ApiError::BadRequest("Multipart has zero fields".into()));
+        return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
     let data = field.bytes().await.anyhow()?;
@@ -224,7 +243,8 @@ async fn import_table_from_excel(
     } in create_tables
     {
         let table = db::create_table(tx.as_mut(), table).await?;
-        db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
+        db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id)
+            .await?;
         let fields = db::create_fields(tx.as_mut(), table.table_id, fields).await?;
         let entries = db::create_entries(
             tx.as_mut(),
@@ -246,7 +266,6 @@ async fn import_table_from_excel(
     }
 
     tx.commit().await?;
-
     Ok(Json(tables))
 }
 
@@ -262,14 +281,14 @@ fn import_table_from_excel_docs(op: TransformOperation) -> TransformOperation {
 async fn export_table_to_excel(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     mut multipart: Multipart,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let mut spreadsheet = if let Some(field) = multipart.next_field().await.anyhow()? {
         let data = field.bytes().await.anyhow()?;
@@ -357,12 +376,12 @@ fn import_table_from_csv_docs(op: TransformOperation) -> TransformOperation {
 async fn export_table_to_csv(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let mut buffer = Vec::new();
     let csv_writer = csv::Writer::from_writer(Cursor::new(&mut buffer));

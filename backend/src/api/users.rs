@@ -8,7 +8,7 @@ use crate::{
     AppState,
     auth::AppAuthSession,
     db::{self},
-    docs::{self, AUTHENTICATION_TAG, SECURITY_SCHEME, TransformOperationExt, USERS_TAG},
+    docs::{self, AUTHENTICATION_TAG, TransformOperationExt, USERS_TAG},
     error::{ApiError, ApiResult, IntoAnyhow},
     model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
 };
@@ -144,13 +144,13 @@ async fn create_user(
     let password_hash = task::spawn_blocking(|| generate_hash(create_user.password))
         .await
         .anyhow()?;
-    let new_user = db::create_user(tx.as_mut(), create_user.username, password_hash, false).await?;
+    let user = db::create_user(tx.as_mut(), create_user.username, password_hash, false).await?;
 
     tx.commit().await?;
     Ok(Json(UserResponse {
-        user_id: new_user.user_id,
-        username: new_user.username,
-        is_admin: new_user.is_admin,
+        user_id: user.user_id,
+        username: user.username,
+        is_admin: user.is_admin,
     }))
 }
 
@@ -170,7 +170,7 @@ async fn update_user(
     }): AppAuthSession,
     Path(SelectUser { user_id }): Path<SelectUser>,
     Form(update_user): Form<UpdateUser>,
-) -> ApiResult<()> {
+) -> ApiResult<Json<UserResponse>> {
     let auth_user = auth_user.ok_or(ApiError::Unauthorized)?;
     if !auth_user.is_admin {
         return Err(ApiError::Forbidden);
@@ -194,7 +194,7 @@ async fn update_user(
         None
     };
 
-    db::update_user(
+    let user = db::update_user(
         tx.as_mut(),
         user_id,
         update_user.username,
@@ -204,14 +204,18 @@ async fn update_user(
     .await?;
 
     tx.commit().await?;
-    Ok(())
+    Ok(Json(UserResponse {
+        user_id: user.user_id,
+        username: user.username,
+        is_admin: user.is_admin,
+    }))
 }
 
 fn update_user_docs(op: TransformOperation) -> TransformOperation {
-    users_docs::<()>(
+    users_docs::<Json<UserResponse>>(
         op,
-        "delete_user",
-        "Delete a user. Requires admin privileges.",
+        "update_user",
+        "Update the user's username of password. Requires admin privileges.",
     )
     .response_description::<409, ()>("Username is taken")
 }

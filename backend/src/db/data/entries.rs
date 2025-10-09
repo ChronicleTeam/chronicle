@@ -189,22 +189,22 @@ pub async fn delete_entry(
 }
 
 /// Return the [Relation] between the table and this entry.
-pub async fn check_entry_relation(
+pub async fn entry_exists(
     executor: impl PgExecutor<'_>,
     table_id: Id,
     entry_id: Id,
-) -> sqlx::Result<Relation> {
+) -> sqlx::Result<bool> {
     let table_ident = TableIdentifier::new(table_id, "data_table");
-
-    Ok(sqlx::query(&format!(
+    sqlx::query_scalar(&format!(
         r#"
-            SELECT entry_id
-            FROM {table_ident}
-            WHERE entry_id = $1
-        "#
+            SELECT EXISTS (
+                SELECT 1
+                FROM {table_ident}
+                WHERE entry_id = $1
+            )
+        "#,
     ))
     .bind(entry_id)
-    .fetch_optional(executor)
-    .await?
-    .map_or(Relation::Absent, |_| Relation::Owned))
+    .fetch_one(executor)
+    .await
 }

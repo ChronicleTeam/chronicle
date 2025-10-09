@@ -3,7 +3,10 @@ use crate::{
     auth::AppAuthSession,
     db,
     error::{ApiError, ApiResult},
-    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
+    model::{
+        data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
+        users::{AccessRole, AccessRoleCheck},
+    },
 };
 use aide::{NoApi, axum::ApiRouter};
 use anyhow::anyhow;
@@ -48,9 +51,9 @@ async fn create_field(
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
     validate_field_kind(&mut create_field.field_kind)?;
 
@@ -79,12 +82,13 @@ async fn update_field(
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
-    db::check_field_relation(&db, table_id, field_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
+
+    if !db::field_exists(&db, table_id, field_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     validate_field_kind(&mut update_field.field_kind)?;
 
@@ -107,12 +111,13 @@ async fn delete_field(
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
-    db::check_field_relation(&db, table_id, field_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
+
+    if !db::field_exists(&db, table_id, field_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     db::delete_field(&db, field_id).await?;
 
@@ -133,9 +138,9 @@ async fn get_fields(
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let fields = db::get_fields(&db, table_id).await?;
 
@@ -161,9 +166,9 @@ async fn set_field_order(
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
     let mut field_ids: HashSet<_> = db::get_field_ids(&db, table_id)
         .await?
