@@ -282,30 +282,6 @@ pub async fn get_table_data(
     })
 }
 
-// /// Return the [Relation] between the user and this table.
-// pub async fn check_table_relation(
-//     executor: impl PgExecutor<'_>,
-//     user_id: Id,
-//     table_id: Id,
-// ) -> sqlx::Result<Relation> {
-//     todo!();
-//     sqlx::query_scalar::<_, Id>(
-//         r#"
-//             SELECT user_id
-//             FROM meta_table
-//             WHERE table_id = $1
-//         "#,
-//     )
-//     .bind(table_id)
-//     .fetch_optional(executor)
-//     .await
-//     .map(|id| match id {
-//         None => Relation::Absent,
-//         Some(id) if id == user_id => Relation::Owned,
-//         Some(_) => Relation::NotOwned,
-//     })
-// }
-
 pub async fn create_table_access(
     conn: impl Acquire<'_, Database = Postgres>,
     users: impl IntoIterator<Item = (Id, AccessRole)>,

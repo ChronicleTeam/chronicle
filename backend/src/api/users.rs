@@ -7,18 +7,16 @@
 use crate::{
     AppState,
     auth::AppAuthSession,
-    db::{self},
-    docs::{self, AUTHENTICATION_TAG, TransformOperationExt, USERS_TAG},
+    db,
     error::{ApiError, ApiResult, IntoAnyhow},
     model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
 };
 use aide::{
-    NoApi, OperationOutput,
+    NoApi,
     axum::{
         ApiRouter,
         routing::{get_with, patch_with, post_with},
     },
-    transform::TransformOperation,
 };
 use axum::{
     Form, Json,
@@ -34,21 +32,21 @@ const USERNAME_IS_TAKEN: &str = "Username is taken";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new()
-        .api_route("/login", post_with(login, login_docs))
-        .api_route("/logout", get_with(logout, logout_docs))
-        .api_route("/user", get_with(get_auth_user, get_auth_user_docs))
+        .api_route("/login", post_with(login, docs::login))
+        .api_route("/logout", get_with(logout, docs::logout))
+        .api_route("/user", get_with(get_auth_user, docs::get_auth_user))
         .nest(
             "/users",
             ApiRouter::new()
                 .api_route(
                     "/",
-                    post_with(create_user, create_user_docs)
-                        .get_with(get_all_users, get_all_users_docs),
+                    post_with(create_user, docs::create_user)
+                        .get_with(get_all_users, docs::get_all_users),
                 )
                 .api_route(
                     "/{user_id}",
-                    patch_with(update_user, update_user_docs)
-                        .delete_with(delete_user, delete_user_docs),
+                    patch_with(update_user, docs::update_user)
+                        .delete_with(delete_user, docs::delete_user),
                 ),
         )
 }
@@ -76,31 +74,9 @@ async fn login(
     }))
 }
 
-fn login_docs(op: TransformOperation) -> TransformOperation {
-    docs::template::<Json<UserResponse>>(
-        op,
-        "login",
-        "ogin the user from the credentials.",
-        false,
-        AUTHENTICATION_TAG,
-    )
-    .response_description::<400, ()>("User is already authenticated")
-    .response_description::<422, String>(INVALID_CREDENTIALS)
-}
-
 pub async fn logout(mut session: AppAuthSession) -> ApiResult<()> {
     session.logout().await.anyhow()?;
     Ok(())
-}
-
-fn logout_docs(op: TransformOperation) -> TransformOperation {
-    docs::template::<()>(
-        op,
-        "logout",
-        "Logout the user. Does nothing if the user is not logged in.",
-        false,
-        AUTHENTICATION_TAG,
-    )
 }
 
 async fn get_auth_user(
@@ -111,16 +87,6 @@ async fn get_auth_user(
         username: user.username,
         is_admin: user.is_admin,
     })))
-}
-
-fn get_auth_user_docs(op: TransformOperation) -> TransformOperation {
-    docs::template::<Json<Option<UserResponse>>>(
-        op,
-        "get_auth_user",
-        "Get the currently logged in user or nothing if not logged in.",
-        false,
-        AUTHENTICATION_TAG,
-    )
 }
 
 async fn create_user(
@@ -152,15 +118,6 @@ async fn create_user(
         username: user.username,
         is_admin: user.is_admin,
     }))
-}
-
-fn create_user_docs(op: TransformOperation) -> TransformOperation {
-    users_docs::<Json<UserResponse>>(
-        op,
-        "create_user",
-        "Create a new user. Requires admin priviledges.",
-    )
-    .response_description::<409, ()>("Username is taken")
 }
 
 async fn update_user(
@@ -211,15 +168,6 @@ async fn update_user(
     }))
 }
 
-fn update_user_docs(op: TransformOperation) -> TransformOperation {
-    users_docs::<Json<UserResponse>>(
-        op,
-        "update_user",
-        "Update the user's username of password. Requires admin privileges.",
-    )
-    .response_description::<409, ()>("Username is taken")
-}
-
 async fn delete_user(
     NoApi(AuthSession {
         user: auth_user, ..
@@ -237,14 +185,6 @@ async fn delete_user(
     Ok(())
 }
 
-fn delete_user_docs(op: TransformOperation) -> TransformOperation {
-    users_docs::<()>(
-        op,
-        "delete_user",
-        "Delete a user. Requires admin privileges.",
-    )
-}
-
 async fn get_all_users(
     NoApi(AuthSession {
         user: auth_user, ..
@@ -259,21 +199,89 @@ async fn get_all_users(
     Ok(Json(users))
 }
 
-fn get_all_users_docs(op: TransformOperation) -> TransformOperation {
-    users_docs::<Json<Vec<UserResponse>>>(
-        op,
-        "get_all_users",
-        "Retrieve all users. Requires admin privileges.",
-    )
-}
+mod docs {
+    use crate::{
+        api::users::INVALID_CREDENTIALS,
+        docs::{AUTHENTICATION_TAG, TransformOperationExt, USERS_TAG, template},
+        model::users::UserResponse,
+    };
+    use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
 
-fn users_docs<'a, R: OperationOutput>(
-    op: TransformOperation<'a>,
-    summary: &'a str,
-    description: &'a str,
-) -> TransformOperation<'a> {
-    docs::template::<R>(op, summary, description, true, USERS_TAG)
-        .response_description::<403, ()>("User is not an admin")
+    fn users_docs<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        template::<R>(op, summary, description, true, USERS_TAG)
+            .response_description::<403, ()>("User is not an admin")
+    }
+
+    pub fn login(op: TransformOperation) -> TransformOperation {
+        template::<Json<UserResponse>>(
+            op,
+            "login",
+            "ogin the user from the credentials.",
+            false,
+            AUTHENTICATION_TAG,
+        )
+        .response_description::<400, ()>("User is already authenticated")
+        .response_description::<422, String>(INVALID_CREDENTIALS)
+    }
+
+    pub fn logout(op: TransformOperation) -> TransformOperation {
+        template::<()>(
+            op,
+            "logout",
+            "Logout the user. Does nothing if the user is not logged in.",
+            false,
+            AUTHENTICATION_TAG,
+        )
+    }
+
+    pub fn get_auth_user(op: TransformOperation) -> TransformOperation {
+        template::<Json<Option<UserResponse>>>(
+            op,
+            "get_auth_user",
+            "Get the currently logged in user or nothing if not logged in.",
+            false,
+            AUTHENTICATION_TAG,
+        )
+    }
+
+    pub fn create_user(op: TransformOperation) -> TransformOperation {
+        users_docs::<Json<UserResponse>>(
+            op,
+            "create_user",
+            "Create a new user. Requires admin priviledges.",
+        )
+        .response_description::<409, ()>("Username is taken")
+    }
+
+    pub fn update_user(op: TransformOperation) -> TransformOperation {
+        users_docs::<Json<UserResponse>>(
+            op,
+            "update_user",
+            "Update the user's username of password. Requires admin privileges.",
+        )
+        .response_description::<409, ()>("Username is taken")
+    }
+
+    pub fn delete_user(op: TransformOperation) -> TransformOperation {
+        users_docs::<()>(
+            op,
+            "delete_user",
+            "Delete a user. Requires admin privileges.",
+        )
+    }
+
+    pub fn get_all_users(op: TransformOperation) -> TransformOperation {
+        users_docs::<Json<Vec<UserResponse>>>(
+            op,
+            "get_all_users",
+            "Retrieve all users. Requires admin privileges.",
+        )
+    }
 }
 
 #[cfg(test)]

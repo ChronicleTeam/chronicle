@@ -1,5 +1,12 @@
 use crate::{
-    auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::{users::{AccessRole, AccessRoleCheck}, viz::{Chart, ChartData, CreateChart, UpdateChart}}, AppState, Id
+    AppState, Id,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::{
+        users::{AccessRole, AccessRoleCheck},
+        viz::{Chart, ChartData, CreateChart, UpdateChart},
+    },
 };
 use aide::{NoApi, axum::ApiRouter};
 use axum::{
@@ -33,16 +40,18 @@ async fn create_chart(
     Json(create_chart): Json<CreateChart>,
 ) -> ApiResult<Json<Chart>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
         .await?
-        .to_api_result()?;
-    db::get_table_access(&db, user_id, create_chart.table_id)
+        .check(AccessRole::Editor)?;
+    db::get_table_access(tx.as_mut(), user_id, create_chart.table_id)
         .await?
         .check(AccessRole::Viewer)?;
 
-    let chart = db::create_chart(&db, dashboard_id, create_chart).await?;
+    let chart = db::create_chart(tx.as_mut(), dashboard_id, create_chart).await?;
 
+    tx.commit().await?;
     Ok(Json(chart))
 }
 
@@ -60,16 +69,18 @@ async fn update_chart(
     Json(update_chart): Json<UpdateChart>,
 ) -> ApiResult<Json<Chart>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
         .await?
-        .to_api_result()?;
-    db::check_chart_relation(&db, dashboard_id, chart_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
+    if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
-    let chart = db::update_chart(&db, chart_id, update_chart).await?;
+    let chart = db::update_chart(tx.as_mut(), chart_id, update_chart).await?;
 
+    tx.commit().await?;
     Ok(Json(chart))
 }
 
@@ -86,16 +97,18 @@ async fn delete_chart(
     Path((dashboard_id, chart_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
         .await?
-        .to_api_result()?;
-    db::check_chart_relation(&db, dashboard_id, chart_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
+    if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
-    db::delete_chart(&db, chart_id).await?;
+    db::delete_chart(tx.as_mut(), chart_id).await?;
 
+    tx.commit().await?;
     Ok(())
 }
 
@@ -113,9 +126,9 @@ async fn get_charts(
 ) -> ApiResult<Json<Vec<Chart>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(&db, user_id, dashboard_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let charts = db::get_charts(&db, dashboard_id).await?;
 
@@ -138,12 +151,12 @@ async fn get_chart_data(
 ) -> ApiResult<Json<ChartData>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(&db, user_id, dashboard_id)
         .await?
-        .to_api_result()?;
-    db::check_chart_relation(&db, dashboard_id, chart_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
+    if !db::chart_exists(&db, dashboard_id, chart_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     let chart_data = db::get_chart_data(&db, chart_id).await?;
 

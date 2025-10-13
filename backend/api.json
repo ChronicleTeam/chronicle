@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Chronicle back-end",
-    "summary": "Application for managing tabular data and creating charts",
+    "summary": "Application for managing tabular data and creating dashboards.",
     "version": ""
   },
   "paths": {
@@ -265,7 +265,7 @@
           "Tables"
         ],
         "summary": "get_tables",
-        "description": "Get all tables belonging to the user.",
+        "description": "Get all tables viewable to the user.",
         "responses": {
           "200": {
             "description": "Success",
@@ -274,7 +274,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Table"
+                    "$ref": "#/components/schemas/GetTable"
                   }
                 }
               }
@@ -335,7 +335,7 @@
           "Tables"
         ],
         "summary": "delete_table",
-        "description": "Delete a table, including all fields and entries.",
+        "description": "Delete a table, including all fields and entries.\nRequired access role: Owner",
         "parameters": [
           {
             "in": "path",
@@ -373,7 +373,7 @@
           "Tables"
         ],
         "summary": "update_table",
-        "description": "Update a table's meta data.",
+        "description": "Update a table's meta data.\nRequired access role: Editor",
         "parameters": [
           {
             "in": "path",
@@ -431,7 +431,7 @@
           "Tables"
         ],
         "summary": "get_table_children",
-        "description": "Get all table children for the specified table.",
+        "description": "Get all table children for the specified table.\nRequired access role: Viewer",
         "parameters": [
           {
             "in": "path",
@@ -481,7 +481,7 @@
           "Tables"
         ],
         "summary": "get_table_data",
-        "description": "Get all the meta data, fields, and entries of a table.",
+        "description": "Get all the meta data, fields, and entries of a table.\nRequired access role: Viewer",
         "parameters": [
           {
             "in": "path",
@@ -574,7 +574,7 @@
           "Tables"
         ],
         "summary": "export_table_to_excel",
-        "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
+        "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.\nRequired access role: Viewer",
         "parameters": [
           {
             "in": "path",
@@ -674,7 +674,7 @@
           "Tables"
         ],
         "summary": "export_table_to_csv",
-        "description": "Converts the specified table into a CSV file.",
+        "description": "Converts the specified table into a CSV file.\nRequired access role: Viewer",
         "parameters": [
           {
             "in": "path",

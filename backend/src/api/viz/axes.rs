@@ -1,12 +1,7 @@
 use crate::{
-    AppState, Id,
-    auth::AppAuthSession,
-    db::{self},
-    error::{ApiError, ApiResult},
-    model::{
-        data::FieldKind,
-        viz::{Aggregate, Axis, SetAxes},
-    },
+    auth::AppAuthSession, db::{self}, error::{ApiError, ApiResult}, model::{
+        data::FieldKind, users::{AccessRole, AccessRoleCheck}, viz::{Aggregate, Axis, SetAxes}
+    }, AppState, Id
 };
 use aide::{NoApi, axum::ApiRouter};
 use axum::{
@@ -49,12 +44,12 @@ async fn set_axes(
 ) -> ApiResult<Json<Vec<Axis>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(&db, user_id, dashboard_id)
         .await?
-        .to_api_result()?;
-    db::check_chart_relation(&db, dashboard_id, chart_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
+    if !db::chart_exists(&db, dashboard_id, chart_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     let table_id = db::get_chart_table_id(&db, chart_id).await?;
 

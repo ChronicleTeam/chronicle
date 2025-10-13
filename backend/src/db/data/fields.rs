@@ -368,7 +368,6 @@ pub async fn get_fields_metadata(
     .await
 }
 
-/// Return the [Relation] between the table and this field.
 pub async fn field_exists(
     executor: impl PgExecutor<'_>,
     table_id: Id,

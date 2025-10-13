@@ -7,7 +7,6 @@ use sqlx::prelude::FromRow;
 #[derive(Serialize, FromRow)]
 pub struct Dashboard {
     pub dashboard_id: Id,
-    pub user_id: Id,
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,

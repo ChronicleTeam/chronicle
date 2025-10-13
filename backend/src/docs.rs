@@ -8,7 +8,7 @@ use aide::{
 use axum::{Extension, Json, Router, routing::get};
 use std::{fs::File, io::BufWriter, sync::Arc};
 
-use crate::AppState;
+use crate::{AppState, model::users::AccessRole};
 
 // Tags to seperate API doc endpoints into categories.
 
@@ -27,11 +27,34 @@ pub const SECURITY_SCHEME: &str = "cookieAuth";
 
 pub trait TransformOperationExt {
     fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self;
+
+    fn required_access(self, role: AccessRole) -> Self;
 }
 
 impl TransformOperationExt for TransformOperation<'_> {
     fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self {
         self.response_with::<N, R, _>(|r| r.description(description))
+    }
+
+    fn required_access(mut self, role: AccessRole) -> Self {
+        let description = format!(
+            "Required access role: {}",
+            match role {
+                AccessRole::Viewer => "Viewer",
+                AccessRole::Editor => "Editor",
+                AccessRole::Owner => "Owner",
+            }
+        );
+
+        let op = self.inner_mut();
+        if let Some(d) = &mut op.description {
+            d.push(' ');
+            d.push_str(&description);
+        } else {
+            op.description = Some(description);
+        }
+
+        self
     }
 }
 
@@ -71,7 +94,7 @@ pub fn init(app: ApiRouter<AppState>) -> anyhow::Result<Router<AppState>> {
 /// Settings for the OpenApi documentation.
 fn api_docs_transform(api: TransformOpenApi) -> TransformOpenApi {
     api.title("Chronicle back-end")
-        .summary("Application for managing tabular data and creating charts")
+        .summary("Application for managing tabular data and creating dashboards.")
         .security_scheme(
             SECURITY_SCHEME,
             SecurityScheme::ApiKey {

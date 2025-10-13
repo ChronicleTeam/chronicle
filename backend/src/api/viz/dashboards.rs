@@ -1,9 +1,5 @@
 use crate::{
-    AppState, Id,
-    auth::AppAuthSession,
-    db,
-    error::{ApiError, ApiResult},
-    model::viz::{CreateDashboard, Dashboard, UpdateDashboard},
+    auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::{users::{AccessRole, AccessRoleCheck}, viz::{CreateDashboard, Dashboard, UpdateDashboard}}, AppState, Id
 };
 use aide::{NoApi, axum::ApiRouter};
 use axum::{
@@ -36,9 +32,12 @@ async fn create_dashboard(
     Json(create_dashboard): Json<CreateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    let dashboard = db::create_dashboard(&db, user_id, create_dashboard).await?;
+    let dashboard = db::create_dashboard(&db, create_dashboard).await?;
+    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], dashboard.dashboard_id).await?;
 
+    tx.commit().await?;
     Ok(Json(dashboard))
 }
 
@@ -56,13 +55,15 @@ async fn update_dashboard(
     Json(update_dashboard): Json<UpdateDashboard>,
 ) -> ApiResult<Json<Dashboard>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
 
     let dashboard = db::update_dashboard(&db, dashboard_id, update_dashboard).await?;
 
+    tx.commit().await?;
     Ok(Json(dashboard))
 }
 
@@ -79,11 +80,13 @@ async fn delete_dashboard(
     Path(dashboard_id): Path<Id>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
+    tx.commit().await?;
     db::delete_dashboard(&db, dashboard_id).await?;
 
     Ok(())

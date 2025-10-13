@@ -250,25 +250,23 @@ pub async fn get_chart_data(
     Ok(ChartData { chart, axes, cells })
 }
 
-/// Return the [Relation] between the dashboard and this chart.
-pub async fn check_chart_relation(
+
+pub async fn chart_exists(
     executor: impl PgExecutor<'_>,
     dashboard_id: Id,
     chart_id: Id,
-) -> sqlx::Result<Relation> {
-    sqlx::query_scalar::<_, Id>(
+) -> sqlx::Result<bool> {
+    sqlx::query_scalar(
         r#"
-            SELECT dashboard_id
-            FROM chart
-            WHERE chart_id = $1
+            SELECT EXISTS (
+                SELECT 1
+                FROM chart
+                WHERE dashboard_id = $1 chart_id = $2
+            )
         "#,
     )
+    .bind(dashboard_id)
     .bind(chart_id)
-    .fetch_optional(executor)
+    .fetch_one(executor)
     .await
-    .map(|id| match id {
-        None => Relation::Absent,
-        Some(id) if id == dashboard_id => Relation::Owned,
-        Some(_) => Relation::NotOwned,
-    })
 }
