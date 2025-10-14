@@ -109,7 +109,7 @@ async fn update_table(
 
     db::get_table_access(tx.as_mut(), user_id, table_id)
         .await?
-        .check(AccessRole::Editor)?;
+        .check(AccessRole::Owner)?;
 
     let table = db::update_table(tx.as_mut(), table_id, update_table).await?;
 
@@ -336,6 +336,9 @@ mod docs {
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
+    
+    const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
+    const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
 
     fn tables<'a, R: OperationOutput>(
         op: TransformOperation<'a>,
@@ -359,7 +362,7 @@ mod docs {
 
     pub fn update_table(op: TransformOperation) -> TransformOperation {
         select_tables::<Json<Table>>(op, "update_table", "Update a table's meta data.")
-            .required_access(AccessRole::Editor)
+            .required_access(TABLE_OWNER)
     }
 
     pub fn delete_table(op: TransformOperation) -> TransformOperation {
@@ -368,7 +371,7 @@ mod docs {
             "delete_table",
             "Delete a table, including all fields and entries.",
         )
-        .required_access(AccessRole::Owner)
+        .required_access(TABLE_OWNER)
     }
 
     pub fn get_tables(op: TransformOperation) -> TransformOperation {
@@ -381,7 +384,7 @@ mod docs {
             "get_table_children",
             "Get all table children for the specified table.",
         )
-        .required_access(AccessRole::Viewer)
+        .required_access(TABLE_VIEWER)
     }
 
     pub fn get_table_data(op: TransformOperation) -> TransformOperation {
@@ -390,7 +393,7 @@ mod docs {
             "get_table_data",
             "Get all the meta data, fields, and entries of a table.",
         )
-        .required_access(AccessRole::Viewer)
+        .required_access(TABLE_VIEWER)
     }
 
     pub fn import_table_from_excel(op: TransformOperation) -> TransformOperation {
@@ -408,7 +411,7 @@ mod docs {
             "export_table_to_excel",
             "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
         )
-        .required_access(AccessRole::Viewer)
+        .required_access(TABLE_VIEWER)
         .response_description::<400, ()>("Multipart has zero fields")
     }
 
@@ -427,6 +430,6 @@ mod docs {
             "export_table_to_csv",
             "Converts the specified table into a CSV file.",
         )
-        .required_access(AccessRole::Viewer)
+        .required_access(TABLE_VIEWER)
     }
 }

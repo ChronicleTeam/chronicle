@@ -244,6 +244,9 @@ mod docs {
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
+    
+    const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
+    const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
 
     fn fields<'a, R: OperationOutput>(
         op: TransformOperation<'a>,
@@ -266,13 +269,13 @@ mod docs {
     pub fn create_field(op: TransformOperation) -> TransformOperation {
         fields::<Json<Field>>(op, "create_field", "Create a field in a table.")
             .response_description::<422, String>(INVALID_RANGE)
-            .required_access(AccessRole::Owner)
+            .required_access(TABLE_OWNER)
     }
 
     pub fn update_field(op: TransformOperation) -> TransformOperation {
         select_fields::<Json<Field>>(op, "update_field", "Update a field's metadata in a table.")
             .response_description::<422, String>(INVALID_RANGE)
-            .required_access(AccessRole::Owner)
+            .required_access(TABLE_OWNER)
     }
 
     pub fn delete_field(op: TransformOperation) -> TransformOperation {
@@ -281,11 +284,11 @@ mod docs {
             "delete_field",
             "Delete a field and all cells in its respective column in the table.",
         )
-        .required_access(AccessRole::Owner)
+        .required_access(TABLE_OWNER)
     }
     pub fn get_fields(op: TransformOperation) -> TransformOperation {
         select_fields::<Json<Vec<Field>>>(op, "get_fields", "Get all fields in a table.")
-            .required_access(AccessRole::Viewer)
+            .required_access(TABLE_VIEWER)
     }
 
     pub fn set_field_order(op: TransformOperation) -> TransformOperation {
@@ -297,6 +300,6 @@ mod docs {
         .response_description::<422, String>(&format!(
             "<field_id>: {FIELD_ID_NOT_FOUND}\n\n<field_id>: {INVALID_ORDERING}"
         ))
-        .required_access(AccessRole::Owner)
+        .required_access(TABLE_OWNER)
     }
 }

@@ -1,18 +1,23 @@
 use crate::{
-    AppState, Id,
+    AppState,
     auth::AppAuthSession,
     db,
     error::{ApiError, ApiResult},
     model::{
         users::{AccessRole, AccessRoleCheck},
-        viz::{Chart, ChartData, CreateChart, UpdateChart},
+        viz::{Chart, ChartData, CreateChart, SelectChart, SelectDashboard, UpdateChart},
     },
 };
-use aide::{NoApi, axum::ApiRouter};
+use aide::{
+    NoApi,
+    axum::{
+        ApiRouter,
+        routing::{get_with, patch_with, post_with},
+    },
+};
 use axum::{
     Json,
     extract::{Path, State},
-    routing::{get, patch, post},
 };
 use axum_login::AuthSession;
 
@@ -20,9 +25,19 @@ pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
         "/dashboards/{dashboard-id}/charts",
         ApiRouter::new()
-            .route("/", post(create_chart).get(get_charts))
-            .route("/{chart-id}", patch(update_chart).delete(delete_chart))
-            .route("/{chart-id}/data", get(get_chart_data)),
+            .api_route(
+                "/",
+                post_with(create_chart, docs::create_chart).get_with(get_charts, docs::get_charts),
+            )
+            .api_route(
+                "/{chart-id}",
+                patch_with(update_chart, docs::update_chart)
+                    .delete_with(delete_chart, docs::delete_chart),
+            )
+            .api_route(
+                "/{chart-id}/data",
+                get_with(get_chart_data, docs::get_chart_data),
+            ),
     )
 }
 
@@ -36,7 +51,7 @@ pub fn router() -> ApiRouter<AppState> {
 async fn create_chart(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(dashboard_id): Path<Id>,
+    Path(SelectDashboard { dashboard_id }): Path<SelectDashboard>,
     Json(create_chart): Json<CreateChart>,
 ) -> ApiResult<Json<Chart>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
@@ -55,17 +70,13 @@ async fn create_chart(
     Ok(Json(chart))
 }
 
-/// Update a chart's metadata.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
-/// - [ApiError::NotFound]: Dashboard or chart not found
-///
 async fn update_chart(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path((dashboard_id, chart_id)): Path<(Id, Id)>,
+    Path(SelectChart {
+        dashboard_id,
+        chart_id,
+    }): Path<SelectChart>,
     Json(update_chart): Json<UpdateChart>,
 ) -> ApiResult<Json<Chart>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
@@ -84,17 +95,13 @@ async fn update_chart(
     Ok(Json(chart))
 }
 
-/// Delete a chart and its axes.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
-/// - [ApiError::NotFound]: Dashboard or chart not found
-///
 async fn delete_chart(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path((dashboard_id, chart_id)): Path<(Id, Id)>,
+    Path(SelectChart {
+        dashboard_id,
+        chart_id,
+    }): Path<SelectChart>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
@@ -112,17 +119,10 @@ async fn delete_chart(
     Ok(())
 }
 
-/// Get all charts for this dashboard.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to this dashboard
-/// - [ApiError::NotFound]: Dashboard not found
-///
 async fn get_charts(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(dashboard_id): Path<Id>,
+    Path(SelectDashboard { dashboard_id }): Path<SelectDashboard>,
 ) -> ApiResult<Json<Vec<Chart>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
@@ -134,20 +134,13 @@ async fn get_charts(
 
     Ok(Json(charts))
 }
-
-/// Get the chart's metadata, axes metadata, and data points.
-///
-/// Used for building and displaying the chart.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
-/// - [ApiError::NotFound]: Dashboard or chart not found
-///
 async fn get_chart_data(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path((dashboard_id, chart_id)): Path<(Id, Id)>,
+    Path(SelectChart {
+        dashboard_id,
+        chart_id,
+    }): Path<SelectChart>,
 ) -> ApiResult<Json<ChartData>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
@@ -161,4 +154,66 @@ async fn get_chart_data(
     let chart_data = db::get_chart_data(&db, chart_id).await?;
 
     Ok(Json(chart_data))
+}
+
+mod docs {
+    use crate::{
+        docs::{CHARTS_TAG, TransformOperationExt, template},
+        model::{
+            users::AccessRole,
+            viz::{Chart, ChartData},
+        },
+    };
+    use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
+
+    const DASHBOARD_EDITOR_TABLE_VIEWER: [(&str, AccessRole); 2] = [
+        ("Dashboard", AccessRole::Editor),
+        ("Table", AccessRole::Viewer),
+    ];
+    const DASHBOARD_EDITOR: [(&str, AccessRole); 1] = [("Dashboard", AccessRole::Editor)];
+    const DASHBOARD_VIEWER: [(&str, AccessRole); 1] = [("Dashboard", AccessRole::Viewer)];
+
+    fn charts<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        template::<R>(op, summary, description, true, CHARTS_TAG)
+    }
+
+    pub fn create_chart(op: TransformOperation) -> TransformOperation {
+        charts::<Json<Chart>>(op, "create_chart", "Create a blank chart.")
+            .response_description::<404, ()>("Dashboard not found\n\nTable not found")
+            .required_access(DASHBOARD_EDITOR_TABLE_VIEWER)
+    }
+
+    pub fn update_chart(op: TransformOperation) -> TransformOperation {
+        charts::<Json<Chart>>(op, "update_chart", "Update a chart's metadata.")
+            .response_description::<404, ()>("Dashboard not found\n\nChart not found")
+            .required_access(DASHBOARD_EDITOR)
+    }
+
+    pub fn delete_chart(op: TransformOperation) -> TransformOperation {
+        charts::<()>(op, "delete_chart", "Delete a chart and its axes.")
+            .response_description::<404, ()>("Dashboard not found\n\nChart not found")
+            .required_access(DASHBOARD_EDITOR)
+    }
+
+    pub fn get_charts(op: TransformOperation) -> TransformOperation {
+        charts::<Json<Vec<Chart>>>(op, "get_charts", "Get all charts for this dashboard.")
+            .response_description::<404, ()>("Dashboard not found")
+            .required_access(DASHBOARD_VIEWER)
+    }
+
+    pub fn get_chart_data(op: TransformOperation) -> TransformOperation {
+        charts::<Json<ChartData>>(
+            op,
+            "get_chart_data",
+            "Get the chart's metadata, axes metadata, and data points.
+            Used for building and displaying the chart.",
+        )
+        .response_description::<404, ()>("Dashboard not found\n\nChart not found")
+        .required_access(DASHBOARD_VIEWER)
+    }
 }

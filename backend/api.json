@@ -359,7 +359,7 @@
             "description": "Table not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Owner"
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -415,7 +415,7 @@
             "description": "Table not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Editor"
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -465,7 +465,7 @@
             "description": "Table not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Viewer"
+            "description": "Required access roles: Table: Viewer"
           }
         },
         "security": [
@@ -512,7 +512,7 @@
             "description": "Table not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Viewer"
+            "description": "Required access roles: Table: Viewer"
           }
         },
         "security": [
@@ -612,7 +612,7 @@
             "description": "Table not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Viewer"
+            "description": "Required access roles: Table: Viewer"
           },
           "400": {
             "description": "Multipart has zero fields"
@@ -701,7 +701,7 @@
             "description": "Table not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Viewer"
+            "description": "Required access roles: Table: Viewer"
           }
         },
         "security": [
@@ -751,7 +751,7 @@
             "description": "Table not found\n\nField not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Viewer"
+            "description": "Required access roles: Table: Viewer"
           }
         },
         "security": [
@@ -813,7 +813,7 @@
             }
           },
           "403": {
-            "description": "User does not satify minimum access role: Owner"
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -863,7 +863,7 @@
             "description": "Table not found\n\nField not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Owner"
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -935,7 +935,7 @@
             }
           },
           "403": {
-            "description": "User does not satify minimum access role: Owner"
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -1002,7 +1002,7 @@
             }
           },
           "403": {
-            "description": "User does not satify minimum access role: Owner"
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -1057,7 +1057,7 @@
             }
           },
           "403": {
-            "description": "User does not satify minimum access role: Editor"
+            "description": "Required access roles: Table: Editor"
           }
         },
         "security": [
@@ -1085,7 +1085,7 @@
             "description": "Table not found\n\nEntry not found"
           },
           "403": {
-            "description": "User does not satify minimum access role: Editor"
+            "description": "Required access roles: Table: Editor"
           }
         },
         "security": [
@@ -1128,7 +1128,529 @@
             }
           },
           "403": {
-            "description": "User does not satify minimum access role: Editor"
+            "description": "Required access roles: Table: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards": {
+      "get": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "get_dashboards",
+        "description": "Get all dashboards viewable to the user.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Dashboard"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "create_dashboard",
+        "description": "Create a blank dashboard.",
+        "requestBody": {
+          "description": "Create dashboard request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDashboard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}": {
+      "delete": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "delete_dashboard",
+        "description": "Delete a dashboard and all of it's charts and axes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "update_dashboard",
+        "description": "Update a dashboard's metadata.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Update dashboard request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDashboard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts": {
+      "get": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "get_charts",
+        "description": "Get all charts for this dashboard.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Chart"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "create_chart",
+        "description": "Create a blank chart.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Create chart request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nTable not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor, Table: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts/{chart-id}": {
+      "delete": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "delete_chart",
+        "description": "Delete a chart and its axes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "update_chart",
+        "description": "Update a chart's metadata.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Update chart request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts/{chart-id}/data": {
+      "get": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "get_chart_data",
+        "description": "Get the chart's metadata, axes metadata, and data points.\n            Used for building and displaying the chart.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts/{chart-id}/axes": {
+      "put": {
+        "tags": [
+          "Axes"
+        ],
+        "summary": "set_axes",
+        "description": "Set all the axes of the specified chart and rebuild the dynamic view.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Set a chart's axis request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAxes"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Axis"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "422": {
+            "description": "<field_id> : Field not found\n\n<field_id> : Axis aggregate is invalid for this field",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor"
           }
         },
         "security": [
@@ -1155,6 +1677,99 @@
           "Viewer",
           "Editor",
           "Owner"
+        ]
+      },
+      "Aggregate": {
+        "description": "The aggregate function of the axis.",
+        "type": "string",
+        "enum": [
+          "Sum",
+          "Average",
+          "Min",
+          "Max",
+          "Count"
+        ]
+      },
+      "Axis": {
+        "description": "Chart axis entity.",
+        "type": "object",
+        "properties": {
+          "aggregate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "axis_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "axis_kind": {
+            "$ref": "#/components/schemas/AxisKind"
+          },
+          "chart_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "axis_id",
+          "chart_id",
+          "field_id",
+          "axis_kind",
+          "created_at"
+        ]
+      },
+      "AxisField": {
+        "description": "An axis and its associated field.",
+        "type": "object",
+        "properties": {
+          "axis": {
+            "$ref": "#/components/schemas/Axis"
+          },
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "field_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "axis",
+          "field_name",
+          "field_kind"
+        ]
+      },
+      "AxisKind": {
+        "description": "The kind of axis for constructing the actual chart.",
+        "type": "string",
+        "enum": [
+          "X",
+          "Y",
+          "Color",
+          "Size",
+          "Tooltip",
+          "Label",
+          "Detail"
         ]
       },
       "Cell": {
@@ -1245,6 +1860,151 @@
               "String"
             ]
           }
+        ]
+      },
+      "Chart": {
+        "description": "Dashboard chart entity.",
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chart_kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "chart_id",
+          "dashboard_id",
+          "table_id",
+          "name",
+          "chart_kind",
+          "created_at"
+        ]
+      },
+      "ChartData": {
+        "description": "Response for fetching entire chart data.",
+        "type": "object",
+        "properties": {
+          "axes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxisField"
+            }
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Cell"
+              }
+            }
+          },
+          "chart": {
+            "$ref": "#/components/schemas/Chart"
+          }
+        },
+        "required": [
+          "chart",
+          "axes",
+          "cells"
+        ]
+      },
+      "ChartKind": {
+        "description": "The kind of chart to display.",
+        "type": "string",
+        "enum": [
+          "Table",
+          "Bar",
+          "Line"
+        ]
+      },
+      "CreateAxis": {
+        "description": "Create axis request.",
+        "type": "object",
+        "properties": {
+          "aggregate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "axis_kind": {
+            "$ref": "#/components/schemas/AxisKind"
+          },
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "field_id",
+          "axis_kind"
+        ]
+      },
+      "CreateChart": {
+        "description": "Create chart request.",
+        "type": "object",
+        "properties": {
+          "chart_kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id",
+          "name",
+          "chart_kind"
+        ]
+      },
+      "CreateDashboard": {
+        "description": "Create dashboard request.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
         ]
       },
       "CreateEntries": {
@@ -1338,6 +2098,39 @@
         "required": [
           "username",
           "password"
+        ]
+      },
+      "Dashboard": {
+        "description": "Dashboard entity",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "dashboard_id",
+          "name",
+          "description",
+          "created_at"
         ]
       },
       "Entry": {
@@ -1685,6 +2478,35 @@
           "access_role"
         ]
       },
+      "SelectChart": {
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "dashboard_id",
+          "chart_id"
+        ]
+      },
+      "SelectDashboard": {
+        "type": "object",
+        "properties": {
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "dashboard_id"
+        ]
+      },
       "SelectField": {
         "type": "object",
         "properties": {
@@ -1725,6 +2547,13 @@
         "required": [
           "user_id"
         ]
+      },
+      "SetAxes": {
+        "description": "Set a chart's axis request.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CreateAxis"
+        }
       },
       "SetFieldOrder": {
         "description": "Set the field order request.",
@@ -1805,6 +2634,38 @@
           "fields",
           "entries",
           "children"
+        ]
+      },
+      "UpdateChart": {
+        "description": "Update chart request.",
+        "type": "object",
+        "properties": {
+          "chart_kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "chart_kind"
+        ]
+      },
+      "UpdateDashboard": {
+        "description": "Update dashboard request.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
         ]
       },
       "UpdateEntry": {

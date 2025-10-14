@@ -336,6 +336,8 @@ mod docs {
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
     use itertools::Itertools;
+    
+    const TABLE_EDITOR: [(&str, AccessRole); 1] = [("Table", AccessRole::Editor)];
 
     fn entries<'a, R: OperationOutput>(
         op: TransformOperation<'a>,
@@ -364,7 +366,7 @@ mod docs {
         )
         .response_description::<404, ()>("Table not found")
         .response_description::<422, String>(&errors)
-        .required_access(AccessRole::Editor)
+        .required_access(TABLE_EDITOR)
     }
 
     pub fn update_entry(op: TransformOperation) -> TransformOperation {
@@ -384,14 +386,12 @@ mod docs {
         )
         .response_description::<404, ()>("Table not found\n\nEntry not found")
         .response_description::<422, String>(&errors)
-        .required_access(AccessRole::Editor)
+        .required_access(TABLE_EDITOR)
     }
 
     pub fn delete_entry(op: TransformOperation) -> TransformOperation {
         entries::<()>(op, "delete_entry", "Delete an entry from a table.")
-            .response_description::<404, ()>(
-                "Table not found\n\nEntry not found",
-            )
-            .required_access(AccessRole::Editor)
+            .response_description::<404, ()>("Table not found\n\nEntry not found")
+            .required_access(TABLE_EDITOR)
     }
 }

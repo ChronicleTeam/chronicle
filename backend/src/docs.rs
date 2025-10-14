@@ -6,6 +6,7 @@ use aide::{
     transform::{TransformOpenApi, TransformOperation},
 };
 use axum::{Extension, Json, Router, routing::get};
+use itertools::Itertools;
 use std::{fs::File, io::BufWriter, sync::Arc};
 
 use crate::{AppState, model::users::AccessRole};
@@ -28,7 +29,7 @@ pub const SECURITY_SCHEME: &str = "cookieAuth";
 pub trait TransformOperationExt {
     fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self;
 
-    fn required_access(self, role: AccessRole) -> Self;
+    fn required_access<'a>(self, role: impl IntoIterator<Item = (&'a str, AccessRole)>) -> Self;
 }
 
 impl TransformOperationExt for TransformOperation<'_> {
@@ -36,17 +37,20 @@ impl TransformOperationExt for TransformOperation<'_> {
         self.response_with::<N, R, _>(|r| r.description(description))
     }
 
-    fn required_access(self, role: AccessRole) -> Self {
-        let description = format!(
-            "User does not satify minimum access role: {}",
-            match role {
-                AccessRole::Viewer => "Viewer",
-                AccessRole::Editor => "Editor",
-                AccessRole::Owner => "Owner",
-            }
-        );
+    fn required_access<'a>(self, roles: impl IntoIterator<Item = (&'a str, AccessRole)>) -> Self {
+        let roles = roles
+            .into_iter()
+            .map(|(prefix, role)| {
+                let role = match role {
+                    AccessRole::Viewer => "Viewer",
+                    AccessRole::Editor => "Editor",
+                    AccessRole::Owner => "Owner",
+                };
+                format!("{prefix}: {role}")
+            })
+            .join(", ");
 
-        self.response_description::<403, ()>(&description)
+        self.response_description::<403, ()>(&format!("Required access roles: {roles}"))
     }
 }
 
