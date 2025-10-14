@@ -208,7 +208,7 @@ mod docs {
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
 
-    fn users_docs<'a, R: OperationOutput>(
+    fn users<'a, R: OperationOutput>(
         op: TransformOperation<'a>,
         summary: &'a str,
         description: &'a str,
@@ -250,7 +250,7 @@ mod docs {
     }
 
     pub fn create_user(op: TransformOperation) -> TransformOperation {
-        users_docs::<Json<UserResponse>>(
+        users::<Json<UserResponse>>(
             op,
             "create_user",
             "Create a new user. Requires admin priviledges.",
@@ -259,7 +259,7 @@ mod docs {
     }
 
     pub fn update_user(op: TransformOperation) -> TransformOperation {
-        users_docs::<Json<UserResponse>>(
+        users::<Json<UserResponse>>(
             op,
             "update_user",
             "Update the user's username of password. Requires admin privileges.",
@@ -268,7 +268,7 @@ mod docs {
     }
 
     pub fn delete_user(op: TransformOperation) -> TransformOperation {
-        users_docs::<()>(
+        users::<()>(
             op,
             "delete_user",
             "Delete a user. Requires admin privileges.",
@@ -276,7 +276,7 @@ mod docs {
     }
 
     pub fn get_all_users(op: TransformOperation) -> TransformOperation {
-        users_docs::<Json<Vec<UserResponse>>>(
+        users::<Json<Vec<UserResponse>>>(
             op,
             "get_all_users",
             "Retrieve all users. Requires admin privileges.",

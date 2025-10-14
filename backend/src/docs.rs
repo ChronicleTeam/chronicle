@@ -36,9 +36,9 @@ impl TransformOperationExt for TransformOperation<'_> {
         self.response_with::<N, R, _>(|r| r.description(description))
     }
 
-    fn required_access(mut self, role: AccessRole) -> Self {
+    fn required_access(self, role: AccessRole) -> Self {
         let description = format!(
-            "Required access role: {}",
+            "User does not satify minimum access role: {}",
             match role {
                 AccessRole::Viewer => "Viewer",
                 AccessRole::Editor => "Editor",
@@ -46,15 +46,7 @@ impl TransformOperationExt for TransformOperation<'_> {
             }
         );
 
-        let op = self.inner_mut();
-        if let Some(d) = &mut op.description {
-            d.push(' ');
-            d.push_str(&description);
-        } else {
-            op.description = Some(description);
-        }
-
-        self
+        self.response_description::<403, ()>(&description)
     }
 }
 
@@ -67,7 +59,7 @@ pub fn template<'a, R: OperationOutput>(
 ) -> TransformOperation<'a> {
     if secure {
         op = op
-            .response_with::<401, (), _>(|r| r.description("User is not authenticated"))
+            .response_description::<401, ()>("User is not authenticated")
             .security_requirement(SECURITY_SCHEME)
     }
     op.summary(summary)

@@ -9,11 +9,16 @@ use crate::{
         users::{AccessRole, AccessRoleCheck},
     },
 };
-use aide::{NoApi, axum::ApiRouter};
+use aide::{
+    NoApi,
+    axum::{
+        ApiRouter,
+        routing::{patch_with, post_with},
+    },
+};
 use axum::{
     Json,
     extract::{Path, State},
-    routing::{patch, post},
 };
 use axum_login::AuthSession;
 use chrono::{DateTime, Utc};
@@ -35,8 +40,12 @@ pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
         "/tables/{table-id}/entries",
         ApiRouter::new()
-            .route("/", post(create_entries))
-            .route("/{entry-id}", patch(update_entry).delete(delete_entry)),
+            .api_route("/", post_with(create_entries, docs::create_entries))
+            .api_route(
+                "/{entry-id}",
+                patch_with(update_entry, docs::update_entry)
+                    .delete_with(delete_entry, docs::delete_entry),
+            ),
     )
 }
 
@@ -123,13 +132,6 @@ async fn update_entry(
     Ok(Json(entry))
 }
 
-/// Delete an entry from a table.
-///
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table or entry not found
-///
 async fn delete_entry(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -319,5 +321,77 @@ where
         Err(OUT_OF_RANGE)
     } else {
         Ok(())
+    }
+}
+
+mod docs {
+    use crate::{
+        api::data::entries::{
+            ENUMERATION_VALUE_MISSING, INVALID_FIELD_ID, INVALID_TYPE, IS_REQUIRED,
+            NO_PARENT_TABLE, PARENT_ID_NOT_FOUND,
+        },
+        docs::{ENTRIES_TAG, TransformOperationExt, template},
+        model::{data::Entry, users::AccessRole},
+    };
+    use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
+    use itertools::Itertools;
+
+    fn entries<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        template::<R>(op, summary, description, true, ENTRIES_TAG)
+    }
+
+    pub fn create_entries(op: TransformOperation) -> TransformOperation {
+        let errors = [
+            IS_REQUIRED,
+            INVALID_TYPE,
+            ENUMERATION_VALUE_MISSING,
+            INVALID_FIELD_ID,
+        ]
+        .into_iter()
+        .map(|v| format!("<field_id> : {v}"))
+        .chain([NO_PARENT_TABLE.into(), PARENT_ID_NOT_FOUND.into()])
+        .join("\n\n");
+
+        entries::<Json<Vec<Entry>>>(
+            op,
+            "create_entries",
+            "Create many entries in a table. Can optionally take a parent entry ID.",
+        )
+        .response_description::<404, ()>("Table not found")
+        .response_description::<422, String>(&errors)
+        .required_access(AccessRole::Editor)
+    }
+
+    pub fn update_entry(op: TransformOperation) -> TransformOperation {
+        let errors = [
+            IS_REQUIRED,
+            INVALID_TYPE,
+            ENUMERATION_VALUE_MISSING,
+            INVALID_FIELD_ID,
+            NO_PARENT_TABLE,
+            PARENT_ID_NOT_FOUND,
+        ]
+        .join("\n\n");
+        entries::<()>(
+            op,
+            "update_entry",
+            "Update an entry in a table. Can optionally take a parent entry ID.",
+        )
+        .response_description::<404, ()>("Table not found\n\nEntry not found")
+        .response_description::<422, String>(&errors)
+        .required_access(AccessRole::Editor)
+    }
+
+    pub fn delete_entry(op: TransformOperation) -> TransformOperation {
+        entries::<()>(op, "delete_entry", "Delete an entry from a table.")
+            .response_description::<404, ()>(
+                "Table not found\n\nEntry not found",
+            )
+            .required_access(AccessRole::Editor)
     }
 }

@@ -350,9 +350,7 @@ mod docs {
         summary: &'a str,
         description: &'a str,
     ) -> TransformOperation<'a> {
-        tables::<R>(op, summary, description)
-            .response_description::<403, ()>("User does not have access to that table")
-            .response_description::<404, ()>("Table not found")
+        tables::<R>(op, summary, description).response_description::<404, ()>("Table not found")
     }
 
     pub fn create_table(op: TransformOperation) -> TransformOperation {

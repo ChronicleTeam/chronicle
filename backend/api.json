@@ -335,7 +335,7 @@
           "Tables"
         ],
         "summary": "delete_table",
-        "description": "Delete a table, including all fields and entries.\nRequired access role: Owner",
+        "description": "Delete a table, including all fields and entries.",
         "parameters": [
           {
             "in": "path",
@@ -355,11 +355,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Owner"
           }
         },
         "security": [
@@ -373,7 +373,7 @@
           "Tables"
         ],
         "summary": "update_table",
-        "description": "Update a table's meta data.\nRequired access role: Editor",
+        "description": "Update a table's meta data.",
         "parameters": [
           {
             "in": "path",
@@ -411,11 +411,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Editor"
           }
         },
         "security": [
@@ -431,7 +431,7 @@
           "Tables"
         ],
         "summary": "get_table_children",
-        "description": "Get all table children for the specified table.\nRequired access role: Viewer",
+        "description": "Get all table children for the specified table.",
         "parameters": [
           {
             "in": "path",
@@ -461,11 +461,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Viewer"
           }
         },
         "security": [
@@ -481,7 +481,7 @@
           "Tables"
         ],
         "summary": "get_table_data",
-        "description": "Get all the meta data, fields, and entries of a table.\nRequired access role: Viewer",
+        "description": "Get all the meta data, fields, and entries of a table.",
         "parameters": [
           {
             "in": "path",
@@ -508,11 +508,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Viewer"
           }
         },
         "security": [
@@ -574,7 +574,7 @@
           "Tables"
         ],
         "summary": "export_table_to_excel",
-        "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.\nRequired access role: Viewer",
+        "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
         "parameters": [
           {
             "in": "path",
@@ -608,11 +608,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Viewer"
           },
           "400": {
             "description": "Multipart has zero fields"
@@ -674,7 +674,7 @@
           "Tables"
         ],
         "summary": "export_table_to_csv",
-        "description": "Converts the specified table into a CSV file.\nRequired access role: Viewer",
+        "description": "Converts the specified table into a CSV file.",
         "parameters": [
           {
             "in": "path",
@@ -697,11 +697,438 @@
           "401": {
             "description": "User is not authenticated"
           },
+          "404": {
+            "description": "Table not found"
+          },
           "403": {
-            "description": "User does not have access to that table"
+            "description": "User does not satify minimum access role: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/fields": {
+      "get": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "get_fields",
+        "description": "Get all fields in a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Field"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "create_field",
+        "description": "Create a field in a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Create field request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateField"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Field"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
           },
           "404": {
             "description": "Table not found"
+          },
+          "422": {
+            "description": "Range start bound is greater than end bound",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/fields/{field_id}": {
+      "delete": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "delete_field",
+        "description": "Delete a field and all cells in its respective column in the table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "update_field",
+        "description": "Update a field's metadata in a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Update field request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateField"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Field"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "422": {
+            "description": "Range start bound is greater than end bound",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/fields/order": {
+      "patch": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "set_field_order",
+        "description": "Set the order of all fields in a table. Ordering numbers must go from `0` to `n-1` where `n` is the total number of fields",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Set the field order request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFieldOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Field"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "422": {
+            "description": "<field_id>: Field ID not found\n\n<field_id>: Ordering number does not follow the sequence",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/entries": {
+      "post": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "create_entries",
+        "description": "Create many entries in a table. Can optionally take a parent entry ID.",
+        "requestBody": {
+          "description": "Create entry request. Keys map to field IDs.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEntries"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Entry"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found"
+          },
+          "422": {
+            "description": "<field_id> : A value is required\n\n<field_id> : Value is not the correct type\n\n<field_id> : Enumeration value is does not exist\n\n<field_id> : Field ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/entries/{entry-id}": {
+      "delete": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "delete_entry",
+        "description": "Delete an entry from a table.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nEntry not found"
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "update_entry",
+        "description": "Update an entry in a table. Can optionally take a parent entry ID.",
+        "requestBody": {
+          "description": "Update entry request. Keys map to field IDs.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nEntry not found"
+          },
+          "422": {
+            "description": "A value is required\n\nValue is not the correct type\n\nEnumeration value is does not exist\n\nField ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "User does not satify minimum access role: Editor"
           }
         },
         "security": [
@@ -818,6 +1245,45 @@
               "String"
             ]
           }
+        ]
+      },
+      "CreateEntries": {
+        "description": "Create entry request. Keys map to field IDs.",
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "entries"
+        ]
+      },
+      "CreateField": {
+        "description": "Create field request.",
+        "type": "object",
+        "properties": {
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "field_kind"
         ]
       },
       "CreateTable": {
@@ -1219,6 +1685,23 @@
           "access_role"
         ]
       },
+      "SelectField": {
+        "type": "object",
+        "properties": {
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id",
+          "field_id"
+        ]
+      },
       "SelectTable": {
         "type": "object",
         "properties": {
@@ -1242,6 +1725,14 @@
         "required": [
           "user_id"
         ]
+      },
+      "SetFieldOrder": {
+        "description": "Set the field order request.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer",
+          "format": "int32"
+        }
       },
       "Table": {
         "description": "User table entity.",
@@ -1314,6 +1805,42 @@
           "fields",
           "entries",
           "children"
+        ]
+      },
+      "UpdateEntry": {
+        "description": "Update entry request. Keys map to field IDs.",
+        "type": "object",
+        "properties": {
+          "cells": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "cells"
+        ]
+      },
+      "UpdateField": {
+        "description": "Update field request.",
+        "type": "object",
+        "properties": {
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "field_kind"
         ]
       },
       "UpdateTable": {
