@@ -16,6 +16,7 @@ mkShell rec {
     openssl
     pkg-config
     rustup
+    cargo-llvm-cov
     nodejs
     nodePackages.npm
     postgresql_17

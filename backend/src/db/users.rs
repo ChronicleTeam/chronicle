@@ -257,6 +257,7 @@ pub async fn get_access(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{
         Id, db,
@@ -268,13 +269,13 @@ mod test {
     #[sqlx::test]
     async fn create_user(db: PgPool) -> anyhow::Result<()> {
         let username = "test";
-        let password = "password";
+        let password_hash = "password";
         let is_admin = false;
         let user1 =
-            db::create_user(&db, username.into(), generate_hash(password), is_admin).await?;
+            db::create_user(&db, username.into(), password_hash.into(), is_admin).await?;
         assert_eq!(username, user1.username);
+        assert_eq!(password_hash, user1.password_hash);
         assert_eq!(is_admin, user1.is_admin);
-        verify_password(password, &user1.password_hash)?;
         let user2: User = sqlx::query_as(
             r#"
                 SELECT *

@@ -92,3 +92,6 @@ base64 = "0.22"
 
 [dev-dependencies]
 mime = "0.3"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
