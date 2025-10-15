@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, Relation}, model::{users::AccessRole, viz::{ChartIdentifier, CreateDashboard, Dashboard, UpdateDashboard}}, Id
+    db, model::{users::AccessRole, viz::{ChartIdentifier, CreateDashboard, Dashboard, GetDashboard, UpdateDashboard}}, Id
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
@@ -104,7 +104,7 @@ pub async fn delete_dashboard(
 pub async fn get_dashboards(
     executor: impl PgExecutor<'_>,
     user_id: Id,
-) -> sqlx::Result<Vec<Dashboard>> {
+) -> sqlx::Result<Vec<GetDashboard>> {
     sqlx::query_as(
         r#"
             SELECT *

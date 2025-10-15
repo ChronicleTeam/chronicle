@@ -5,7 +5,7 @@ use crate::{
     error::{ApiError, ApiResult},
     model::{
         users::{AccessRole, AccessRoleCheck},
-        viz::{CreateDashboard, Dashboard, SelectDashboard, UpdateDashboard},
+        viz::{CreateDashboard, Dashboard, GetDashboard, SelectDashboard, UpdateDashboard},
     },
 };
 use aide::{
@@ -98,7 +98,7 @@ async fn delete_dashboard(
 async fn get_dashboards(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-) -> ApiResult<Json<Vec<Dashboard>>> {
+) -> ApiResult<Json<Vec<GetDashboard>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let dashboards = db::get_dashboards(&db, user_id).await?;
@@ -129,13 +129,9 @@ mod docs {
     }
 
     pub fn update_dashboard(op: TransformOperation) -> TransformOperation {
-        dashboards::<Json<Dashboard>>(
-            op,
-            "update_dashboard",
-            "Update a dashboard's metadata.",
-        )
-        .response_description::<404, ()>("Dashboard not found")
-        .required_access(DASHBOARD_OWNER)
+        dashboards::<Json<Dashboard>>(op, "update_dashboard", "Update a dashboard's metadata.")
+            .response_description::<404, ()>("Dashboard not found")
+            .required_access(DASHBOARD_OWNER)
     }
 
     pub fn delete_dashboard(op: TransformOperation) -> TransformOperation {
