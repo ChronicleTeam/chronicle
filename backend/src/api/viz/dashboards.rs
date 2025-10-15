@@ -95,6 +95,7 @@ async fn delete_dashboard(
     Ok(())
 }
 
+// TODO
 async fn get_dashboards(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
