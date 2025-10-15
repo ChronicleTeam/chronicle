@@ -1,7 +1,7 @@
 use super::{entry_from_row, select_columns, update_columns};
 use crate::{
     Id,
-    db::{Relation, data::insert_columns},
+    db::data::insert_columns,
     model::{
         Cell,
         data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},

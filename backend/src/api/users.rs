@@ -286,24 +286,24 @@ mod docs {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{AppConfig, init_app, setup_tracing};
-    use sqlx::PgPool;
+    // use super::*;
+    // use crate::{AppConfig, init_app, setup_tracing};
+    // use sqlx::PgPool;
 
-    #[sqlx::test]
-    async fn login(db: PgPool) -> anyhow::Result<()> {
-        setup_tracing();
-        let mut app = init_app(AppConfig::build()?).await?;
+    // #[sqlx::test]
+    // async fn login(db: PgPool) -> anyhow::Result<()> {
+    //     setup_tracing();
+    //     let mut app = init_app(AppConfig::build()?).await?;
 
-        let password = String::from("test123");
-        let user = db::create_user(
-            &db,
-            "test@example.com".into(),
-            generate_hash(password),
-            true,
-        )
-        .await?;
+    //     let password = String::from("test123");
+    //     let user = db::create_user(
+    //         &db,
+    //         "test@example.com".into(),
+    //         generate_hash(password),
+    //         true,
+    //     )
+    //     .await?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }

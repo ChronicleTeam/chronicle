@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// The application user.
-#[derive(Clone, Serialize, Deserialize, FromRow)]
+#[derive(Clone, Serialize, Deserialize, FromRow, PartialEq, Eq)]
 pub struct User {
     pub user_id: Id,
     pub username: String,
@@ -100,7 +100,7 @@ pub struct UpdateUser {
 }
 
 /// User response type.
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct UserResponse {
     pub user_id: Id,
     pub username: String,

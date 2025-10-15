@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::{
     Id,
-    db::Relation,
     model::{
         Cell,
         viz::{

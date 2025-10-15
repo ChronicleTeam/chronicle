@@ -1,5 +1,5 @@
 use crate::{
-    db::{self, Relation}, model::{users::AccessRole, viz::{ChartIdentifier, CreateDashboard, Dashboard, UpdateDashboard}}, Id
+    db, model::{users::AccessRole, viz::{ChartIdentifier, CreateDashboard, Dashboard, UpdateDashboard}}, Id
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
