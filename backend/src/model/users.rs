@@ -1,4 +1,5 @@
 use axum_login::AuthUser;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -41,33 +42,33 @@ impl AuthUser for User {
 }
 
 /// Credentials request type.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SelectUser {
     pub user_id: Id,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct CreateUser {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct UpdateUser {
     pub username: Option<String>,
     pub password: Option<String>,
 }
 
 /// User response type.
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
 pub struct UserResponse {
     pub user_id: Id,
     pub username: String,
-    pub is_admin: bool
+    pub is_admin: bool,
 }

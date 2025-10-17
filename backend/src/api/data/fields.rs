@@ -1,12 +1,18 @@
 use crate::{
-    auth::AuthSession, db, error::{ApiError, ApiResult}, model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField}, AppState, Id
+    AppState, Id,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
 };
+use aide::{NoApi, axum::ApiRouter};
 use anyhow::anyhow;
 use axum::{
-    Json, Router,
+    Json,
     extract::{Path, State},
     routing::{patch, post},
 };
+use axum_login::AuthSession;
 use itertools::Itertools;
 use std::collections::HashSet;
 
@@ -15,10 +21,10 @@ const FIELD_ID_NOT_FOUND: &str = "Field ID not found";
 const FIELD_ID_MISSING: &str = "Field ID missing";
 const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/tables/{table-id}/fields",
-        Router::new()
+        ApiRouter::new()
             .route("/", post(create_field).get(get_fields))
             .route("/{field_id}", patch(update_field).delete(delete_field))
             .route("/order", patch(set_field_order)),
@@ -35,7 +41,7 @@ pub fn router() -> Router<AppState> {
 ///     - [INVALID_RANGE]
 ///
 async fn create_field(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(mut create_field): Json<CreateField>,
@@ -66,7 +72,7 @@ async fn create_field(
 ///     - [INVALID_RANGE]
 ///
 async fn update_field(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
     Json(mut update_field): Json<UpdateField>,
@@ -95,7 +101,7 @@ async fn update_field(
 /// - [ApiError::NotFound]: Table or field not found
 ///
 async fn delete_field(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((table_id, field_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
@@ -121,7 +127,7 @@ async fn delete_field(
 /// - [ApiError::NotFound]: Table not found
 ///
 async fn get_fields(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
 ) -> ApiResult<Json<Vec<Field>>> {
@@ -148,7 +154,7 @@ async fn get_fields(
 ///   - <field_id>: [INVALID_ORDERING]
 ///
 async fn set_field_order(
-    AuthSession { user, .. }: AuthSession,
+    NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(table_id): Path<Id>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
@@ -179,9 +185,9 @@ async fn set_field_order(
         })
         .collect_vec();
     error_messages.extend(
-    field_ids
-        .into_iter()
-        .map(|field_id| format!("{field_id}: {FIELD_ID_MISSING}")),
+        field_ids
+            .into_iter()
+            .map(|field_id| format!("{field_id}: {FIELD_ID_MISSING}")),
     );
 
     if !error_messages.is_empty() {

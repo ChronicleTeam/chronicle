@@ -1,4 +1,7 @@
-use crate::{model::users::{User, UserResponse}, Id};
+use crate::{
+    Id,
+    model::users::{User, UserResponse},
+};
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
 pub async fn create_user(

@@ -15,3 +15,8 @@ curl -b cookies.txt -X GET $ADDR/logout
 curl -b cookies.txt -X PATCH $ADDR/users/1 \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "username=ch_admin@example.com"
+
+curl -i -X POST $ADDR/login \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "username=test@example.com&password=test123" \
+    | grep -i "set-cookie"

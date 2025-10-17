@@ -72,6 +72,18 @@ jsonwebtoken = "9.3"
 async-trait = "0.1"
 # axum-messages = "0.8"
 
+# OpenAPI documenation
+aide = { version = "0.15", features = [
+  "axum",
+  "axum-json",
+  "axum-form",
+  "axum-multipart",
+  "macros",
+  "swagger"
+] }
+schemars = { version = "0.9", features = ["uuid1", "chrono04", "rust_decimal1"] }
+
+
 # Utility
 # url = "2.5.7"
 num-traits = "0.2"
