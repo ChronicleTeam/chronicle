@@ -76,13 +76,13 @@ impl AccessRoleCheck for Option<AccessRole> {
 }
 
 /// Credentials request type.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SelectUser {
     pub user_id: Id,
 }
@@ -100,7 +100,7 @@ pub struct UpdateUser {
 }
 
 /// User response type.
-#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct UserResponse {
     pub user_id: Id,
     pub username: String,

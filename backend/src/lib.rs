@@ -11,6 +11,7 @@ use axum::{
     Router,
     http::{HeaderValue, Method, header},
 };
+use base64::{Engine, prelude::BASE64_STANDARD};
 use config::{Config, ConfigError, Environment};
 use itertools::Itertools;
 use serde::Deserialize;
@@ -30,6 +31,7 @@ use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
+use tower_sessions::cookie::Key;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
@@ -51,7 +53,8 @@ struct AppConfig {
     port: u16,
     #[serde(deserialize_with = "env_list")]
     allowed_origin: Vec<String>,
-    session_key: String,
+    #[serde(deserialize_with = "base64_session_key")]
+    session_key: Key,
     admin: Credentials,
     /// Database connection info.
     database: DatabaseConfig,
@@ -102,14 +105,6 @@ pub async fn serve() -> anyhow::Result<()> {
     tracing::info!("API docs url http://localhost:{}/docs", config.port);
     tracing::info!("listening on {}", listener.local_addr()?);
 
-    let router = init_app(config).await?;
-
-    axum::serve(listener, router.into_make_service()).await?;
-
-    Ok(())
-}
-
-async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
     let db = PgPoolOptions::new()
         .max_connections(20)
         .connect_with(
@@ -120,15 +115,28 @@ async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
                 .password(&config.database.password),
         )
         .await?;
-
     MIGRATOR.run(&db).await?;
 
-    let allowed_origin: Vec<_> = config
-        .allowed_origin
+    auth::set_admin_user(&db, config.admin).await?;
+
+    let router = api::router();
+    let router = docs::init(router)?;
+    let router = auth::init(router, db.clone(), config.session_key).await?;
+    let router = init_layers(router, config.allowed_origin)?;
+    let router = router.with_state(AppState { db });
+
+    axum::serve(listener, router.into_make_service()).await?;
+    Ok(())
+}
+
+fn init_layers(
+    router: Router<AppState>,
+    allowed_origin: Vec<String>,
+) -> anyhow::Result<Router<AppState>> {
+    let allowed_origin: Vec<_> = allowed_origin
         .iter()
         .map(|v| HeaderValue::from_str(v))
         .try_collect()?;
-
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
         .layer(
@@ -149,18 +157,7 @@ async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
         .layer(CompressionLayer::new())
         .layer(CatchPanicLayer::new())
         .layer(TimeoutLayer::new(Duration::from_secs(300)));
-
-    let router = api::router().layer(service);
-
-    let router = auth::init(router, db.clone(), config.session_key).await?;
-
-    auth::set_admin_user(&db, config.admin).await?;
-
-    let router = docs::init(router)?;
-
-    let router = router.with_state(AppState { db });
-
-    Ok(router)
+    Ok(router.layer(service))
 }
 
 /// Sets up tracing for debuging and monitoring.
@@ -173,7 +170,7 @@ fn setup_tracing() {
             .with(
                 tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                     format!(
-                        "{}=debug,tower_http=debug,axum::rejection=trace",
+                        "{}=debug,tower_http=debug,axum::rejection=trace,tower_sessions=trace",
                         env!("CARGO_CRATE_NAME")
                     )
                     .into()
@@ -193,4 +190,96 @@ where
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect())
+}
+
+fn base64_session_key<'de, D>(deserializer: D) -> Result<Key, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(Key::from(
+        &BASE64_STANDARD
+            .decode(s)
+            .map_err(serde::de::Error::custom)?,
+    ))
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::{
+        AppConfig, AppState, Id, api,
+        auth::{self, AppAuthSession},
+        error::{ApiResult, IntoAnyhow},
+        init_layers,
+        model::users::User,
+    };
+    use aide::openapi::OpenApi;
+    use axum::{
+        Json, Router,
+        http::header::SET_COOKIE,
+        routing::{get, post},
+    };
+    use axum_test::TestServer;
+    use password_auth::generate_hash;
+    use sqlx::PgPool;
+
+    async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
+        session.login(&user).await.anyhow()?;
+        Ok(())
+    }
+
+    async fn get_auth_user(session: AppAuthSession) -> Json<Option<User>> {
+        Json(session.user.clone())
+    }
+
+    async fn router_setup(config: AppConfig, db: PgPool) -> anyhow::Result<Router> {
+        let app = api::router().finish_api(&mut OpenApi::default());
+        let app = app.nest(
+            "/test",
+            Router::new()
+                .route("/login", post(login))
+                .route("/user", get(get_auth_user)),
+        );
+        let app = auth::init(app, db.clone(), config.session_key).await?;
+        let app = init_layers(app, config.allowed_origin)?;
+        Ok(app.with_state(AppState { db }))
+    }
+
+    pub async fn test_server(db: PgPool) -> anyhow::Result<TestServer> {
+        let config = AppConfig::build()?;
+        let server = TestServer::new(router_setup(config, db).await?)?;
+        Ok(server)
+    }
+
+    pub async fn test_server_logged_in(
+        db: PgPool,
+        username: &str,
+        password: &str,
+        is_admin: bool,
+    ) -> anyhow::Result<(TestServer, Id)> {
+        let config = AppConfig::build()?;
+        let app = router_setup(config, db.clone()).await?;
+
+        let user: User = sqlx::query_as(
+            r#"
+                INSERT INTO app_user (username, password_hash, is_admin)
+                VALUES ($1, $2, $3)
+                RETURNING *
+            "#,
+        )
+        .bind(username)
+        .bind(generate_hash(password))
+        .bind(is_admin)
+        .fetch_one(&db)
+        .await?;
+
+        let mut server = TestServer::new(app)?;
+        server.save_cookies();
+        let response = server.post("/test/login").json(&user).await;
+        response.assert_status_ok();
+        response.assert_contains_header(SET_COOKIE);
+        println!("{:?}\n", response.cookies());
+
+        Ok((server, user.user_id))
+    }
 }

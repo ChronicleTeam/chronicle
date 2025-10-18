@@ -263,7 +263,6 @@ mod test {
         Id, db,
         model::users::{User, UserResponse},
     };
-    use password_auth::{generate_hash, verify_password};
     use sqlx::PgPool;
 
     #[sqlx::test]

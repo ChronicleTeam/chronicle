@@ -58,7 +58,6 @@ async fn login(
     if session.user.is_some() {
         return Err(ApiError::BadRequest(ALREADY_LOGGED_IN.into()));
     }
-
     let user = session
         .authenticate(creds)
         .await
@@ -221,7 +220,7 @@ mod docs {
         template::<Json<UserResponse>>(
             op,
             "login",
-            "ogin the user from the credentials.",
+            "Login the user from the credentials.",
             false,
             AUTHENTICATION_TAG,
         )
@@ -286,24 +285,110 @@ mod docs {
 
 #[cfg(test)]
 mod test {
-    // use super::*;
-    // use crate::{AppConfig, init_app, setup_tracing};
-    // use sqlx::PgPool;
+    use crate::{
+        AppConfig, Id,
+        model::users::{Credentials, SelectUser, UserResponse},
+        setup_tracing,
+        test::{test_server, test_server_logged_in},
+    };
+    use password_auth::generate_hash;
+    use serde_json::json;
+    use sqlx::PgPool;
+    use std::str::FromStr;
+    use tower_sessions::{SessionStore, session};
+    use tower_sessions_sqlx_store::PostgresStore;
 
-    // #[sqlx::test]
-    // async fn login(db: PgPool) -> anyhow::Result<()> {
-    //     setup_tracing();
-    //     let mut app = init_app(AppConfig::build()?).await?;
+    #[sqlx::test]
+    async fn login(db: PgPool) -> anyhow::Result<()> {
+        let server = test_server(db.clone()).await?;
 
-    //     let password = String::from("test123");
-    //     let user = db::create_user(
-    //         &db,
-    //         "test@example.com".into(),
-    //         generate_hash(password),
-    //         true,
-    //     )
-    //     .await?;
+        let credentials = Credentials {
+            username: "john".into(),
+            password: "1234".into(),
+        };
+        let user_id: Id = sqlx::query_scalar(
+            r#"
+                INSERT INTO app_user (username, password_hash)
+                VALUES ($1, $2)
+                RETURNING user_id
+            "#,
+        )
+        .bind(&credentials.username)
+        .bind(generate_hash(&credentials.password))
+        .fetch_one(&db)
+        .await?;
+        let select_user = SelectUser { user_id };
 
-    //     Ok(())
-    // }
+        let response = server
+            .post("/api/login")
+            .form(&Credentials {
+                username: credentials.username.clone(),
+                password: "4321".into(),
+            })
+            .await;
+        response.assert_status_unprocessable_entity();
+        server.get("/test/user").await.assert_json(&None::<()>);
+
+        let response = server
+            .post("/api/login")
+            .form(&credentials)
+            .save_cookies()
+            .await;
+        response.assert_status_ok();
+        response.assert_json(&UserResponse {
+            user_id,
+            username: credentials.username.clone(),
+            is_admin: false,
+        });
+        server
+            .get("/test/user")
+            .await
+            .assert_json_contains(&select_user);
+
+        let response = server.post("/api/login").form(&credentials).await;
+        response.assert_status_bad_request();
+        server
+            .get("/test/user")
+            .await
+            .assert_json_contains(&select_user);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn logout(db: PgPool) -> anyhow::Result<()> {
+        let (server, _user_id) =
+            test_server_logged_in(db.clone(), "molly", "1234", false).await?;
+
+        let response = server.get("/api/logout").await;
+        response.assert_status_ok();
+        server.get("/test/user").await.assert_json(&None::<()>);
+
+        let response = server.get("/api/logout").await;
+        response.assert_status_ok();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_auth_user(db: PgPool) -> anyhow::Result<()> {
+        setup_tracing();
+        let username = "molly";
+        let password = "1234";
+        let is_admin = false;
+        let (server, user_id) =
+            test_server_logged_in(db.clone(), username, password, is_admin).await?;
+
+        let response = server.get("/api/user").await;
+        response.assert_status_ok();
+        response.assert_json(&UserResponse {
+            user_id,
+            username: username.into(),
+            is_admin,
+        });
+
+        let response = server.get("/api/user").clear_cookies().await;
+        response.assert_status_ok();
+        response.assert_json(&json!(null));
+
+        Ok(())
+    }
 }
