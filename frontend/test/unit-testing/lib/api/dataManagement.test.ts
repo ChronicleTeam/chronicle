@@ -30,7 +30,7 @@ import {
   postEntries,
   patchEntry,
   deleteEntry
-} from "../../../../src/lib/api/dataManagement";
+} from "../../../../src/lib/api";
 
 import {
   GET,
@@ -190,7 +190,7 @@ describe("getTableData", () => {
     const tableData = { fields: [field], entries: [entry] };
     (GET as any).mockResolvedValueOnce(tableData);
     (hydrateJSONTableData as any).mockReturnValueOnce(tableData);
-    const res = await getTableData(table as any);
+    const res = await getTableData(table.table_id.toString());
     expect(GET).toHaveBeenCalledWith(`/tables/${table.table_id}/data`);
     expect(hydrateJSONTableData).toHaveBeenCalledWith(tableData);
     expect(res).toEqual(tableData);

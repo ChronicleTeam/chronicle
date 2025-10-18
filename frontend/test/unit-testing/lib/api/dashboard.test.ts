@@ -35,7 +35,7 @@ import {
   patchChart,
   deleteChart,
   putAxes
-} from "../../../../src/lib/api/dashboard";
+} from "../../../../src/lib/api";
 
 import { GET, POST, PATCH, PUT, DELETE, _TESTING } from "../../../../src/lib/api/base";
 import { FieldType } from "../../../../src/lib/types/dataManagement";
@@ -98,7 +98,7 @@ describe("deleteDashboard", () => {
 describe("getCharts", () => {
   it("calls GET with correct dashboard id", async () => {
     (GET as any).mockResolvedValueOnce([chart]);
-    const res = await getCharts(dashboard as any);
+    const res = await getCharts(dashboard.dashboard_id.toString());
     expect(GET).toHaveBeenCalledWith(`/dashboards/${dashboard.dashboard_id}/charts`);
     expect(res).toEqual([chart]);
   });
