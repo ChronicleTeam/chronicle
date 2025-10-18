@@ -8,8 +8,8 @@ export const ssr = false;
 
 export const load: PageLoad = async ({ params }) => {
   return {
-    table_prop: await getTableData(params.table_id).then((response: TableData) => {
-      return response.table;
+    table_prop: await getTableData(params.table_id).then((response) => {
+      return response.table_data.table;
     })
   }
 }

@@ -102,8 +102,14 @@ pub struct UpdateField {
     pub field_kind: FieldKind,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SelectField {
+    pub table_id: Id,
+    pub field_id: Id,
+}
+
 /// Set the field order request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
 /// DTO for when a field's ID and field kind is needed.

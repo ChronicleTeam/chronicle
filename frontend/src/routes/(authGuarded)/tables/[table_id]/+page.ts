@@ -7,11 +7,10 @@ export const ssr = false;
 
 
 export const load: PageLoad = async ({ params }) => {
+  const tableResponse = await getTableData(params.table_id)
+  tableResponse.table_data.fields.sort((f, g) => f.ordering - g.ordering);
   return {
-    table: await getTableData(params.table_id).then((response: TableData) => {
-      response.fields.sort((f, g) => f.ordering - g.ordering);
-
-      return response;
-    })
+    table: tableResponse.table_data,
+    role: tableResponse.access_role
   }
 }

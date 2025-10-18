@@ -1,12 +1,4 @@
 /*
-User roles to restrict endpoint access.
-*/
-CREATE TYPE user_role AS ENUM (
-    'Admin',
-    'Normal'
-);
-
-/*
 Application user. Passwords are stored as hashes.
 */
 CREATE TABLE app_user (
@@ -19,3 +11,9 @@ CREATE TABLE app_user (
 );
 
 SELECT trigger_updated_at('app_user');
+
+CREATE TYPE access_role AS ENUM (
+    'Owner',
+    'Editor',
+    'Viewer'
+);

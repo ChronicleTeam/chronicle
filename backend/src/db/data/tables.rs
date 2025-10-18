@@ -1,12 +1,13 @@
 use super::{entry_from_row, select_columns};
 use crate::{
     Id,
-    db::Relation,
+    db,
     model::{
         data::{
-            CreateTable, Field, FieldIdentifier, FieldMetadata, Table, TableData, TableIdentifier,
-            UpdateTable,
+            CreateTable, Field, FieldIdentifier, FieldMetadata, GetTable, Table, TableData,
+            TableIdentifier, UpdateTable,
         },
+        users::AccessRole,
         viz::ChartIdentifier,
     },
 };
@@ -17,7 +18,6 @@ use sqlx::{Acquire, PgExecutor, Postgres};
 /// Add a table to this user and create the actual SQL table.
 pub async fn create_table(
     conn: impl Acquire<'_, Database = Postgres>,
-    user_id: Id,
     CreateTable {
         parent_id,
         name,
@@ -28,12 +28,11 @@ pub async fn create_table(
 
     let table: Table = sqlx::query_as(
         r#"
-            INSERT INTO meta_table (user_id, parent_id, name, description)
-            VALUES ($1, $2, $3, $4) 
+            INSERT INTO meta_table (parent_id, name, description)
+            VALUES ($1, $2, $3) 
             RETURNING *
         "#,
     )
-    .bind(user_id)
     .bind(parent_id)
     .bind(name)
     .bind(description)
@@ -143,8 +142,8 @@ pub async fn delete_table(
     Ok(())
 }
 
-/// Get the parent ID of this table assuming that it has one.
-pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Id> {
+/// Get the parent ID of this table.
+pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Option<Id>> {
     sqlx::query_scalar(
         r#"
             SELECT parent_id
@@ -153,16 +152,18 @@ pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) ->
         "#,
     )
     .bind(table_id)
-    .fetch_one(executor)
+    .fetch_optional(executor)
     .await
 }
 
 /// Get all tables belonging to this user.
-pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<Table>> {
+pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Vec<GetTable>> {
     sqlx::query_as(
         r#"
             SELECT *
-            FROM meta_table
+            FROM meta_table AS t
+            JOIN meta_table_access AS a
+            ON t.table_id = a.resource_id
             WHERE user_id = $1
         "#,
     )
@@ -281,25 +282,34 @@ pub async fn get_table_data(
     })
 }
 
-/// Return the [Relation] between the user and this table.
-pub async fn check_table_relation(
+pub async fn create_table_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = (Id, AccessRole)>,
+    resource_id: Id,
+) -> sqlx::Result<()> {
+    db::create_access(conn, users, resource_id, "meta_table_access").await
+}
+
+pub async fn update_table_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = (Id, AccessRole)>,
+    resource_id: Id,
+) -> sqlx::Result<()> {
+    db::update_access(conn, users, resource_id, "meta_table_access").await
+}
+
+pub async fn delete_table_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = Id>,
+    resource_id: Id,
+) -> sqlx::Result<()> {
+    db::delete_access(conn, users, resource_id, "meta_table_access").await
+}
+
+pub async fn get_table_access(
     executor: impl PgExecutor<'_>,
     user_id: Id,
-    table_id: Id,
-) -> sqlx::Result<Relation> {
-    sqlx::query_scalar::<_, Id>(
-        r#"
-            SELECT user_id
-            FROM meta_table
-            WHERE table_id = $1
-        "#,
-    )
-    .bind(table_id)
-    .fetch_optional(executor)
-    .await
-    .map(|id| match id {
-        None => Relation::Absent,
-        Some(id) if id == user_id => Relation::Owned,
-        Some(_) => Relation::NotOwned,
-    })
+    resource_id: Id,
+) -> sqlx::Result<Option<AccessRole>> {
+    db::get_access(executor, user_id, resource_id, "meta_table_access").await
 }

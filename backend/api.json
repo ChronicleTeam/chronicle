@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Chronicle back-end",
-    "summary": "Application for managing tabular data and creating charts",
+    "summary": "Application for managing tabular data and creating dashboards.",
     "version": ""
   },
   "paths": {
@@ -207,8 +207,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "delete_user",
-        "description": "Delete a user. Requires admin privileges.",
+        "summary": "update_user",
+        "description": "Update the user's username of password. Requires admin privileges.",
         "parameters": [
           {
             "in": "path",
@@ -233,7 +233,14 @@
         },
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "User is not authenticated"
@@ -258,7 +265,7 @@
           "Tables"
         ],
         "summary": "get_tables",
-        "description": "Get all tables belonging to the user.",
+        "description": "Get all tables viewable to the user.",
         "responses": {
           "200": {
             "description": "Success",
@@ -267,7 +274,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Table"
+                    "$ref": "#/components/schemas/GetTable"
                   }
                 }
               }
@@ -313,6 +320,9 @@
           },
           "401": {
             "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Parent table not found"
           }
         },
         "security": [
@@ -329,6 +339,18 @@
         ],
         "summary": "delete_table",
         "description": "Delete a table, including all fields and entries.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success"
@@ -336,11 +358,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -355,6 +377,18 @@
         ],
         "summary": "update_table",
         "description": "Update a table's meta data.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "requestBody": {
           "description": "Update table request.",
           "content": {
@@ -380,11 +414,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Owner"
           }
         },
         "security": [
@@ -401,6 +435,18 @@
         ],
         "summary": "get_table_children",
         "description": "Get all table children for the specified table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -418,11 +464,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Viewer"
           }
         },
         "security": [
@@ -432,20 +478,32 @@
         ]
       }
     },
-    "/api/tables/{table-id}/data": {
+    "/api/tables/{table_id}/data": {
       "get": {
         "tags": [
           "Tables"
         ],
         "summary": "get_table_data",
         "description": "Get all the meta data, fields, and entries of a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TableData"
+                  "$ref": "#/components/schemas/GetTableData"
                 }
               }
             }
@@ -453,11 +511,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Viewer"
           }
         },
         "security": [
@@ -493,7 +551,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TableData"
+                    "$ref": "#/components/schemas/GetTableData"
                   }
                 }
               }
@@ -520,6 +578,18 @@
         ],
         "summary": "export_table_to_excel",
         "description": "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "requestBody": {
           "description": "multipart form data",
           "content": {
@@ -541,11 +611,11 @@
           "401": {
             "description": "User is not authenticated"
           },
-          "403": {
-            "description": "User does not have access to that table"
-          },
           "404": {
             "description": "Table not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Viewer"
           },
           "400": {
             "description": "Multipart has zero fields"
@@ -582,7 +652,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TableData"
+                  "$ref": "#/components/schemas/GetTableData"
                 }
               }
             }
@@ -608,6 +678,18 @@
         ],
         "summary": "export_table_to_csv",
         "description": "Converts the specified table into a CSV file.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -618,11 +700,960 @@
           "401": {
             "description": "User is not authenticated"
           },
+          "404": {
+            "description": "Table not found"
+          },
           "403": {
-            "description": "User does not have access to that table"
+            "description": "Required access roles: Table: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/fields": {
+      "get": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "get_fields",
+        "description": "Get all fields in a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Field"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "create_field",
+        "description": "Create a field in a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Create field request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateField"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Field"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
           },
           "404": {
             "description": "Table not found"
+          },
+          "422": {
+            "description": "Range start bound is greater than end bound",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Table: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/fields/{field_id}": {
+      "delete": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "delete_field",
+        "description": "Delete a field and all cells in its respective column in the table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "update_field",
+        "description": "Update a field's metadata in a table.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Update field request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateField"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Field"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "422": {
+            "description": "Range start bound is greater than end bound",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Table: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/fields/order": {
+      "patch": {
+        "tags": [
+          "Fields"
+        ],
+        "summary": "set_field_order",
+        "description": "Set the order of all fields in a table. Ordering numbers must go from `0` to `n-1` where `n` is the total number of fields",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Set the field order request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFieldOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Field"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nField not found"
+          },
+          "422": {
+            "description": "<field_id>: Field ID not found\n\n<field_id>: Ordering number does not follow the sequence",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Table: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/entries": {
+      "post": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "create_entries",
+        "description": "Create many entries in a table. Can optionally take a parent entry ID.",
+        "requestBody": {
+          "description": "Create entry request. Keys map to field IDs.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEntries"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Entry"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found"
+          },
+          "422": {
+            "description": "<field_id> : A value is required\n\n<field_id> : Value is not the correct type\n\n<field_id> : Enumeration value is does not exist\n\n<field_id> : Field ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Table: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tables/{table-id}/entries/{entry-id}": {
+      "delete": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "delete_entry",
+        "description": "Delete an entry from a table.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nEntry not found"
+          },
+          "403": {
+            "description": "Required access roles: Table: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Entries"
+        ],
+        "summary": "update_entry",
+        "description": "Update an entry in a table. Can optionally take a parent entry ID.",
+        "requestBody": {
+          "description": "Update entry request. Keys map to field IDs.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Table not found\n\nEntry not found"
+          },
+          "422": {
+            "description": "A value is required\n\nValue is not the correct type\n\nEnumeration value is does not exist\n\nField ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Table: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards": {
+      "get": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "get_dashboards",
+        "description": "Get all dashboards viewable to the user.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Dashboard"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "create_dashboard",
+        "description": "Create a blank dashboard.",
+        "requestBody": {
+          "description": "Create dashboard request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDashboard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}": {
+      "delete": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "delete_dashboard",
+        "description": "Delete a dashboard and all of it's charts and axes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "update_dashboard",
+        "description": "Update a dashboard's metadata.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Update dashboard request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDashboard"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts": {
+      "get": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "get_charts",
+        "description": "Get all charts for this dashboard.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Chart"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "create_chart",
+        "description": "Create a blank chart.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Create chart request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nTable not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor, Table: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts/{chart-id}": {
+      "delete": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "delete_chart",
+        "description": "Delete a chart and its axes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "update_chart",
+        "description": "Update a chart's metadata.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Update chart request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chart"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts/{chart-id}/data": {
+      "get": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "get_chart_data",
+        "description": "Get the chart's metadata, axes metadata, and data points.\n            Used for building and displaying the chart.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Viewer"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/dashboards/{dashboard-id}/charts/{chart-id}/axes": {
+      "put": {
+        "tags": [
+          "Axes"
+        ],
+        "summary": "set_axes",
+        "description": "Set all the axes of the specified chart and rebuild the dynamic view.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chart_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "dashboard_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "description": "Set a chart's axis request.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAxes"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Axis"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Dashboard not found\n\nChart not found"
+          },
+          "422": {
+            "description": "<field_id> : Field not found\n\n<field_id> : Axis aggregate is invalid for this field",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "403": {
+            "description": "Required access roles: Dashboard: Editor"
           }
         },
         "security": [
@@ -643,6 +1674,107 @@
       }
     },
     "schemas": {
+      "AccessRole": {
+        "type": "string",
+        "enum": [
+          "Viewer",
+          "Editor",
+          "Owner"
+        ]
+      },
+      "Aggregate": {
+        "description": "The aggregate function of the axis.",
+        "type": "string",
+        "enum": [
+          "Sum",
+          "Average",
+          "Min",
+          "Max",
+          "Count"
+        ]
+      },
+      "Axis": {
+        "description": "Chart axis entity.",
+        "type": "object",
+        "properties": {
+          "aggregate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "axis_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "axis_kind": {
+            "$ref": "#/components/schemas/AxisKind"
+          },
+          "chart_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "axis_id",
+          "chart_id",
+          "field_id",
+          "axis_kind",
+          "created_at"
+        ]
+      },
+      "AxisField": {
+        "description": "An axis and its associated field.",
+        "type": "object",
+        "properties": {
+          "axis": {
+            "$ref": "#/components/schemas/Axis"
+          },
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "field_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "axis",
+          "field_name",
+          "field_kind"
+        ]
+      },
+      "AxisKind": {
+        "description": "The kind of axis for constructing the actual chart.",
+        "type": "string",
+        "enum": [
+          "X",
+          "Y",
+          "Color",
+          "Size",
+          "Tooltip",
+          "Label",
+          "Detail"
+        ]
+      },
       "Cell": {
         "description": "This represents a cell in user entries and charts which can be any type.",
         "oneOf": [
@@ -733,6 +1865,190 @@
           }
         ]
       },
+      "Chart": {
+        "description": "Dashboard chart entity.",
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "chart_kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "chart_id",
+          "dashboard_id",
+          "table_id",
+          "name",
+          "chart_kind",
+          "created_at"
+        ]
+      },
+      "ChartData": {
+        "description": "Response for fetching entire chart data.",
+        "type": "object",
+        "properties": {
+          "axes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AxisField"
+            }
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Cell"
+              }
+            }
+          },
+          "chart": {
+            "$ref": "#/components/schemas/Chart"
+          }
+        },
+        "required": [
+          "chart",
+          "axes",
+          "cells"
+        ]
+      },
+      "ChartKind": {
+        "description": "The kind of chart to display.",
+        "type": "string",
+        "enum": [
+          "Table",
+          "Bar",
+          "Line"
+        ]
+      },
+      "CreateAxis": {
+        "description": "Create axis request.",
+        "type": "object",
+        "properties": {
+          "aggregate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Aggregate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "axis_kind": {
+            "$ref": "#/components/schemas/AxisKind"
+          },
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "field_id",
+          "axis_kind"
+        ]
+      },
+      "CreateChart": {
+        "description": "Create chart request.",
+        "type": "object",
+        "properties": {
+          "chart_kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id",
+          "name",
+          "chart_kind"
+        ]
+      },
+      "CreateDashboard": {
+        "description": "Create dashboard request.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ]
+      },
+      "CreateEntries": {
+        "description": "Create entry request. Keys map to field IDs.",
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "entries"
+        ]
+      },
+      "CreateField": {
+        "description": "Create field request.",
+        "type": "object",
+        "properties": {
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "field_kind"
+        ]
+      },
       "CreateTable": {
         "description": "Create table request.",
         "type": "object",
@@ -785,6 +2101,39 @@
         "required": [
           "username",
           "password"
+        ]
+      },
+      "Dashboard": {
+        "description": "Dashboard entity",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "dashboard_id",
+          "name",
+          "description",
+          "created_at"
         ]
       },
       "Entry": {
@@ -1117,6 +2466,109 @@
           }
         ]
       },
+      "GetDashboard": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "dashboard": {
+            "$ref": "#/components/schemas/Dashboard"
+          }
+        },
+        "required": [
+          "dashboard",
+          "access_role"
+        ]
+      },
+      "GetTable": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "table": {
+            "$ref": "#/components/schemas/Table"
+          }
+        },
+        "required": [
+          "table",
+          "access_role"
+        ]
+      },
+      "GetTableData": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "table_data": {
+            "$ref": "#/components/schemas/TableData"
+          }
+        },
+        "required": [
+          "table_data",
+          "access_role"
+        ]
+      },
+      "SelectChart": {
+        "type": "object",
+        "properties": {
+          "chart_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "dashboard_id",
+          "chart_id"
+        ]
+      },
+      "SelectDashboard": {
+        "type": "object",
+        "properties": {
+          "dashboard_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "dashboard_id"
+        ]
+      },
+      "SelectField": {
+        "type": "object",
+        "properties": {
+          "field_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id",
+          "field_id"
+        ]
+      },
+      "SelectTable": {
+        "type": "object",
+        "properties": {
+          "table_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "table_id"
+        ]
+      },
       "SelectUser": {
         "type": "object",
         "properties": {
@@ -1128,6 +2580,21 @@
         "required": [
           "user_id"
         ]
+      },
+      "SetAxes": {
+        "description": "Set a chart's axis request.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CreateAxis"
+        }
+      },
+      "SetFieldOrder": {
+        "description": "Set the field order request.",
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer",
+          "format": "int32"
+        }
       },
       "Table": {
         "description": "User table entity.",
@@ -1160,15 +2627,10 @@
               "null"
             ],
             "format": "date-time"
-          },
-          "user_id": {
-            "type": "integer",
-            "format": "int32"
           }
         },
         "required": [
           "table_id",
-          "user_id",
           "name",
           "description",
           "created_at"
@@ -1205,6 +2667,74 @@
           "fields",
           "entries",
           "children"
+        ]
+      },
+      "UpdateChart": {
+        "description": "Update chart request.",
+        "type": "object",
+        "properties": {
+          "chart_kind": {
+            "$ref": "#/components/schemas/ChartKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "chart_kind"
+        ]
+      },
+      "UpdateDashboard": {
+        "description": "Update dashboard request.",
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ]
+      },
+      "UpdateEntry": {
+        "description": "Update entry request. Keys map to field IDs.",
+        "type": "object",
+        "properties": {
+          "cells": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "cells"
+        ]
+      },
+      "UpdateField": {
+        "description": "Update field request.",
+        "type": "object",
+        "properties": {
+          "field_kind": {
+            "$ref": "#/components/schemas/FieldKind"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "field_kind"
         ]
       },
       "UpdateTable": {

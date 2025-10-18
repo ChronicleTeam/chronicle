@@ -1,32 +1,22 @@
 use crate::{
-    Id,
-    db::Relation,
-    model::viz::{ChartIdentifier, CreateDashboard, Dashboard, UpdateDashboard},
+    db, model::{users::AccessRole, viz::{ChartIdentifier, CreateDashboard, Dashboard, GetDashboard, UpdateDashboard}}, Id
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
 /// Add a dashboard to this user.
 pub async fn create_dashboard(
     conn: impl Acquire<'_, Database = Postgres>,
-    user_id: Id,
     CreateDashboard { name, description }: CreateDashboard,
 ) -> sqlx::Result<Dashboard> {
     let mut tx = conn.begin().await?;
 
     let dashboard: Dashboard = sqlx::query_as(
         r#"
-            INSERT INTO dashboard (user_id, name, description)
-            VALUES ($1, $2, $3) 
-            RETURNING
-                dashboard_id,
-                user_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            INSERT INTO dashboard (name, description)
+            VALUES ($1, $2) 
+            RETURNING *
         "#,
     )
-    .bind(user_id)
     .bind(name)
     .bind(description)
     .fetch_one(tx.as_mut())
@@ -114,17 +104,13 @@ pub async fn delete_dashboard(
 pub async fn get_dashboards(
     executor: impl PgExecutor<'_>,
     user_id: Id,
-) -> sqlx::Result<Vec<Dashboard>> {
+) -> sqlx::Result<Vec<GetDashboard>> {
     sqlx::query_as(
         r#"
-            SELECT
-                dashboard_id,
-                user_id,
-                name,
-                description,
-                created_at,
-                updated_at
-            FROM dashboard
+            SELECT *
+            FROM dashboard AS d
+            JOIN dashboard_access AS a
+            ON d.dashboard_id = a.resource_id
             WHERE user_id = $1
         "#,
     )
@@ -133,25 +119,34 @@ pub async fn get_dashboards(
     .await
 }
 
-/// Return the [Relation] between the user and this dashboard.
-pub async fn check_dashboard_relation(
+pub async fn create_dashboard_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = (Id, AccessRole)>,
+    resource_id: Id,
+) -> sqlx::Result<()> {
+    db::create_access(conn, users, resource_id, "dashboard_access").await
+}
+
+pub async fn update_dashboard_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = (Id, AccessRole)>,
+    resource_id: Id,
+) -> sqlx::Result<()> {
+    db::update_access(conn, users, resource_id, "dashboard_access").await
+}
+
+pub async fn delete_dashboard_access(
+    conn: impl Acquire<'_, Database = Postgres>,
+    users: impl IntoIterator<Item = Id>,
+    resource_id: Id,
+) -> sqlx::Result<()> {
+    db::delete_access(conn, users, resource_id, "dashboard_access").await
+}
+
+pub async fn get_dashboard_access(
     executor: impl PgExecutor<'_>,
     user_id: Id,
-    dashboard_id: Id,
-) -> sqlx::Result<Relation> {
-    sqlx::query_scalar::<_, Id>(
-        r#"
-            SELECT user_id
-            FROM dashboard
-            WHERE dashboard_id = $1
-        "#,
-    )
-    .bind(dashboard_id)
-    .fetch_optional(executor)
-    .await
-    .map(|id| match id {
-        None => Relation::Absent,
-        Some(id) if id == user_id => Relation::Owned,
-        Some(_) => Relation::NotOwned,
-    })
+    resource_id: Id,
+) -> sqlx::Result<Option<AccessRole>> {
+    db::get_access(executor, user_id, resource_id, "dashboard_access").await
 }

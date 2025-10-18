@@ -1,16 +1,26 @@
 use crate::{
-    AppState, Id,
+    AppState,
     auth::AppAuthSession,
     db,
     error::{ApiError, ApiResult},
-    model::data::{CreateField, Field, FieldKind, SetFieldOrder, UpdateField},
+    model::{
+        data::{
+            CreateField, Field, FieldKind, SelectField, SelectTable, SetFieldOrder, UpdateField,
+        },
+        users::{AccessRole, AccessRoleCheck},
+    },
 };
-use aide::{NoApi, axum::ApiRouter};
+use aide::{
+    NoApi,
+    axum::{
+        ApiRouter,
+        routing::{patch_with, post_with},
+    },
+};
 use anyhow::anyhow;
 use axum::{
     Json,
     extract::{Path, State},
-    routing::{patch, post},
 };
 use axum_login::AuthSession;
 use itertools::Itertools;
@@ -23,34 +33,32 @@ const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
-        "/tables/{table-id}/fields",
+        "/tables/{table_id}/fields",
         ApiRouter::new()
-            .route("/", post(create_field).get(get_fields))
-            .route("/{field_id}", patch(update_field).delete(delete_field))
-            .route("/order", patch(set_field_order)),
+            .api_route(
+                "/",
+                post_with(create_field, docs::create_field).get_with(get_fields, docs::get_fields),
+            )
+            .api_route(
+                "/{field_id}",
+                patch_with(update_field, docs::update_field)
+                    .delete_with(delete_field, docs::delete_field),
+            )
+            .api_route("/order", patch_with(set_field_order, docs::set_field_order)),
     )
 }
 
-/// Create a field in a table.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to that table
-/// - [ApiError::NotFound]: Table not found
-/// - [ApiError::UnprocessableEntity]:
-///     - [INVALID_RANGE]
-///
 async fn create_field(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
     validate_field_kind(&mut create_field.field_kind)?;
 
@@ -59,32 +67,21 @@ async fn create_field(
     Ok(Json(field))
 }
 
-/// Update a field's metadata in a table.
-///
-/// Will perform conversion on the cells if the field kind changes and backup the original cells.
-/// Cells that fail to convert are set to null.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to that table or field
-/// - [ApiError::NotFound]: Table or field not found
-/// - [ApiError::UnprocessableEntity]:
-///     - [INVALID_RANGE]
-///
 async fn update_field(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path((table_id, field_id)): Path<(Id, Id)>,
+    Path(SelectField { table_id, field_id }): Path<SelectField>,
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
-    db::check_field_relation(&db, table_id, field_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
+
+    if !db::field_exists(&db, table_id, field_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     validate_field_kind(&mut update_field.field_kind)?;
 
@@ -93,77 +90,53 @@ async fn update_field(
     Ok(Json(field))
 }
 
-/// Delete a field and all cells in its respective column in the table.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to that table or field
-/// - [ApiError::NotFound]: Table or field not found
-///
 async fn delete_field(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path((table_id, field_id)): Path<(Id, Id)>,
+    Path(SelectField { table_id, field_id }): Path<SelectField>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
-    db::check_field_relation(&db, table_id, field_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
+
+    if !db::field_exists(&db, table_id, field_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     db::delete_field(&db, field_id).await?;
 
     Ok(())
 }
 
-/// Get all fields in a table.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to that table
-/// - [ApiError::NotFound]: Table not found
-///
 async fn get_fields(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let fields = db::get_fields(&db, table_id).await?;
 
     Ok(Json(fields))
 }
 
-/// Set the order of all fields in a table.
-/// Ordering numbers must go from `0` to `n-1` where `n` is the total number of fields
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to that table
-/// - [ApiError::NotFound]: Table not found
-/// - [ApiError::UnprocessableEntity]:
-///   - <field_id>: [FIELD_ID_NOT_FOUND]
-///   - <field_id>: [INVALID_ORDERING]
-///
 async fn set_field_order(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
     let mut field_ids: HashSet<_> = db::get_field_ids(&db, table_id)
         .await?
@@ -260,5 +233,73 @@ where
         Ok(())
     } else {
         Err(ApiError::UnprocessableEntity(INVALID_RANGE.into()))
+    }
+}
+
+mod docs {
+    use crate::{
+        api::data::fields::{FIELD_ID_NOT_FOUND, INVALID_ORDERING, INVALID_RANGE},
+        docs::{FIELDS_TAG, TransformOperationExt, template},
+        model::{data::Field, users::AccessRole},
+    };
+    use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
+    
+    const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
+    const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
+
+    fn fields<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        template::<R>(op, summary, description, true, FIELDS_TAG)
+            .response_description::<404, ()>("Table not found")
+    }
+
+    fn select_fields<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        fields::<R>(op, summary, description)
+            .response_description::<404, ()>("Table not found\n\nField not found")
+    }
+
+    pub fn create_field(op: TransformOperation) -> TransformOperation {
+        fields::<Json<Field>>(op, "create_field", "Create a field in a table.")
+            .response_description::<422, String>(INVALID_RANGE)
+            .required_access(TABLE_OWNER)
+    }
+
+    pub fn update_field(op: TransformOperation) -> TransformOperation {
+        select_fields::<Json<Field>>(op, "update_field", "Update a field's metadata in a table.")
+            .response_description::<422, String>(INVALID_RANGE)
+            .required_access(TABLE_OWNER)
+    }
+
+    pub fn delete_field(op: TransformOperation) -> TransformOperation {
+        select_fields::<()>(
+            op,
+            "delete_field",
+            "Delete a field and all cells in its respective column in the table.",
+        )
+        .required_access(TABLE_OWNER)
+    }
+    pub fn get_fields(op: TransformOperation) -> TransformOperation {
+        select_fields::<Json<Vec<Field>>>(op, "get_fields", "Get all fields in a table.")
+            .required_access(TABLE_VIEWER)
+    }
+
+    pub fn set_field_order(op: TransformOperation) -> TransformOperation {
+        select_fields::<Json<Vec<Field>>>(
+            op,
+            "set_field_order",
+            "Set the order of all fields in a table. Ordering numbers must go from `0` to `n-1` where `n` is the total number of fields",
+        )
+        .response_description::<422, String>(&format!(
+            "<field_id>: {FIELD_ID_NOT_FOUND}\n\n<field_id>: {INVALID_ORDERING}"
+        ))
+        .required_access(TABLE_OWNER)
     }
 }

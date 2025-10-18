@@ -6,7 +6,7 @@ import { type Table, type TableData, type Field, type Entry, } from "../types";
 //
 
 // Table methods
-export const getTables = async (): Promise<Table[]> => GET<Table[]>("/tables");
+export const getTables = async (): Promise<{ access_role: string; table: Table }[]> => GET<{ access_role: string; table: Table }[]>("/tables");
 
 export const getTableChildren = async (table: Table): Promise<Table[]> => GET<Table[]>(`/tables/${table.table_id}/children`);
 
@@ -61,7 +61,10 @@ export const patchField = async (field: Field): Promise<Field> => PATCH<Field>(`
 export const deleteField = async (field: Field): Promise<void> => DELETE(`/tables/${field.table_id}/fields/${field.field_id}`);
 
 // Entry methods
-export const getTableData = async (table_id: string): Promise<TableData> => GET<TableData>(`/tables/${table_id}/data`).then(hydrateJSONTableData);
+export const getTableData = async (table_id: string): Promise<{ access_role: string; table_data: TableData }> => GET<{ access_role: string; table_data: TableData }>(`/tables/${table_id}/data`).then((response) => {
+  response.table_data = hydrateJSONTableData(response.table_data);
+  return response;
+});
 
 export const postEntries = async (table: Table, entries: Entry[]): Promise<Entry[]> => POST<Entry[]>(`/tables/${table.table_id}/entries`, { parent_id: entries[0].parent_id, entries: entries.map(e => e.cells) });
 
