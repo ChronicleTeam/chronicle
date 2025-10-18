@@ -6,8 +6,8 @@ use crate::{
     io,
     model::{
         data::{
-            CreateTable, CreateTableData, FieldMetadata, GetTable, SelectTable, Table, TableData,
-            UpdateTable,
+            CreateTable, CreateTableData, FieldMetadata, GetTable, GetTableData, SelectTable,
+            Table, TableData, UpdateTable,
         },
         users::{AccessRole, AccessRoleCheck},
     },
@@ -42,16 +42,16 @@ pub fn router() -> ApiRouter<AppState> {
                 post_with(create_table, docs::create_table).get_with(get_tables, docs::get_tables),
             )
             .api_route(
-                "/{table-id}",
+                "/{table_id}",
                 patch_with(update_table, docs::update_table)
                     .delete_with(delete_table, docs::delete_table),
             )
             .api_route(
-                "/{table-id}/children",
+                "/{table_id}/children",
                 get_with(get_table_children, docs::get_table_children),
             )
             .api_route(
-                "/{table-id}/data",
+                "/{table_id}/data",
                 get_with(get_table_data, docs::get_table_data),
             )
             .api_route(
@@ -59,7 +59,7 @@ pub fn router() -> ApiRouter<AppState> {
                 post_with(import_table_from_excel, docs::import_table_from_excel),
             )
             .api_route(
-                "/{table-id}/excel",
+                "/{table_id}/excel",
                 post_with(export_table_to_excel, docs::export_table_to_excel),
             )
             .api_route(
@@ -67,10 +67,10 @@ pub fn router() -> ApiRouter<AppState> {
                 post_with(import_table_from_csv, docs::import_table_from_csv),
             )
             .api_route(
-                "/{table-id}/csv",
+                "/{table_id}/csv",
                 post_with(export_table_to_csv, docs::export_table_to_csv),
             ), // .api_route(
-               //     "/{table-id}/access",
+               //     "/{table_id}/access",
                //     post_with(create_table_access, create_table_access)
                //         .patch_with(update_table_access, update_table_access),
                // ),
@@ -166,23 +166,25 @@ async fn get_table_data(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path(SelectTable { table_id }): Path<SelectTable>,
-) -> ApiResult<Json<TableData>> {
+) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_table_access(&db, user_id, table_id)
-        .await?
-        .check(AccessRole::Viewer)?;
+    let access_role = db::get_table_access(&db, user_id, table_id).await?;
+    access_role.check(AccessRole::Viewer)?;
 
-    let data_table = db::get_table_data(&db, table_id).await?;
+    let table_data = db::get_table_data(&db, table_id).await?;
 
-    Ok(Json(data_table))
+    Ok(Json(GetTableData {
+        table_data,
+        access_role: access_role.unwrap(),
+    }))
 }
 
 async fn import_table_from_excel(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
-) -> ApiResult<Json<Vec<TableData>>> {
+) -> ApiResult<Json<Vec<GetTableData>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
@@ -219,11 +221,14 @@ async fn import_table_from_excel(
             entries,
         )
         .await?;
-        tables.push(TableData {
-            table,
-            fields,
-            entries,
-            children: Vec::new(),
+        tables.push(GetTableData {
+            table_data: TableData {
+                table,
+                fields,
+                entries,
+                children: Vec::new(),
+            },
+            access_role: AccessRole::Owner,
         })
     }
 
@@ -268,7 +273,7 @@ async fn import_table_from_csv(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
-) -> ApiResult<Json<TableData>> {
+) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
@@ -300,11 +305,14 @@ async fn import_table_from_csv(
 
     tx.commit().await?;
 
-    Ok(Json(TableData {
-        table,
-        fields,
-        entries,
-        children: Vec::new(),
+    Ok(Json(GetTableData {
+        table_data: TableData {
+            table,
+            fields,
+            entries,
+            children: Vec::new(),
+        },
+        access_role: AccessRole::Owner,
     }))
 }
 
@@ -330,13 +338,13 @@ mod docs {
     use crate::{
         docs::{TABLES_TAG, TransformOperationExt, template},
         model::{
-            data::{GetTable, Table, TableData},
+            data::{GetTable, GetTableData, Table},
             users::AccessRole,
         },
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
-    
+
     const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
     const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
 
@@ -358,6 +366,7 @@ mod docs {
 
     pub fn create_table(op: TransformOperation) -> TransformOperation {
         tables::<Json<Table>>(op, "create_table", "Create an empty user table.")
+            .response_description::<404, ()>("Parent table not found")
     }
 
     pub fn update_table(op: TransformOperation) -> TransformOperation {
@@ -388,7 +397,7 @@ mod docs {
     }
 
     pub fn get_table_data(op: TransformOperation) -> TransformOperation {
-        select_tables::<Json<TableData>>(
+        select_tables::<Json<GetTableData>>(
             op,
             "get_table_data",
             "Get all the meta data, fields, and entries of a table.",
@@ -397,7 +406,7 @@ mod docs {
     }
 
     pub fn import_table_from_excel(op: TransformOperation) -> TransformOperation {
-        tables::<Json<Vec<TableData>>>(
+        tables::<Json<Vec<GetTableData>>>(
             op,
             "import_table_from_excel",
             "Takes an Excel file and attempts to convert it into a table.",
@@ -416,7 +425,7 @@ mod docs {
     }
 
     pub fn import_table_from_csv(op: TransformOperation) -> TransformOperation {
-        tables::<Json<TableData>>(
+        tables::<Json<GetTableData>>(
             op,
             "import_table_from_csv",
             "Takes a CSV file and attempts to convert it into a table.",

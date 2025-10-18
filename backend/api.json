@@ -320,6 +320,9 @@
           },
           "401": {
             "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Parent table not found"
           }
         },
         "security": [
@@ -475,7 +478,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/data": {
+    "/api/tables/{table_id}/data": {
       "get": {
         "tags": [
           "Tables"
@@ -500,7 +503,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TableData"
+                  "$ref": "#/components/schemas/GetTableData"
                 }
               }
             }
@@ -548,7 +551,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TableData"
+                    "$ref": "#/components/schemas/GetTableData"
                   }
                 }
               }
@@ -649,7 +652,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TableData"
+                  "$ref": "#/components/schemas/GetTableData"
                 }
               }
             }
@@ -2463,6 +2466,21 @@
           }
         ]
       },
+      "GetDashboard": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "dashboard": {
+            "$ref": "#/components/schemas/Dashboard"
+          }
+        },
+        "required": [
+          "dashboard",
+          "access_role"
+        ]
+      },
       "GetTable": {
         "type": "object",
         "properties": {
@@ -2475,6 +2493,21 @@
         },
         "required": [
           "table",
+          "access_role"
+        ]
+      },
+      "GetTableData": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "table_data": {
+            "$ref": "#/components/schemas/TableData"
+          }
+        },
+        "required": [
+          "table_data",
           "access_role"
         ]
       },

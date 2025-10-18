@@ -31,7 +31,7 @@ pub fn router() -> ApiRouter<AppState> {
                     .get_with(get_dashboards, docs::get_dashboards),
             )
             .api_route(
-                "/{dashboard-id}",
+                "/{dashboard_id}",
                 patch_with(update_dashboard, docs::update_dashboard)
                     .delete_with(delete_dashboard, docs::delete_dashboard),
             ),

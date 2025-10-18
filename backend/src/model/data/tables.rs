@@ -54,6 +54,14 @@ pub struct TableData {
     pub children: Vec<TableData>,
 }
 
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct GetTableData  {
+    pub table_data: TableData,
+    pub access_role: AccessRole,
+}
+
+
 /// DTO for creating tables from imports.
 #[derive(Debug)]
 pub struct CreateTableData {

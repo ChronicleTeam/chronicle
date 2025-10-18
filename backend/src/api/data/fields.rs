@@ -33,7 +33,7 @@ const INVALID_ORDERING: &str = "Ordering number does not follow the sequence";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
-        "/tables/{table-id}/fields",
+        "/tables/{table_id}/fields",
         ApiRouter::new()
             .api_route(
                 "/",

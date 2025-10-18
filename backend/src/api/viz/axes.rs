@@ -26,7 +26,7 @@ const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
-        "/dashboards/{dashboard-id}/charts/{chart-id}/axes",
+        "/dashboards/{dashboard_id}/charts/{chart_id}/axes",
         ApiRouter::new().api_route("/", put_with(set_axes, docs::set_axes)),
     )
 }

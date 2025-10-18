@@ -23,19 +23,19 @@ use axum_login::AuthSession;
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
-        "/dashboards/{dashboard-id}/charts",
+        "/dashboards/{dashboard_id}/charts",
         ApiRouter::new()
             .api_route(
                 "/",
                 post_with(create_chart, docs::create_chart).get_with(get_charts, docs::get_charts),
             )
             .api_route(
-                "/{chart-id}",
+                "/{chart_id}",
                 patch_with(update_chart, docs::update_chart)
                     .delete_with(delete_chart, docs::delete_chart),
             )
             .api_route(
-                "/{chart-id}/data",
+                "/{chart_id}/data",
                 get_with(get_chart_data, docs::get_chart_data),
             ),
     )
