@@ -35,6 +35,9 @@ export default defineConfig({
               {
                 browser: 'chromium',
               },
+              {
+                browser: 'firefox',
+              },
             ],
           },
           alias: {
