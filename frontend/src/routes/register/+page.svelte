@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
 
+  import { POST } from "$lib/api/base";
+
   let email = "";
   let password = "";
   let confirmPassword = "";
@@ -13,16 +15,14 @@
 
     try {
       // Send registration request
-      const response = await fetch(`/api/users/${encodeURIComponent(email)}`, {
-        method: "PUT", // Assume user is created with PUT (or use POST if required)
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+      const response = await POST(`/api/users/${encodeURIComponent(email)}`, {
+        password,
       });
 
       const data = await response.json();
       if (response.ok) {
         alert("Registration successful! You can now log in.");
-        goto("/"); // Redirect to login page
+        await goto("/"); // Redirect to login page
       } else {
         alert(data.message || "Registration failed!");
       }
