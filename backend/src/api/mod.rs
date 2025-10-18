@@ -3,12 +3,12 @@ mod users;
 mod viz;
 
 use crate::AppState;
-use axum::Router;
+use aide::axum::ApiRouter;
 
-pub fn router() -> Router<AppState> {
-    Router::new().nest(
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new().nest(
         "/api",
-        Router::new()
+        ApiRouter::new()
             .merge(users::router())
             .merge(data::router())
             .merge(viz::router()),

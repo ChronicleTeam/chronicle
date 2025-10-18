@@ -1,14 +1,14 @@
 // See https://github.com/davidpdrsn/realworld-axum-sqlx/blob/main/src/http/error.rs
 
+use aide::OperationIo;
 use axum::{
     body::Body,
     http::{Response, StatusCode, header::WWW_AUTHENTICATE},
     response::IntoResponse,
 };
 use sqlx::error::DatabaseError;
-use std::{
-    fmt::{Debug, Display},
-};
+use std::fmt::{Debug, Display};
+
 use ApiError::*;
 
 /// Main return type for the API.
@@ -22,7 +22,8 @@ pub type ApiResult<T> = std::result::Result<T, ApiError>;
 ///
 /// `anyhow::Error` and `sqlx::Error` types can be coerced into `ApiError` by using
 /// the `?` operator or `Into::into`
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, OperationIo)]
+#[aide(output)]
 pub enum ApiError {
     /// Returns `400 Bad Request`
     #[error("invalid request: {0}")]
@@ -45,7 +46,7 @@ pub enum ApiError {
     Conflict(String),
 
     /// Returns `422 Unprocessable Entity`
-    #[error("error in the request body")]
+    #[error("error in the request body: {0}")]
     UnprocessableEntity(String),
 
     /// Returns `500 Internal Server Error` on a `sqlx::Error`.
@@ -86,7 +87,7 @@ impl ApiError {
             Forbidden => StatusCode::FORBIDDEN,
             NotFound => StatusCode::NOT_FOUND,
             Conflict(_) => StatusCode::CONFLICT,
-            UnprocessableEntity (_) => StatusCode::UNPROCESSABLE_ENTITY,
+            UnprocessableEntity(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Sqlx(_) | Anyhow(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -142,9 +143,7 @@ where
         map_err: impl FnOnce(Box<dyn DatabaseError>) -> ApiError,
     ) -> Result<T, ApiError> {
         self.map_err(|e| match e.into() {
-            Sqlx(sqlx::Error::Database(dbe)) if dbe.constraint() == Some(name) => {
-                map_err(dbe)
-            }
+            Sqlx(sqlx::Error::Database(dbe)) if dbe.constraint() == Some(name) => map_err(dbe),
             e => e,
         })
     }

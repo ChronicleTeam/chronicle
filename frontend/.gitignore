@@ -24,3 +24,4 @@ vite.config.ts.timestamp-*
 
 # Testing
 coverage/
+__screenshots__

@@ -1,11 +1,11 @@
 use super::{entry_from_row, select_columns, update_columns};
 use crate::{
-    db::{data::insert_columns, Relation},
-    model::{
-        data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},
-        Cell,
-    },
     Id,
+    db::{Relation, data::insert_columns},
+    model::{
+        Cell,
+        data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},
+    },
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
@@ -71,10 +71,12 @@ pub async fn create_entries(
     fields: Vec<FieldMetadata>,
     entries: Vec<Vec<Cell>>,
 ) -> sqlx::Result<Vec<Entry>> {
-    assert!(entries
-        .iter()
-        .next()
-        .map_or(true, |entry| entry.len() == fields.len()));
+    assert!(
+        entries
+            .iter()
+            .next()
+            .map_or(true, |entry| entry.len() == fields.len())
+    );
     let mut tx = conn.begin().await?;
 
     let table_ident = TableIdentifier::new(table_id, "data_table");

@@ -7,11 +7,11 @@
 //! only database errors on failures.
 
 mod data;
-mod viz;
 mod users;
+mod viz;
 
 use crate::error::{ApiError, ApiResult};
-pub use {data::*, viz::*, users::*};
+pub use {data::*, users::*, viz::*};
 
 pub enum Relation {
     Owned,

@@ -1,12 +1,18 @@
 mod api;
 mod auth;
 mod db;
+mod docs;
 mod error;
 mod io;
 mod model;
 
 use crate::model::users::Credentials;
-use axum::http::{HeaderValue, Method, header};
+use axum::{
+    Router,
+    http::{HeaderValue, Method, header},
+};
+use config::{Config, ConfigError, Environment};
+use itertools::Itertools;
 use serde::Deserialize;
 use sqlx::{
     PgPool,
@@ -14,7 +20,7 @@ use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
 };
 use std::{
-    env, fs,
+    env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
@@ -32,8 +38,7 @@ type Id = i32;
 
 /// Global state for the API.
 ///
-/// Contains the configuration ([Config]) and the
-/// shared database connection ([PgPool]).
+/// Contains the shared database connection ([PgPool]).
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
@@ -44,12 +49,21 @@ pub struct AppState {
 struct AppConfig {
     /// Server port.
     port: u16,
+    #[serde(deserialize_with = "env_list")]
     allowed_origin: Vec<String>,
+    session_key: String,
     admin: Credentials,
-    // /// Authentication related configuration.
-    // auth: AuthConfig,
     /// Database connection info.
     database: DatabaseConfig,
+}
+
+impl AppConfig {
+    fn build() -> Result<Self, ConfigError> {
+        Config::builder()
+            .add_source(Environment::with_prefix("APP").separator("__"))
+            .build()?
+            .try_deserialize()
+    }
 }
 
 #[derive(Clone, Deserialize)]
@@ -80,8 +94,22 @@ pub async fn serve() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     setup_tracing();
 
-    let config: AppConfig = toml::from_str(&fs::read_to_string(&env::var("CONFIG_PATH")?)?)?;
+    let config = AppConfig::build()?;
+    println!("{:?}", config.allowed_origin);
 
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), config.port);
+    let listener = TcpListener::bind(addr).await?;
+    tracing::info!("API docs url http://localhost:{}/docs", config.port);
+    tracing::info!("listening on {}", listener.local_addr()?);
+
+    let router = init_app(config).await?;
+
+    axum::serve(listener, router.into_make_service()).await?;
+
+    Ok(())
+}
+
+async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
     let db = PgPoolOptions::new()
         .max_connections(20)
         .connect_with(
@@ -95,13 +123,11 @@ pub async fn serve() -> anyhow::Result<()> {
 
     MIGRATOR.run(&db).await?;
 
-    let allowed_origin = config
+    let allowed_origin: Vec<_> = config
         .allowed_origin
-        .into_iter()
-        .map(|x| x.parse::<HeaderValue>())
-        .collect::<Result<Vec<_>, _>>()?;
-
-    // Auth
+        .iter()
+        .map(|v| HeaderValue::from_str(v))
+        .try_collect()?;
 
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
@@ -126,19 +152,15 @@ pub async fn serve() -> anyhow::Result<()> {
 
     let router = api::router().layer(service);
 
-    let router = auth::init(router, db.clone()).await?;
+    let router = auth::init(router, db.clone(), config.session_key).await?;
 
     auth::set_admin_user(&db, config.admin).await?;
 
+    let router = docs::init(router)?;
+
     let router = router.with_state(AppState { db });
 
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), config.port);
-    let listener = TcpListener::bind(addr).await?;
-    tracing::info!("API docs url http://localhost:{}/docs", config.port);
-    tracing::info!("listening on {}", listener.local_addr()?);
-    axum::serve(listener, router.into_make_service()).await?;
-
-    Ok(())
+    Ok(router)
 }
 
 /// Sets up tracing for debuging and monitoring.
@@ -160,4 +182,15 @@ fn setup_tracing() {
             .with(tracing_subscriber::fmt::layer())
             .init();
     });
+}
+
+fn env_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(s.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
 }

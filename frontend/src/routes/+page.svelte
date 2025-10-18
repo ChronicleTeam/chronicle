@@ -30,10 +30,6 @@
     goto("/register");
   }
 
-  function goToTables() {
-    goto("/tables");
-  }
-
   onMount(() => {
     user().then((u) => {
       if (u) goto(SUCCESS_REDIRECT);
@@ -42,29 +38,29 @@
 </script>
 
 <div
-  class="flex flex-col justify-center items-center h-screen gap-6 bg-gray-100"
+  class="flex flex-col justify-center items-center h-screen gap-6 bg-base-200"
 >
   <img src="/logo.png" alt="Logo" class="h-20 mb-4" />
   <h1 class="text-5xl font-bold text-center">Chronicle</h1>
-  <p class="text-lg text-center text-gray-600">Data analysis made simple.</p>
+  <p class="text-lg text-center text-base-content opacity-70">
+    Data analysis made simple.
+  </p>
 
-  <div
-    class="flex flex-col items-center bg-white p-6 rounded-lg shadow-lg w-80"
-  >
-    <form onsubmit={handleLogin} class="w-full">
-      <div class="mb-4">
+  <div class="card bg-base-100 shadow-lg w-80">
+    <form onsubmit={handleLogin} class="card-body flex flex-col gap-4">
+      <div>
         <label for="email" class="block text-sm font-semibold">Email</label>
         <input
           type="email"
           id="email"
           bind:value={credentials.username}
           placeholder="Enter your email"
-          class="w-full p-2 mt-1 border rounded-md"
+          class="input"
           required
         />
       </div>
 
-      <div class="mb-6">
+      <div>
         <label for="password" class="block text-sm font-semibold"
           >Password</label
         >
@@ -73,30 +69,19 @@
           id="password"
           bind:value={credentials.password}
           placeholder="Enter your password"
-          class="w-full p-2 mt-1 border rounded-md"
+          class="input"
           required
         />
       </div>
       {#if error}
-        <p class="text-red-500">{error}</p>
+        <p class="text-error">{error}</p>
       {/if}
 
-      <button
-        type="submit"
-        class="w-full py-2 bg-sky-700 text-white hover:bg-sky-900 rounded-md transition-all duration-300"
-      >
-        Login
-      </button>
+      <button type="submit" class="btn btn-primary btn-block"> Login </button>
 
-      <button
-        type="button"
-        onclick={goToRegister}
-        class="w-full mt-3 py-2 bg-gray-300 text-black hover:bg-gray-400 rounded-md transition-all duration-300"
-      >
+      <button type="button" onclick={goToRegister} class="btn btn-block">
         Register
       </button>
-
-      
     </form>
   </div>
 </div>

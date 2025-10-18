@@ -28,9 +28,6 @@
   // error state
   let error = $state("");
 
-  // determines whether modal is active or not
-  let isModalActive = $state(false);
-
   let g: any;
 
   // Update graph on change
@@ -197,7 +194,7 @@
   //
 
   onMount(() => {
-    getChartData(dashboard, chart)
+    getChartData(dashboard.dashboard_id.toString(), chart.chart_id.toString())
       .then((r: ChartData) => {
         chartData = r;
         chartData = stringifyDates(chartData);
@@ -208,70 +205,52 @@
   });
 </script>
 
-<div
-  class={isModalActive
-    ? "z-10 size-full fixed top-0 left-0 bg-black/25 flex justify-center items-center" // add modal styling when modal is active
-    : ""}
-  onclick={() => {
-    isModalActive = false;
-  }}
->
-  <div
-    onclick={(e) => {
-      e.stopPropagation();
-      isModalActive = true;
-    }}
-    class={isModalActive
-      ? "bg-white rounded-lg p-3 size-1/2 transition-all flex justify-center"
-      : "transition-all flex justify-center"}
-  >
-    {#if error}
-      <p class="text-red-500">({error})</p>
-    {:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
-      <!-- Bar or Line type Chart -->
-      <div class="size-full flex justify-center items-center">
-        <canvas bind:this={g}></canvas>
-      </div>
-    {:else if chartData}
-      <!-- Table type Chart -->
-      <table class="border border-black">
-        <thead>
+{#if error}
+  <p class="text-error">({error})</p>
+{:else if chartData && !(chartData.chart.chart_kind === ChartKind.Table)}
+  <!-- Bar or Line type Chart -->
+  <div class="size-full flex justify-center items-center">
+    <canvas bind:this={g}></canvas>
+  </div>
+{:else if chartData}
+  <!--TODO: Style this table when backend is up again -->
+  <!-- Table type Chart -->
+  <table class="border border-black">
+    <thead>
+      <tr>
+        {#each chartData.axes as axis}
+          <th
+            class="border border-black bg-white select-none"
+            onclick={(e) => {
+              e.stopPropagation();
+              if (selectedColumn.axis_id === axis.axis.axis_id) {
+                selectedColumn.ascending = !selectedColumn.ascending;
+              } else {
+                selectedColumn.axis_id = axis.axis.axis_id;
+                selectedColumn.ascending = true;
+              }
+            }}
+            >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
+              ? selectedColumn.ascending
+                ? " ↑"
+                : " ↓"
+              : ""}</th
+          >
+        {/each}
+      </tr>
+    </thead>
+    <tbody>
+      {#if tableCells}
+        {#each tableCells as row}
           <tr>
             {#each chartData.axes as axis}
-              <th
-                class="border border-black bg-white select-none"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  if (selectedColumn.axis_id === axis.axis.axis_id) {
-                    selectedColumn.ascending = !selectedColumn.ascending;
-                  } else {
-                    selectedColumn.axis_id = axis.axis.axis_id;
-                    selectedColumn.ascending = true;
-                  }
-                }}
-                >{axis.field_name}{selectedColumn.axis_id === axis.axis.axis_id
-                  ? selectedColumn.ascending
-                    ? " ↑"
-                    : " ↓"
-                  : ""}</th
-              >
+              <td class="p-2 border border-black">
+                {row[axis.axis.axis_id]}
+              </td>
             {/each}
           </tr>
-        </thead>
-        <tbody>
-          {#if tableCells}
-            {#each tableCells as row}
-              <tr>
-                {#each chartData.axes as axis}
-                  <td class="p-2 border border-black">
-                    {row[axis.axis.axis_id]}
-                  </td>
-                {/each}
-              </tr>
-            {/each}
-          {/if}
-        </tbody>
-      </table>
-    {/if}
-  </div>
-</div>
+        {/each}
+      {/if}
+    </tbody>
+  </table>
+{/if}

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
+    Id,
     model::{
         data::{FieldIdentifier, FieldKind, TableIdentifier},
         viz::{Axis, AxisIdentifier, ChartIdentifier, CreateAxis},
     },
-    Id,
 };
 use sqlx::{Acquire, Postgres, QueryBuilder};
 

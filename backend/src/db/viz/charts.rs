@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use crate::{
+    Id,
     db::Relation,
     model::{
+        Cell,
         viz::{
             AxisField, AxisIdentifier, Chart, ChartData, ChartIdentifier, CreateChart, UpdateChart,
         },
-        Cell,
     },
-    Id,
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};

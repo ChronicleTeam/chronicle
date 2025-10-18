@@ -1,4 +1,7 @@
-use crate::{model::users::{User, UserResponse}, Id};
+use crate::{
+    Id,
+    model::users::{User, UserResponse},
+};
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
 pub async fn create_user(
@@ -10,7 +13,7 @@ pub async fn create_user(
     let mut tx = conn.begin().await?;
     let user = sqlx::query_as(
         r#"
-            INSERT INTO app_user (username, password_hash)
+            INSERT INTO app_user (username, password_hash, is_admin)
             VALUES ($1, $2, $3)
             RETURNING *
         "#,
