@@ -9,8 +9,8 @@ export const ssr = false;
 export const load: PageLoad = async ({ params }) => {
   return {
     entryId: params.entry_id,
-    table: await getTableData(params.subtable_id).then((response: TableData) => {
-      response.fields.sort((f, g) => f.ordering - g.ordering);
+    table: await getTableData(params.subtable_id).then((response) => {
+      response.table_data.fields.sort((f, g) => f.ordering - g.ordering);
 
       return response;
     })

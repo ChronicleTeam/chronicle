@@ -843,7 +843,8 @@
   };
 
   const loadFields = () => {
-    getTableData(data.table_prop.table_id.toString()).then((td) => {
+    getTableData(data.table_prop.table_id.toString()).then((result) => {
+      const td = result.table_data;
       // update fields
       table.old.fields = td.fields.toSorted((f, g) => f.ordering - g.ordering);
       table.new.fields = $state.snapshot(table.old.fields);

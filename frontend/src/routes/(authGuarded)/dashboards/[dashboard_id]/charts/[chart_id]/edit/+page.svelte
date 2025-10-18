@@ -24,7 +24,7 @@
   let dashboard: Dashboard = $derived(data.dashboard);
   let chartData: ChartData = $derived(data.chartData);
   let chart: Chart = $derived(chartData.chart);
-  let tableData: TableData = $derived(data.tableData);
+  let tableData: TableData = $derived(data.tableData.table_data);
 
   //
   // State
