@@ -1,6 +1,5 @@
 <script lang="ts">
-  //import { user } from "$lib/user.svelte";
-  const user = async () => "hello";
+  import { user } from "$lib/user.svelte";
 
   let { children } = $props();
 
@@ -32,7 +31,12 @@
       <nav class="navbar bg-base-300 mb-4 rounded-lg shadow-xs">
         <div class="navbar-start">
           <div class="dropdown">
-            <div tabindex="0" role="button" class="btn btn-square btn-ghost">
+            <div
+              tabindex="0"
+              role="button"
+              class="btn btn-square btn-ghost"
+              aria-label="navigation menu"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="m-1 h-6 w-6 stroke-base-content"
@@ -62,7 +66,7 @@
       </nav>
       {@render children()}
     {:else}
-      <p>Not authorized.</p>
+      <h1>Not authorized.</h1>
       <a href="/">Go home</a>
     {/if}
   {/await}

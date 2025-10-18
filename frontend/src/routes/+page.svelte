@@ -14,14 +14,14 @@
 
   let error = $state("");
 
-  async function handleLogin() {
+  async function handleLogin(e) {
+    e.preventDefault();
     try {
       // Send login request
       await login(credentials);
       error = "";
-      goto(SUCCESS_REDIRECT); // Redirect to tables page on success
+      await goto(SUCCESS_REDIRECT); // Redirect to tables page on success
     } catch (e) {
-      console.error("Login error:", e);
       error = (e as unknown as APIError).body.toString();
     }
   }
