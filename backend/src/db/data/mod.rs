@@ -5,11 +5,11 @@ mod fields;
 mod tables;
 
 use crate::model::{
-    data::{Entry, FieldIdentifier, FieldMetadata},
     Cell,
+    data::{Entry, FieldIdentifier, FieldMetadata},
 };
 use itertools::Itertools;
-use sqlx::{postgres::PgRow, Row};
+use sqlx::{Row, postgres::PgRow};
 pub use {entries::*, fields::*, tables::*};
 
 /// All columns of a user dynamic SQL table prepared for a "select" query.
@@ -53,7 +53,6 @@ fn update_columns(with_parent: bool, field_idents: &[FieldIdentifier], position:
         .map(|(i, field_ident)| format!("{field_ident} = ${}", position + i))
         .join(", ")
 }
-
 
 /// Convert this [PgRow] into an [Entry].
 fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entry> {

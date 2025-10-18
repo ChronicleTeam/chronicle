@@ -3,13 +3,13 @@ use crate::{
     error::{ApiError, IntoAnyhow},
     model::users::{Credentials, User},
 };
+use aide::{NoApi, axum::ApiRouter};
 use anyhow::anyhow;
 use axum::{
-    Router,
     http::{HeaderValue, header},
     response::Response,
 };
-use axum_login::{AuthManagerLayerBuilder, AuthnBackend, UserId};
+use axum_login::{AuthManagerLayerBuilder, AuthSession, AuthnBackend, UserId};
 use base64::{Engine, prelude::BASE64_STANDARD};
 use password_auth::{generate_hash, verify_password};
 use sqlx::{Acquire, PgPool, Postgres};
@@ -60,13 +60,13 @@ impl AuthnBackend for AuthBackend {
     }
 }
 
-pub type AuthSession = axum_login::AuthSession<AuthBackend>;
+pub type AppAuthSession = NoApi<AuthSession<AuthBackend>>;
 
 pub async fn init(
-    router: Router<AppState>,
+    router: ApiRouter<AppState>,
     db: PgPool,
     session_key: String,
-) -> anyhow::Result<Router<AppState>> {
+) -> anyhow::Result<ApiRouter<AppState>> {
     let session_store = PostgresStore::new(db.clone());
     session_store.migrate().await?;
 

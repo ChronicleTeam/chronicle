@@ -7,10 +7,10 @@ mod fields;
 mod tables;
 
 use crate::AppState;
-use axum::Router;
+use aide::axum::ApiRouter;
 
-pub fn router() -> Router<AppState> {
-    Router::new()
+pub fn router() -> ApiRouter<AppState> {
+    ApiRouter::new()
         .merge(tables::router())
         .merge(fields::router())
         .merge(entries::router())

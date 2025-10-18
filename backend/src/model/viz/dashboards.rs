@@ -1,7 +1,7 @@
+use crate::Id;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use crate::Id;
 
 /// Dashboard entity
 #[derive(Serialize, FromRow)]

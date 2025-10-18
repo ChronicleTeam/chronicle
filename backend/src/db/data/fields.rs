@@ -1,16 +1,16 @@
 use crate::{
+    Id,
     db::Relation,
     model::{
+        Cell,
         data::{
             CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier,
             UpdateField,
         },
-        Cell,
     },
-    Id,
 };
 use itertools::Itertools;
-use sqlx::{types::Json, Acquire, PgExecutor, Postgres, QueryBuilder, Row};
+use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder, Row, types::Json};
 use std::{collections::HashMap, mem::discriminant};
 use tracing::debug;
 
@@ -250,7 +250,6 @@ async fn convert_field_kind(
 
     Ok(field)
 }
-
 
 /// Delete this field and remove the column from the actual SQL table.
 pub async fn delete_field(

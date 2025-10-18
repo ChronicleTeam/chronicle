@@ -1,7 +1,7 @@
 use crate::{
+    Id,
     db::Relation,
     model::viz::{ChartIdentifier, CreateDashboard, Dashboard, UpdateDashboard},
-    Id,
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
