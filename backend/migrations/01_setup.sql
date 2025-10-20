@@ -19,7 +19,7 @@ RETURNS VOID AS
 $$
 BEGIN
     EXECUTE format('
-        CREATE TRIGGER set_updated_at
+        CREATE OR REPLACE TRIGGER set_updated_at
         BEFORE UPDATE
         ON %s
         FOR EACH ROW
@@ -83,7 +83,7 @@ CREATE OR REPLACE FUNCTION trigger_rename_duplicate(
 $$
 BEGIN
     EXECUTE format('
-        CREATE TRIGGER rename_duplicate
+        CREATE OR REPLACE TRIGGER rename_duplicate
         BEFORE INSERT OR UPDATE
         ON %1$s
         FOR EACH ROW
@@ -95,7 +95,7 @@ $$ language plpgsql;
 /*
 Colate for case insensitive text.
 */
-CREATE COLLATION case_insensitive (
+CREATE COLLATION IF NOT EXISTS case_insensitive (
     PROVIDER = icu,
     LOCALE = 'und-u-ks-level2',
     DETERMINISTIC = FALSE
@@ -104,4 +104,9 @@ CREATE COLLATION case_insensitive (
 /*
 Money type used in the database.
 */
-CREATE DOMAIN numeric_money AS NUMERIC(15, 4);
+DO $$ BEGIN
+
+    CREATE DOMAIN numeric_money AS NUMERIC(15, 4);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;

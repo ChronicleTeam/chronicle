@@ -1,30 +1,39 @@
 /*
 Types of aggregate functions for an axis.
 */
-CREATE TYPE aggregate AS ENUM (
-    'Sum',
-    'Average',
-    'Min',
-    'Max',
-    'Count'
-);
+DO $$ BEGIN
+    CREATE TYPE aggregate AS ENUM (
+        'Sum',
+        'Average',
+        'Min',
+        'Max',
+        'Count'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 
 /*
 Kind of axis. Behavior depends on the chart_kind.
 */
-CREATE TYPE axis_kind AS ENUM (
-    'X',
-    'Y',
-    'Color',
-    'Size',
-    'Tooltip',
-    'Label'
-);
+DO $$ BEGIN
+    CREATE TYPE axis_kind AS ENUM (
+        'X',
+        'Y',
+        'Color',
+        'Size',
+        'Tooltip',
+        'Label'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 /*
 An axis in a chart. Represents a column in the actual SQL view.
 */
-CREATE TABLE axis (
+CREATE TABLE IF NOT EXISTS axis (
     axis_id SERIAL PRIMARY KEY,
     chart_id INT NOT NULL REFERENCES chart(chart_id) ON DELETE CASCADE,
     field_id INT NOT NULL REFERENCES meta_field(field_id),
