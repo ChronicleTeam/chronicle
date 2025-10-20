@@ -332,7 +332,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}": {
+    "/api/tables/{table_id}": {
       "delete": {
         "tags": [
           "Tables"
@@ -428,7 +428,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/children": {
+    "/api/tables/{table_id}/children": {
       "get": {
         "tags": [
           "Tables"
@@ -571,7 +571,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/excel": {
+    "/api/tables/{table_id}/excel": {
       "post": {
         "tags": [
           "Tables"
@@ -671,7 +671,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/csv": {
+    "/api/tables/{table_id}/csv": {
       "post": {
         "tags": [
           "Tables"
@@ -714,7 +714,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/fields": {
+    "/api/tables/{table_id}/fields": {
       "get": {
         "tags": [
           "Fields"
@@ -826,7 +826,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/fields/{field_id}": {
+    "/api/tables/{table_id}/fields/{field_id}": {
       "delete": {
         "tags": [
           "Fields"
@@ -948,7 +948,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/fields/order": {
+    "/api/tables/{table_id}/fields/order": {
       "patch": {
         "tags": [
           "Fields"
@@ -1015,7 +1015,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/entries": {
+    "/api/tables/{table_id}/entries": {
       "post": {
         "tags": [
           "Entries"
@@ -1070,7 +1070,7 @@
         ]
       }
     },
-    "/api/tables/{table-id}/entries/{entry-id}": {
+    "/api/tables/{table_id}/entries/{entry_id}": {
       "delete": {
         "tags": [
           "Entries"
@@ -1211,7 +1211,7 @@
         ]
       }
     },
-    "/api/dashboards/{dashboard-id}": {
+    "/api/dashboards/{dashboard_id}": {
       "delete": {
         "tags": [
           "Dashboards"
@@ -1307,7 +1307,7 @@
         ]
       }
     },
-    "/api/dashboards/{dashboard-id}/charts": {
+    "/api/dashboards/{dashboard_id}/charts": {
       "get": {
         "tags": [
           "Charts"
@@ -1413,7 +1413,7 @@
         ]
       }
     },
-    "/api/dashboards/{dashboard-id}/charts/{chart-id}": {
+    "/api/dashboards/{dashboard_id}/charts/{chart_id}": {
       "delete": {
         "tags": [
           "Charts"
@@ -1529,7 +1529,7 @@
         ]
       }
     },
-    "/api/dashboards/{dashboard-id}/charts/{chart-id}/data": {
+    "/api/dashboards/{dashboard_id}/charts/{chart_id}/data": {
       "get": {
         "tags": [
           "Charts"
@@ -1586,7 +1586,7 @@
         ]
       }
     },
-    "/api/dashboards/{dashboard-id}/charts/{chart-id}/axes": {
+    "/api/dashboards/{dashboard_id}/charts/{chart_id}/axes": {
       "put": {
         "tags": [
           "Axes"
