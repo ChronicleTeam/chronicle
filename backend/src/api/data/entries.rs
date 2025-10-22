@@ -38,11 +38,11 @@ const NO_PARENT_TABLE: &str = "This table has no parent table";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
-        "/tables/{table-id}/entries",
+        "/tables/{table_id}/entries",
         ApiRouter::new()
             .api_route("/", post_with(create_entries, docs::create_entries))
             .api_route(
-                "/{entry-id}",
+                "/{entry_id}",
                 patch_with(update_entry, docs::update_entry)
                     .delete_with(delete_entry, docs::delete_entry),
             ),
