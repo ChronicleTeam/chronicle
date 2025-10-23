@@ -21,7 +21,7 @@ describe("login page", () => {
     await expect.element(screen.getByText('Chronicle', { exact: true })).toBeVisible()
   })
 
-  it('logs in properly', async () => {
+  it('logs in properly', async ({ authenticated, worker }) => {
     const screen = page.render(Login)
 
     const emailInput = screen.getByRole('textbox', { name: 'email' })
@@ -32,7 +32,6 @@ describe("login page", () => {
     await password.fill('test123')
 
     await expect.element(loginButton).toBeVisible()
-
     await loginButton.click()
 
     await expect.poll(() => goto).toHaveBeenCalledExactlyOnceWith('/tables');
@@ -71,7 +70,7 @@ describe("login page", () => {
 
     page.render(Login);
 
-    await expect.poll(() => goto).toHaveBeenCalledWith('/tables');
+    await expect.poll(() => goto).toHaveBeenCalledExactlyOnceWith('/tables');
   })
 
   it('redirects to register page when register button clicked', async () => {

@@ -25,6 +25,14 @@ const handlers = [
   }),
   http.get('https://www.example.com/api/logout', () => {
     return new HttpResponse(null, { status: 200 });
+  }),
+  http.post('https://www.example.com/api/tables', () => {
+    return HttpResponse.json({
+      table_id: 1,
+      user_id: 456,
+      name: "A New Table",
+      description: "a description"
+    })
   })
 ]
 const worker = setupWorker(...handlers)
@@ -39,13 +47,12 @@ export const it = baseTest.extend<Fixtures>({
   worker: [
     async ({ authenticated }, use) => {
       if (!authenticated) {
-        const newHandlers = [
+        worker.use(
           http.get('https://www.example.com/api/user', () => {
             return HttpResponse.json(null)
-          }),
-          ...handlers.slice(1)
-        ]
-        worker.resetHandlers(...newHandlers);
+          })
+        );
+      } else {
       }
       await worker.start({ quiet: true });
 

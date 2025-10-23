@@ -79,7 +79,7 @@
     <div
       class="collapse collapse-plus bg-base-100 stroke-base-200 rounded-md mx-2 w-auto"
     >
-      <input type="checkbox" />
+      <input type="checkbox" aria-label="add table" />
       <div class="collapse-title text-sm">Add Table</div>
       <div class="collapse-content flex flex-col">
         <!-- Create new table -->
