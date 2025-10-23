@@ -6,6 +6,9 @@ mod error;
 mod io;
 mod model;
 
+#[cfg(test)]
+pub mod test_util;
+
 use crate::model::users::Credentials;
 use axum::{
     Router,
@@ -170,7 +173,7 @@ fn setup_tracing() {
             .with(
                 tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                     format!(
-                        "{}=debug,tower_http=debug,axum::rejection=trace,tower_sessions=trace",
+                        "{}=debug,tower_http=debug,axum::rejection=trace",
                         env!("CARGO_CRATE_NAME")
                     )
                     .into()
@@ -202,84 +205,4 @@ where
             .decode(s)
             .map_err(serde::de::Error::custom)?,
     ))
-}
-
-#[cfg(test)]
-pub mod test {
-    use crate::{
-        AppConfig, AppState, Id, api,
-        auth::{self, AppAuthSession},
-        error::{ApiResult, IntoAnyhow},
-        init_layers,
-        model::users::User,
-    };
-    use aide::openapi::OpenApi;
-    use axum::{
-        Json, Router,
-        http::header::SET_COOKIE,
-        routing::{get, post},
-    };
-    use axum_test::TestServer;
-    use password_auth::generate_hash;
-    use sqlx::PgPool;
-
-    async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
-        session.login(&user).await.anyhow()?;
-        Ok(())
-    }
-
-    async fn get_auth_user(session: AppAuthSession) -> Json<Option<User>> {
-        Json(session.user.clone())
-    }
-
-    async fn router_setup(config: AppConfig, db: PgPool) -> anyhow::Result<Router> {
-        let app = api::router().finish_api(&mut OpenApi::default());
-        let app = app.nest(
-            "/test",
-            Router::new()
-                .route("/login", post(login))
-                .route("/user", get(get_auth_user)),
-        );
-        let app = auth::init(app, db.clone(), config.session_key).await?;
-        let app = init_layers(app, config.allowed_origin)?;
-        Ok(app.with_state(AppState { db }))
-    }
-
-    pub async fn test_server(db: PgPool) -> anyhow::Result<TestServer> {
-        let config = AppConfig::build()?;
-        let server = TestServer::new(router_setup(config, db).await?)?;
-        Ok(server)
-    }
-
-    pub async fn test_server_logged_in(
-        db: PgPool,
-        username: &str,
-        password: &str,
-        is_admin: bool,
-    ) -> anyhow::Result<(TestServer, Id)> {
-        let config = AppConfig::build()?;
-        let app = router_setup(config, db.clone()).await?;
-
-        let user: User = sqlx::query_as(
-            r#"
-                INSERT INTO app_user (username, password_hash, is_admin)
-                VALUES ($1, $2, $3)
-                RETURNING *
-            "#,
-        )
-        .bind(username)
-        .bind(generate_hash(password))
-        .bind(is_admin)
-        .fetch_one(&db)
-        .await?;
-
-        let mut server = TestServer::new(app)?;
-        server.save_cookies();
-        let response = server.post("/test/login").json(&user).await;
-        response.assert_status_ok();
-        response.assert_contains_header(SET_COOKIE);
-        println!("{:?}\n", response.cookies());
-
-        Ok((server, user.user_id))
-    }
 }

@@ -270,33 +270,22 @@ mod test {
         let username = "test";
         let password_hash = "password";
         let is_admin = false;
-        let user1 =
-            db::create_user(&db, username.into(), password_hash.into(), is_admin).await?;
-        assert_eq!(username, user1.username);
-        assert_eq!(password_hash, user1.password_hash);
-        assert_eq!(is_admin, user1.is_admin);
-        let user2: User = sqlx::query_as(
-            r#"
-                SELECT *
-                FROM app_user
-                WHERE user_id = $1
-            "#,
-        )
-        .bind(user1.user_id)
-        .fetch_one(&db)
-        .await?;
-        assert_eq!(user1, user2);
+        let user_1 = db::create_user(&db, username.into(), password_hash.into(), is_admin).await?;
+        assert_eq!(username, user_1.username);
+        assert_eq!(password_hash, user_1.password_hash);
+        assert_eq!(is_admin, user_1.is_admin);
+        let user_2: User = sqlx::query_as(r#"SELECT * FROM app_user WHERE user_id = $1"#)
+            .bind(user_1.user_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(user_1, user_2);
         Ok(())
     }
 
     #[sqlx::test]
     async fn update_user(db: PgPool) -> anyhow::Result<()> {
         let user_id: Id = sqlx::query_scalar(
-            r#"
-                INSERT INTO app_user (username, password_hash, is_admin)
-                VALUES ($1, $2, $3)
-                RETURNING user_id
-            "#,
+            r#"INSERT INTO app_user (username, password_hash, is_admin) VALUES ($1, $2, $3) RETURNING user_id"#,
         )
         .bind("john")
         .bind("1234")
@@ -306,7 +295,7 @@ mod test {
         let username = "jane";
         let password_hash = "5678";
         let is_admin = true;
-        let user1 = db::update_user(
+        let user_1 = db::update_user(
             &db,
             user_id,
             Some(username.into()),
@@ -314,31 +303,21 @@ mod test {
             Some(is_admin),
         )
         .await?;
-        assert_eq!(username, user1.username);
-        assert_eq!(password_hash, user1.password_hash);
-        assert_eq!(is_admin, user1.is_admin);
-        let user2: User = sqlx::query_as(
-            r#"
-                SELECT *
-                FROM app_user
-                WHERE user_id = $1
-            "#,
-        )
-        .bind(user1.user_id)
-        .fetch_one(&db)
-        .await?;
-        assert_eq!(user1, user2);
+        assert_eq!(username, user_1.username);
+        assert_eq!(password_hash, user_1.password_hash);
+        assert_eq!(is_admin, user_1.is_admin);
+        let user_2: User = sqlx::query_as(r#"SELECT * FROM app_user WHERE user_id = $1"#)
+            .bind(user_1.user_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(user_1, user_2);
         Ok(())
     }
 
     #[sqlx::test]
     async fn delete_user(db: PgPool) -> anyhow::Result<()> {
         let user_id: Id = sqlx::query_scalar(
-            r#"
-                INSERT INTO app_user (username, password_hash)
-                VALUES ($1, $2)
-                RETURNING user_id
-            "#,
+            r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING user_id"#,
         )
         .bind("john")
         .bind("1234")
@@ -346,12 +325,7 @@ mod test {
         .await?;
         db::delete_user(&db, user_id).await?;
         let not_exists: bool = sqlx::query_scalar(
-            r#"
-                SELECT NOT EXISTS (
-                    SELECT 1
-                    FROM app_user
-                    WHERE user_id = $1
-                )
+            r#"SELECT NOT EXISTS (SELECT 1 FROM app_user WHERE user_id = $1)
             "#,
         )
         .bind(user_id)
@@ -363,31 +337,28 @@ mod test {
 
     #[sqlx::test]
     async fn get_all_users(db: PgPool) -> anyhow::Result<()> {
-        let mut users1: Vec<UserResponse> = Vec::new();
-        for username in ["python", "kotlin", "typescript"] {
-            users1.push(
+        let mut users_1: Vec<UserResponse> = Vec::new();
+        for (username, is_admin) in [("python", false), ("kotlin", false), ("typescript", true)] {
+            users_1.push(
                 sqlx::query_as(
-                    r#"
-                    INSERT INTO app_user (username, password_hash)
-                    VALUES ($1, $2)
-                    RETURNING *
-                "#,
+                    r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING *"#,
                 )
                 .bind(username)
                 .bind("1234")
+                .bind(is_admin)
                 .fetch_one(&db)
                 .await?,
             );
         }
-        let mut users2 = db::get_all_users(&db).await?;
-        users1.sort_by_key(|u| u.user_id);
-        users2.sort_by_key(|u| u.user_id);
-        assert!(users1.len() == users2.len());
+        let mut users_2 = db::get_all_users(&db).await?;
+        users_1.sort_by_key(|u| u.user_id);
+        users_2.sort_by_key(|u| u.user_id);
+        assert!(users_1.len() == users_2.len());
         assert!(
-            users1
+            users_1
                 .into_iter()
-                .zip(users2)
-                .all(|(user1, user2)| user1 == user2)
+                .zip(users_2)
+                .all(|(user_1, user_2)| user_1 == user_2)
         );
         Ok(())
     }
@@ -395,19 +366,15 @@ mod test {
     #[sqlx::test]
     async fn get_user(db: PgPool) -> anyhow::Result<()> {
         assert!(db::get_user(&db, 0).await?.is_none());
-        let user1: User = sqlx::query_as(
-            r#"
-                INSERT INTO app_user (username, password_hash)
-                VALUES ($1, $2)
-                RETURNING *
-            "#,
+        let user_1: User = sqlx::query_as(
+            r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING *"#,
         )
         .bind("john")
         .bind("1234")
         .fetch_one(&db)
         .await?;
-        let user2 = db::get_user(&db, user1.user_id).await?.unwrap();
-        assert_eq!(user1, user2);
+        let user_2 = db::get_user(&db, user_1.user_id).await?.unwrap();
+        assert_eq!(user_1, user_2);
         Ok(())
     }
 
@@ -418,21 +385,17 @@ mod test {
                 .await?
                 .is_none()
         );
-        let user1: User = sqlx::query_as(
-            r#"
-                INSERT INTO app_user (username, password_hash)
-                VALUES ($1, $2)
-                RETURNING *
-            "#,
+        let user_1: User = sqlx::query_as(
+            r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING *"#,
         )
         .bind("john")
         .bind("1234")
         .fetch_one(&db)
         .await?;
-        let user2 = db::get_user_from_username(&db, user1.username.clone())
+        let user_2 = db::get_user_from_username(&db, user_1.username.clone())
             .await?
             .unwrap();
-        assert_eq!(user1, user2);
+        assert_eq!(user_1, user_2);
         Ok(())
     }
 
@@ -440,11 +403,7 @@ mod test {
     async fn user_exists(db: PgPool) -> anyhow::Result<()> {
         assert!(!db::user_exists(&db, "john".into()).await?);
         let username: String = sqlx::query_scalar(
-            r#"
-                INSERT INTO app_user (username, password_hash)
-                VALUES ($1, $2)
-                RETURNING username
-            "#,
+            r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING username"#,
         )
         .bind("john")
         .bind("1234")

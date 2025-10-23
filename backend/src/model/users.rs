@@ -87,20 +87,20 @@ pub struct SelectUser {
     pub user_id: Id,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct CreateUser {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateUser {
     pub username: Option<String>,
     pub password: Option<String>,
 }
 
 /// User response type.
-#[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct UserResponse {
     pub user_id: Id,
     pub username: String,
