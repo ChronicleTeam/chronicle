@@ -3,14 +3,13 @@ use crate::{
     error::{ApiError, IntoAnyhow},
     model::users::{Credentials, User},
 };
-use aide::{NoApi, axum::ApiRouter};
+use aide::NoApi;
 use anyhow::anyhow;
 use axum::{
-    http::{HeaderValue, header},
-    response::Response,
+    http::{header, HeaderValue},
+    response::Response, Router,
 };
 use axum_login::{AuthManagerLayerBuilder, AuthSession, AuthnBackend, UserId};
-use base64::{Engine, prelude::BASE64_STANDARD};
 use password_auth::{generate_hash, verify_password};
 use sqlx::{Acquire, PgPool, Postgres};
 use tokio::task;
@@ -63,10 +62,10 @@ impl AuthnBackend for AuthBackend {
 pub type AppAuthSession = NoApi<AuthSession<AuthBackend>>;
 
 pub async fn init(
-    router: ApiRouter<AppState>,
+    router: Router<AppState>,
     db: PgPool,
-    session_key: String,
-) -> anyhow::Result<ApiRouter<AppState>> {
+    session_key: Key,
+) -> anyhow::Result<Router<AppState>> {
     let session_store = PostgresStore::new(db.clone());
     session_store.migrate().await?;
 
@@ -75,9 +74,6 @@ pub async fn init(
             .clone()
             .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
     );
-
-    // Generate a cryptographic key to sign the session cookie.
-    let session_key = Key::from(&BASE64_STANDARD.decode(session_key)?);
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(true)
@@ -89,8 +85,9 @@ pub async fn init(
     //
     // This combines the session layer with our backend to establish the auth
     // service which will provide the auth session as a request extension.
-    let backend = AuthBackend::new(db.clone());
+    let backend = AuthBackend::new(db);
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
+
 
     let service = ServiceBuilder::new()
         .map_response(set_partitioned_cookie)

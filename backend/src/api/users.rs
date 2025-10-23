@@ -58,7 +58,6 @@ async fn login(
     if session.user.is_some() {
         return Err(ApiError::BadRequest(ALREADY_LOGGED_IN.into()));
     }
-
     let user = session
         .authenticate(creds)
         .await
@@ -100,7 +99,6 @@ async fn create_user(
     if !auth_user.is_admin {
         return Err(ApiError::Forbidden);
     }
-
     let mut tx = db.begin().await?;
 
     if db::user_exists(tx.as_mut(), create_user.username.clone()).await? {
@@ -132,7 +130,6 @@ async fn update_user(
     if !auth_user.is_admin {
         return Err(ApiError::Forbidden);
     }
-
     let mut tx = db.begin().await?;
 
     if let Some(username) = update_user.username.clone()
@@ -221,7 +218,7 @@ mod docs {
         template::<Json<UserResponse>>(
             op,
             "login",
-            "ogin the user from the credentials.",
+            "Login the user from the credentials.",
             false,
             AUTHENTICATION_TAG,
         )
@@ -286,24 +283,227 @@ mod docs {
 
 #[cfg(test)]
 mod test {
-    // use super::*;
-    // use crate::{AppConfig, init_app, setup_tracing};
-    // use sqlx::PgPool;
+    use crate::{
+        model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
+        test_util,
+    };
+    use axum::http::response;
+    use serde_json::json;
+    use sqlx::{PgPool, QueryBuilder};
 
-    // #[sqlx::test]
-    // async fn login(db: PgPool) -> anyhow::Result<()> {
-    //     setup_tracing();
-    //     let mut app = init_app(AppConfig::build()?).await?;
+    #[sqlx::test]
+    async fn login(db: PgPool) -> anyhow::Result<()> {
+        let server = test_util::server(db.clone()).await;
+        let path = "/api/login";
 
-    //     let password = String::from("test123");
-    //     let user = db::create_user(
-    //         &db,
-    //         "test@example.com".into(),
-    //         generate_hash(password),
-    //         true,
-    //     )
-    //     .await?;
+        let credentials = Credentials {
+            username: "john".into(),
+            password: "1234".into(),
+        };
+        let user =
+            test_util::create_user(&db, &credentials.username, &credentials.password, false).await;
+        let select_user = SelectUser {
+            user_id: user.user_id,
+        };
 
-    //     Ok(())
-    // }
+        let response = server
+            .post(path)
+            .form(&Credentials {
+                username: credentials.username.clone(),
+                password: "4321".into(),
+            })
+            .await;
+        response.assert_status_unprocessable_entity();
+        server.get("/test/user").await.assert_json(&None::<()>);
+
+        let response = server.post(path).form(&credentials).save_cookies().await;
+        response.assert_status_ok();
+        response.assert_json(&UserResponse {
+            user_id: user.user_id,
+            username: credentials.username.clone(),
+            is_admin: user.is_admin,
+        });
+        server
+            .get("/test/user")
+            .await
+            .assert_json_contains(&select_user);
+
+        let response = server.post(path).form(&credentials).await;
+        response.assert_status_bad_request();
+        server
+            .get("/test/user")
+            .await
+            .assert_json_contains(&select_user);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn logout(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let path = "/api/logout";
+
+        let user = test_util::create_user(&db, "molly", "1234", false).await;
+        test_util::login_session(&mut server, &user).await;
+
+        let response = server.get(path).await;
+        response.assert_status_ok();
+        server.get("/test/user").await.assert_json(&None::<()>);
+
+        let response = server.get(path).await;
+        response.assert_status_ok();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_auth_user(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let path = "/api/user";
+
+        let response = server.get(path).await;
+        response.assert_status_ok();
+        response.assert_json(&json!(null));
+
+        let user = test_util::create_user(&db, "molly", "1234", false).await;
+        test_util::login_session(&mut server, &user).await;
+
+        let response = server.get(path).await;
+        response.assert_status_ok();
+        response.assert_json(&UserResponse {
+            user_id: user.user_id,
+            username: user.username.into(),
+            is_admin: user.is_admin,
+        });
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn create_user(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let path = "/api/users";
+
+        let create_user = CreateUser {
+            username: "abcd".into(),
+            password: "4321".into(),
+        };
+
+        let respone = server.post(path).form(&create_user).await;
+        respone.assert_status_unauthorized();
+
+        let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
+        test_util::login_session(&mut server, &auth_user).await;
+
+        let respone = server.post(path).form(&create_user).await;
+        respone.assert_status_forbidden();
+
+        let user = test_util::create_user(&db, "tim", "1234", true).await;
+        test_util::login_session(&mut server, &user).await;
+
+        let respone = server.post(path).form(&create_user).await;
+        respone.assert_status_ok();
+        let user_response_1: UserResponse = respone.json();
+        assert_eq!(user_response_1.username, create_user.username);
+        assert_eq!(user_response_1.is_admin, false);
+        let user_response_2: UserResponse =
+            sqlx::query_as(r#"SELECT * FROM app_user WHERE user_id = $1"#)
+                .bind(user_response_1.user_id)
+                .fetch_one(&db)
+                .await?;
+        respone.assert_json(&user_response_2);
+
+        let respone = server.post(path).form(&create_user).await;
+        respone.assert_status_conflict();
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn update_user(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+
+        let user = test_util::create_user(&db, "john", "1234", false).await;
+        let update_user = UpdateUser {
+            username: Some("jane".into()),
+            password: Some("5678".into()),
+        };
+        let path = format!("/api/users/{}", user.user_id);
+
+        let respone = server.patch(&path).form(&update_user).await;
+        respone.assert_status_unauthorized();
+
+        let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
+        test_util::login_session(&mut server, &auth_user).await;
+        let respone = server.patch(&path).form(&update_user).await;
+        respone.assert_status_forbidden();
+
+        let auth_user = test_util::create_user(&db, "tim", "1234", true).await;
+        test_util::login_session(&mut server, &auth_user).await;
+        let respone = server.patch(&path).form(&update_user).await;
+        respone.assert_status_ok();
+        let user_response_1: UserResponse = respone.json();
+        assert_eq!(
+            user_response_1,
+            UserResponse {
+                user_id: user.user_id,
+                username: update_user.username.clone().unwrap(),
+                is_admin: user.is_admin,
+            }
+        );
+        let user_response_2: UserResponse =
+            sqlx::query_as(r#"SELECT * FROM app_user WHERE user_id = $1"#)
+                .bind(user.user_id)
+                .fetch_one(&db)
+                .await?;
+        assert_eq!(user_response_1, user_response_2);
+
+        let respone = server.patch(&path).form(&update_user).await;
+        respone.assert_status_conflict();
+        
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn delete_user(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        todo!("Will need to test cascading delete");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_all_users(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let path = "/api/users";
+        let user_normal = test_util::create_user(&db, "python", "1234", false).await;
+        let user_admin = test_util::create_user(&db, "kotlin", "1234", true).await;
+
+        let response = server.get(path).await;
+        response.assert_status_unauthorized();
+
+        test_util::login_session(&mut server, &user_normal).await;
+        let response = server.get(path).await;
+        response.assert_status_forbidden();
+
+        test_util::login_session(&mut server, &user_admin).await;
+        let response = server.get(path).await;
+        response.assert_status_ok();
+        let mut users_1 = [user_normal, user_admin]
+            .map(|user| UserResponse {
+                user_id: user.user_id,
+                username: user.username,
+                is_admin: user.is_admin,
+            })
+            .to_vec();
+        let mut users_2: Vec<UserResponse> = response.json();
+        users_1.sort_by_key(|u| u.user_id);
+        users_2.sort_by_key(|u| u.user_id);
+        assert!(users_1.len() == users_2.len());
+        assert!(
+            users_1
+                .into_iter()
+                .zip(users_2)
+                .all(|(user_1, user_2)| user_1 == user_2)
+        );
+
+        Ok(())
+    }
 }

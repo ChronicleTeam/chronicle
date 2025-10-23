@@ -6,11 +6,15 @@ mod error;
 mod io;
 mod model;
 
+#[cfg(test)]
+pub mod test_util;
+
 use crate::model::users::Credentials;
 use axum::{
     Router,
     http::{HeaderValue, Method, header},
 };
+use base64::{Engine, prelude::BASE64_STANDARD};
 use config::{Config, ConfigError, Environment};
 use itertools::Itertools;
 use serde::Deserialize;
@@ -30,6 +34,7 @@ use tower_http::{
     catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
     timeout::TimeoutLayer, trace::TraceLayer,
 };
+use tower_sessions::cookie::Key;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
@@ -51,7 +56,8 @@ struct AppConfig {
     port: u16,
     #[serde(deserialize_with = "env_list")]
     allowed_origin: Vec<String>,
-    session_key: String,
+    #[serde(deserialize_with = "base64_session_key")]
+    session_key: Key,
     admin: Credentials,
     /// Database connection info.
     database: DatabaseConfig,
@@ -102,14 +108,6 @@ pub async fn serve() -> anyhow::Result<()> {
     tracing::info!("API docs url http://localhost:{}/docs", config.port);
     tracing::info!("listening on {}", listener.local_addr()?);
 
-    let router = init_app(config).await?;
-
-    axum::serve(listener, router.into_make_service()).await?;
-
-    Ok(())
-}
-
-async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
     let db = PgPoolOptions::new()
         .max_connections(20)
         .connect_with(
@@ -120,15 +118,28 @@ async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
                 .password(&config.database.password),
         )
         .await?;
-
     MIGRATOR.run(&db).await?;
 
-    let allowed_origin: Vec<_> = config
-        .allowed_origin
+    auth::set_admin_user(&db, config.admin).await?;
+
+    let router = api::router();
+    let router = docs::init(router)?;
+    let router = auth::init(router, db.clone(), config.session_key).await?;
+    let router = init_layers(router, config.allowed_origin)?;
+    let router = router.with_state(AppState { db });
+
+    axum::serve(listener, router.into_make_service()).await?;
+    Ok(())
+}
+
+fn init_layers(
+    router: Router<AppState>,
+    allowed_origin: Vec<String>,
+) -> anyhow::Result<Router<AppState>> {
+    let allowed_origin: Vec<_> = allowed_origin
         .iter()
         .map(|v| HeaderValue::from_str(v))
         .try_collect()?;
-
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
         .layer(
@@ -149,18 +160,7 @@ async fn init_app(config: AppConfig) -> anyhow::Result<Router> {
         .layer(CompressionLayer::new())
         .layer(CatchPanicLayer::new())
         .layer(TimeoutLayer::new(Duration::from_secs(300)));
-
-    let router = api::router().layer(service);
-
-    let router = auth::init(router, db.clone(), config.session_key).await?;
-
-    auth::set_admin_user(&db, config.admin).await?;
-
-    let router = docs::init(router)?;
-
-    let router = router.with_state(AppState { db });
-
-    Ok(router)
+    Ok(router.layer(service))
 }
 
 /// Sets up tracing for debuging and monitoring.
@@ -193,4 +193,16 @@ where
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect())
+}
+
+fn base64_session_key<'de, D>(deserializer: D) -> Result<Key, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(Key::from(
+        &BASE64_STANDARD
+            .decode(s)
+            .map_err(serde::de::Error::custom)?,
+    ))
 }
