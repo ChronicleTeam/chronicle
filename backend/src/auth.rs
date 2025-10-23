@@ -88,7 +88,6 @@ pub async fn init(
     let backend = AuthBackend::new(db);
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-
     let service = ServiceBuilder::new()
         .map_response(set_partitioned_cookie)
         .layer(auth_layer);
@@ -148,4 +147,53 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
         }
     }
     res
+}
+
+#[cfg(test)]
+mod test {
+    use axum_login::AuthnBackend;
+    use password_auth::verify_password;
+    use sqlx::PgPool;
+
+    use crate::{auth::AuthBackend, model::users::Credentials, test_util};
+
+    #[sqlx::test]
+    async fn authenticate(db: PgPool) -> anyhow::Result<()> {
+        let auth_backend = AuthBackend::new(db.clone());
+
+        let creds = Credentials { username: "john".into(), password: "1234".into() };
+        let creds_wrong_password = Credentials { username: creds.username.clone(), password: "4321".into() };
+        let creds_wrong_username = Credentials { username: "jhon".into(), password: creds.password.clone() };
+
+        let result = auth_backend.authenticate(creds.clone()).await?;
+        assert!(result.is_none());
+
+        let user_1 = test_util::create_user(&db, &creds.username, &creds.password, false).await;
+
+        let user_2 = auth_backend.authenticate(creds.clone()).await?.unwrap();
+        verify_password(creds.password, &user_2.password_hash)?;
+        assert_eq!(creds.username, user_2.username);
+        assert_eq!(user_1.is_admin, user_2.is_admin);
+
+        let result = auth_backend.authenticate(creds_wrong_password).await?;
+        assert!(result.is_none());
+        let result = auth_backend.authenticate(creds_wrong_username).await?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_user(db: PgPool) -> anyhow::Result<()> {
+        let auth_backend = AuthBackend::new(db.clone());
+
+        let result = auth_backend.get_user(&1).await?;
+        assert!(result.is_none());
+        
+        let user_1 = test_util::create_user(&db, "john", "1234", false).await;
+        let user_2 = auth_backend.get_user(&user_1.user_id).await?.unwrap();
+        assert_eq!(user_1, user_2);
+
+        Ok(())
+    }
 }

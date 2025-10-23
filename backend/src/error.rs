@@ -6,8 +6,7 @@ use axum::{
     http::{Response, StatusCode, header::WWW_AUTHENTICATE},
     response::IntoResponse,
 };
-use sqlx::error::DatabaseError;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use ApiError::*;
 
@@ -113,39 +112,10 @@ impl IntoResponse for ApiError {
             Anyhow(ref e) => {
                 tracing::error!("Anyhow error: {:?}", e);
             }
-            // Other errors get mapped normally.
             _ => (),
         }
 
         (self.status_code(), self.to_string()).into_response()
-    }
-}
-
-/// Custom trait to map a database constraint `sqlx::Error` to an ApiError
-pub trait OnConstraint<T> {
-    fn on_constraint(
-        self,
-        name: &str,
-        f: impl FnOnce(Box<dyn DatabaseError>) -> ApiError,
-    ) -> Result<T, ApiError>;
-}
-
-impl<T, E> OnConstraint<T> for Result<T, E>
-where
-    E: Into<ApiError>,
-{
-    /// Maps a database contraint `sqlx::Error` to an ApiError.
-    ///
-    /// This is useful for checking expected database contrainst errors and returning an appropriate response.
-    fn on_constraint(
-        self,
-        name: &str,
-        map_err: impl FnOnce(Box<dyn DatabaseError>) -> ApiError,
-    ) -> Result<T, ApiError> {
-        self.map_err(|e| match e.into() {
-            Sqlx(sqlx::Error::Database(dbe)) if dbe.constraint() == Some(name) => map_err(dbe),
-            e => e,
-        })
     }
 }
 
@@ -162,15 +132,15 @@ where
     }
 }
 
-pub trait IntoMessage<T> {
-    fn into_msg(self) -> Result<T, anyhow::Error>;
-}
+// pub trait IntoMessage<T> {
+//     fn into_msg(self) -> Result<T, anyhow::Error>;
+// }
 
-impl<T, E> IntoMessage<T> for Result<T, E>
-where
-    E: Display + Debug + Send + Sync + 'static,
-{
-    fn into_msg(self) -> Result<T, anyhow::Error> {
-        self.map_err(anyhow::Error::msg)
-    }
-}
+// impl<T, E> IntoMessage<T> for Result<T, E>
+// where
+//     E: Display + Debug + Send + Sync + 'static,
+// {
+//     fn into_msg(self) -> Result<T, anyhow::Error> {
+//         self.map_err(anyhow::Error::msg)
+//     }
+// }

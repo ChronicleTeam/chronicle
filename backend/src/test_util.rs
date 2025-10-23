@@ -25,6 +25,7 @@ use crate::{
     }
 
     pub async fn server(db: PgPool) -> TestServer {
+        dotenvy::from_filename("example.env").unwrap();
         let config: AppConfig = AppConfig::build().unwrap();
         let app = api::router().finish_api(&mut OpenApi::default());
         let app = app.nest(

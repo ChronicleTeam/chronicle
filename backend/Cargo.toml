@@ -92,6 +92,7 @@ base64 = "0.22"
 
 [dev-dependencies]
 axum-test = "18.1"
+reqwest = "0.12"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
