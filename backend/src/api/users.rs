@@ -101,7 +101,7 @@ async fn create_user(
     }
     let mut tx = db.begin().await?;
 
-    if db::user_exists(tx.as_mut(), create_user.username.clone()).await? {
+    if db::user_exists_by_username(tx.as_mut(), create_user.username.clone()).await? {
         return Err(ApiError::Conflict(USERNAME_IS_TAKEN.into()));
     }
 
@@ -131,13 +131,14 @@ async fn update_user(
         return Err(ApiError::Forbidden);
     }
     let mut tx = db.begin().await?;
-
+    if !db::user_exists_by_id(tx.as_mut(), user_id).await? {
+        return Err(ApiError::NotFound);
+    }
     if let Some(username) = update_user.username.clone()
-        && db::user_exists(tx.as_mut(), username).await?
+        && db::user_exists_by_username(tx.as_mut(), username).await?
     {
         return Err(ApiError::Conflict(USERNAME_IS_TAKEN.into()));
     }
-
     let password_hash = if let Some(password) = update_user.password {
         Some(
             task::spawn_blocking(|| generate_hash(password))
@@ -147,7 +148,6 @@ async fn update_user(
     } else {
         None
     };
-
     let user = db::update_user(
         tx.as_mut(),
         user_id,
@@ -156,7 +156,6 @@ async fn update_user(
         None,
     )
     .await?;
-
     tx.commit().await?;
     Ok(Json(UserResponse {
         user_id: user.user_id,
@@ -177,6 +176,9 @@ async fn delete_user(
         return Err(ApiError::Forbidden);
     }
     let mut tx = db.begin().await?;
+    if !db::user_exists_by_id(tx.as_mut(), user_id).await? {
+        return Err(ApiError::NotFound);
+    }
     db::delete_user(tx.as_mut(), user_id).await?;
     tx.commit().await?;
     Ok(())
@@ -261,6 +263,7 @@ mod docs {
             "update_user",
             "Update the user's username of password. Requires admin privileges.",
         )
+        .response_description::<404, ()>("User not found")
         .response_description::<409, ()>("Username is taken")
     }
 
@@ -270,6 +273,7 @@ mod docs {
             "delete_user",
             "Delete a user. Requires admin privileges.",
         )
+        .response_description::<404, ()>("User not found")
     }
 
     pub fn get_all_users(op: TransformOperation) -> TransformOperation {
@@ -287,9 +291,8 @@ mod test {
         model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
         test_util,
     };
-    use axum::http::response;
     use serde_json::json;
-    use sqlx::{PgPool, QueryBuilder};
+    use sqlx::PgPool;
 
     #[sqlx::test]
     async fn login(db: PgPool) -> anyhow::Result<()> {
@@ -387,21 +390,21 @@ mod test {
             password: "4321".into(),
         };
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_unauthorized();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_unauthorized();
 
         let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
         test_util::login_session(&mut server, &auth_user).await;
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_forbidden();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_forbidden();
 
         let user = test_util::create_user(&db, "tim", "1234", true).await;
         test_util::login_session(&mut server, &user).await;
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_ok();
-        let user_response_1: UserResponse = respone.json();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_ok();
+        let user_response_1: UserResponse = response.json();
         assert_eq!(user_response_1.username, create_user.username);
         assert_eq!(user_response_1.is_admin, false);
         let user_response_2: UserResponse =
@@ -409,10 +412,10 @@ mod test {
                 .bind(user_response_1.user_id)
                 .fetch_one(&db)
                 .await?;
-        respone.assert_json(&user_response_2);
+        response.assert_json(&user_response_2);
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_conflict();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_conflict();
 
         Ok(())
     }
@@ -428,19 +431,24 @@ mod test {
         };
         let path = format!("/api/users/{}", user.user_id);
 
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_unauthorized();
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_unauthorized();
 
         let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
         test_util::login_session(&mut server, &auth_user).await;
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_forbidden();
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_forbidden();
 
         let auth_user = test_util::create_user(&db, "tim", "1234", true).await;
         test_util::login_session(&mut server, &auth_user).await;
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_ok();
-        let user_response_1: UserResponse = respone.json();
+
+        let path_wrong = format!("/api/users/{}", 1000);
+        let response = server.patch(&path_wrong).form(&update_user).await;
+        response.assert_status_not_found();
+
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_ok();
+        let user_response_1: UserResponse = response.json();
         assert_eq!(
             user_response_1,
             UserResponse {
@@ -456,16 +464,49 @@ mod test {
                 .await?;
         assert_eq!(user_response_1, user_response_2);
 
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_conflict();
-        
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_conflict();
+
         Ok(())
     }
 
     #[sqlx::test]
     async fn delete_user(db: PgPool) -> anyhow::Result<()> {
-        let mut server = test_util::server(db.clone()).await;
-        todo!("Will need to test cascading delete");
+        let mut server_1 = test_util::server(db.clone()).await;
+        let path = format!("/api/users/{}", 1000);
+
+        let response = server_1.delete(&path).await;
+        response.assert_status_unauthorized();
+
+        let user_normal = test_util::create_user(&db, "molly", "1234", false).await;
+        test_util::login_session(&mut server_1, &user_normal).await;
+
+        let response = server_1.delete(&path).await;
+        response.assert_status_forbidden();
+
+        let mut server_2 = test_util::server(db.clone()).await;
+        let user_admin = test_util::create_user(&db, "john", "1234", true).await;
+        test_util::login_session(&mut server_2, &user_admin).await;
+
+        let response = server_2.delete(&path).await;
+        response.assert_status_not_found();
+
+        let path = format!("/api/users/{}", user_normal.user_id);
+        let response = server_2.delete(&path).await;
+        response.assert_status_ok();
+        let not_exists: bool =
+            sqlx::query_scalar(r#"SELECT NOT EXISTS (SELECT 1 FROM app_user WHERE user_id = $1)"#)
+                .bind(user_normal.user_id)
+                .fetch_one(&db)
+                .await?;
+        assert!(not_exists);
+
+        let response = server_2.delete(&path).await;
+        response.assert_status_not_found();
+
+        let response = server_1.delete(&path).await;
+        response.assert_status_unauthorized();
+
         Ok(())
     }
 

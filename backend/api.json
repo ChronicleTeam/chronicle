@@ -195,6 +195,9 @@
           },
           "403": {
             "description": "User is not an admin"
+          },
+          "404": {
+            "description": "User not found"
           }
         },
         "security": [
@@ -247,6 +250,9 @@
           },
           "403": {
             "description": "User is not an admin"
+          },
+          "404": {
+            "description": "User not found"
           },
           "409": {
             "description": "Username is taken"

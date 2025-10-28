@@ -102,7 +102,7 @@ pub async fn get_all_users(executor: impl PgExecutor<'_>) -> sqlx::Result<Vec<Us
     .await
 }
 
-pub async fn get_user(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Option<User>> {
+pub async fn get_user_by_id(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<Option<User>> {
     sqlx::query_as(
         r#"
             SELECT
@@ -119,7 +119,7 @@ pub async fn get_user(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Resul
     .await
 }
 
-pub async fn get_user_from_username(
+pub async fn get_user_by_username(
     executor: impl PgExecutor<'_>,
     username: String,
 ) -> sqlx::Result<Option<User>> {
@@ -139,7 +139,7 @@ pub async fn get_user_from_username(
     .await
 }
 
-pub async fn user_exists(executor: impl PgExecutor<'_>, username: String) -> sqlx::Result<bool> {
+pub async fn user_exists_by_username(executor: impl PgExecutor<'_>, username: String) -> sqlx::Result<bool> {
     sqlx::query_scalar(
         r#"
             SELECT EXISTS (
@@ -150,6 +150,21 @@ pub async fn user_exists(executor: impl PgExecutor<'_>, username: String) -> sql
         "#,
     )
     .bind(username)
+    .fetch_one(executor)
+    .await
+}
+
+pub async fn user_exists_by_id(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<bool> {
+    sqlx::query_scalar(
+        r#"
+            SELECT EXISTS (
+                SELECT 1
+                FROM app_user
+                WHERE user_id = $1
+            )
+        "#,
+    )
+    .bind(user_id)
     .fetch_one(executor)
     .await
 }
@@ -364,8 +379,8 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn get_user(db: PgPool) -> anyhow::Result<()> {
-        assert!(db::get_user(&db, 0).await?.is_none());
+    async fn get_user_by_id(db: PgPool) -> anyhow::Result<()> {
+        assert!(db::get_user_by_id(&db, 0).await?.is_none());
         let user_1: User = sqlx::query_as(
             r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING *"#,
         )
@@ -373,7 +388,7 @@ mod test {
         .bind("1234")
         .fetch_one(&db)
         .await?;
-        let user_2 = db::get_user(&db, user_1.user_id).await?.unwrap();
+        let user_2 = db::get_user_by_id(&db, user_1.user_id).await?.unwrap();
         assert_eq!(user_1, user_2);
         Ok(())
     }
@@ -381,7 +396,7 @@ mod test {
     #[sqlx::test]
     async fn get_user_from_username(db: PgPool) -> anyhow::Result<()> {
         assert!(
-            db::get_user_from_username(&db, "john".into())
+            db::get_user_by_username(&db, "john".into())
                 .await?
                 .is_none()
         );
@@ -392,7 +407,7 @@ mod test {
         .bind("1234")
         .fetch_one(&db)
         .await?;
-        let user_2 = db::get_user_from_username(&db, user_1.username.clone())
+        let user_2 = db::get_user_by_username(&db, user_1.username.clone())
             .await?
             .unwrap();
         assert_eq!(user_1, user_2);
@@ -400,8 +415,22 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn user_exists(db: PgPool) -> anyhow::Result<()> {
-        assert!(!db::user_exists(&db, "john".into()).await?);
+    async fn user_exists_by_id(db: PgPool) -> anyhow::Result<()> {
+        assert!(!db::user_exists_by_id(&db, 1).await?);
+        let user_id: Id = sqlx::query_scalar(
+            r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING user_id"#,
+        )
+        .bind("john")
+        .bind("1234")
+        .fetch_one(&db)
+        .await?;
+        assert!(db::user_exists_by_id(&db, user_id).await?);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn user_exists_by_username(db: PgPool) -> anyhow::Result<()> {
+        assert!(!db::user_exists_by_username(&db, "john".into()).await?);
         let username: String = sqlx::query_scalar(
             r#"INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING username"#,
         )
@@ -409,7 +438,7 @@ mod test {
         .bind("1234")
         .fetch_one(&db)
         .await?;
-        assert!(db::user_exists(&db, username).await?);
+        assert!(db::user_exists_by_username(&db, username).await?);
         Ok(())
     }
 

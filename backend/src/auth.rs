@@ -41,7 +41,7 @@ impl AuthnBackend for AuthBackend {
         &self,
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let user = db::get_user_from_username(&self.db, creds.username).await?;
+        let user = db::get_user_by_username(&self.db, creds.username).await?;
 
         // Verifying the password is blocking and potentially slow, so we'll do so via
         // `spawn_blocking`.
@@ -55,7 +55,7 @@ impl AuthnBackend for AuthBackend {
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        Ok(db::get_user(&self.db, *user_id).await?)
+        Ok(db::get_user_by_id(&self.db, *user_id).await?)
     }
 }
 
@@ -101,7 +101,7 @@ pub async fn set_admin_user(
 ) -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
     if let Some(admin_user) =
-        db::get_user_from_username(tx.as_mut(), creds.username.clone()).await?
+        db::get_user_by_username(tx.as_mut(), creds.username.clone()).await?
     {
         if !admin_user.is_admin {
             return Err(anyhow!("provided admin user does not have the admin role"));
