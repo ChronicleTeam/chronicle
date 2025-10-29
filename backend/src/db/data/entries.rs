@@ -155,3 +155,29 @@ pub async fn entry_exists(
     .fetch_one(executor)
     .await
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn create_entries(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn update_entry(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn delete_entry(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn entry_exists(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+}

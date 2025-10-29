@@ -109,6 +109,7 @@ fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE},

@@ -69,7 +69,7 @@ impl Aggregate {
 }
 
 /// Create axis request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Deserialize, FromRow, JsonSchema)]
 pub struct CreateAxis {
     pub field_id: Id,
     pub axis_kind: AxisKind,

@@ -198,6 +198,7 @@ async fn get_all_users(
     Ok(Json(users))
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::users::INVALID_CREDENTIALS,
@@ -286,8 +287,10 @@ mod docs {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{
+        db,
         model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
         test_util,
     };
@@ -303,8 +306,13 @@ mod test {
             username: "john".into(),
             password: "1234".into(),
         };
-        let user =
-            test_util::create_user(&db, &credentials.username, &credentials.password, false).await;
+        let user = db::create_user(
+            &db,
+            credentials.username.clone(),
+            credentials.password.clone(),
+            false,
+        )
+        .await?;
         let select_user = SelectUser {
             user_id: user.user_id,
         };
@@ -345,7 +353,7 @@ mod test {
         let mut server = test_util::server(db.clone()).await;
         let path = "/api/logout";
 
-        let user = test_util::create_user(&db, "molly", "1234", false).await;
+        let user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &user).await;
 
         let response = server.get(path).await;
@@ -366,7 +374,7 @@ mod test {
         response.assert_status_ok();
         response.assert_json(&json!(null));
 
-        let user = test_util::create_user(&db, "molly", "1234", false).await;
+        let user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &user).await;
 
         let response = server.get(path).await;
@@ -393,13 +401,13 @@ mod test {
         let response = server.post(path).form(&create_user).await;
         response.assert_status_unauthorized();
 
-        let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
+        let auth_user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &auth_user).await;
 
         let response = server.post(path).form(&create_user).await;
         response.assert_status_forbidden();
 
-        let user = test_util::create_user(&db, "tim", "1234", true).await;
+        let user = db::create_user(&db, "tim".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server, &user).await;
 
         let response = server.post(path).form(&create_user).await;
@@ -424,7 +432,7 @@ mod test {
     async fn update_user(db: PgPool) -> anyhow::Result<()> {
         let mut server = test_util::server(db.clone()).await;
 
-        let user = test_util::create_user(&db, "john", "1234", false).await;
+        let user = db::create_user(&db, "john".into(), "1234".into(), false).await?;
         let update_user = UpdateUser {
             username: Some("jane".into()),
             password: Some("5678".into()),
@@ -434,12 +442,12 @@ mod test {
         let response = server.patch(&path).form(&update_user).await;
         response.assert_status_unauthorized();
 
-        let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
+        let auth_user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &auth_user).await;
         let response = server.patch(&path).form(&update_user).await;
         response.assert_status_forbidden();
 
-        let auth_user = test_util::create_user(&db, "tim", "1234", true).await;
+        let auth_user = db::create_user(&db, "tim".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server, &auth_user).await;
 
         let path_wrong = format!("/api/users/{}", 1000);
@@ -478,14 +486,14 @@ mod test {
         let response = server_1.delete(&path).await;
         response.assert_status_unauthorized();
 
-        let user_normal = test_util::create_user(&db, "molly", "1234", false).await;
+        let user_normal = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server_1, &user_normal).await;
 
         let response = server_1.delete(&path).await;
         response.assert_status_forbidden();
 
         let mut server_2 = test_util::server(db.clone()).await;
-        let user_admin = test_util::create_user(&db, "john", "1234", true).await;
+        let user_admin = db::create_user(&db, "john".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server_2, &user_admin).await;
 
         let response = server_2.delete(&path).await;
@@ -514,8 +522,8 @@ mod test {
     async fn get_all_users(db: PgPool) -> anyhow::Result<()> {
         let mut server = test_util::server(db.clone()).await;
         let path = "/api/users";
-        let user_normal = test_util::create_user(&db, "python", "1234", false).await;
-        let user_admin = test_util::create_user(&db, "kotlin", "1234", true).await;
+        let user_normal = db::create_user(&db, "python".into(), "1234".into(), false).await?;
+        let user_admin = db::create_user(&db, "kotlin".into(), "1234".into(), true).await?;
 
         let response = server.get(path).await;
         response.assert_status_unauthorized();
@@ -535,15 +543,7 @@ mod test {
             })
             .to_vec();
         let mut users_2: Vec<UserResponse> = response.json();
-        users_1.sort_by_key(|u| u.user_id);
-        users_2.sort_by_key(|u| u.user_id);
-        assert!(users_1.len() == users_2.len());
-        assert!(
-            users_1
-                .into_iter()
-                .zip(users_2)
-                .all(|(user_1, user_2)| user_1 == user_2)
-        );
+        test_util::assert_eq_vec(users_1, users_2, |u| u.user_id);
 
         Ok(())
     }

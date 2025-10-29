@@ -7,6 +7,7 @@ mod io;
 mod model;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub mod test_util;
 
 use crate::model::users::Credentials;
@@ -206,6 +207,7 @@ where
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::AppConfig;
     use reqwest::StatusCode;

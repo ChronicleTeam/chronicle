@@ -29,7 +29,7 @@ use std::str::FromStr;
 use viz::Aggregate;
 
 /// This represents a cell in user entries and charts which can be any type.
-#[derive(Debug, JsonSchema)]
+#[derive(Debug, Clone, JsonSchema)]
 pub enum Cell {
     Integer(i64),
     Float(f64),

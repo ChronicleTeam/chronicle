@@ -6,8 +6,9 @@ use crate::{
 use aide::NoApi;
 use anyhow::anyhow;
 use axum::{
-    http::{header, HeaderValue},
-    response::Response, Router,
+    Router,
+    http::{HeaderValue, header},
+    response::Response,
 };
 use axum_login::{AuthManagerLayerBuilder, AuthSession, AuthnBackend, UserId};
 use password_auth::{generate_hash, verify_password};
@@ -100,9 +101,7 @@ pub async fn set_admin_user(
     creds: Credentials,
 ) -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
-    if let Some(admin_user) =
-        db::get_user_by_username(tx.as_mut(), creds.username.clone()).await?
-    {
+    if let Some(admin_user) = db::get_user_by_username(tx.as_mut(), creds.username.clone()).await? {
         if !admin_user.is_admin {
             return Err(anyhow!("provided admin user does not have the admin role"));
         }
@@ -150,25 +149,35 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
+    use crate::{auth::AuthBackend, db, model::users::Credentials};
     use axum_login::AuthnBackend;
     use password_auth::verify_password;
     use sqlx::PgPool;
-
-    use crate::{auth::AuthBackend, model::users::Credentials, test_util};
 
     #[sqlx::test]
     async fn authenticate(db: PgPool) -> anyhow::Result<()> {
         let auth_backend = AuthBackend::new(db.clone());
 
-        let creds = Credentials { username: "john".into(), password: "1234".into() };
-        let creds_wrong_password = Credentials { username: creds.username.clone(), password: "4321".into() };
-        let creds_wrong_username = Credentials { username: "jhon".into(), password: creds.password.clone() };
+        let creds = Credentials {
+            username: "john".into(),
+            password: "1234".into(),
+        };
+        let creds_wrong_password = Credentials {
+            username: creds.username.clone(),
+            password: "4321".into(),
+        };
+        let creds_wrong_username = Credentials {
+            username: "jhon".into(),
+            password: creds.password.clone(),
+        };
 
         let result = auth_backend.authenticate(creds.clone()).await?;
         assert!(result.is_none());
 
-        let user_1 = test_util::create_user(&db, &creds.username, &creds.password, false).await;
+        let user_1 =
+            db::create_user(&db, creds.username.clone(), creds.password.clone(), false).await?;
 
         let user_2 = auth_backend.authenticate(creds.clone()).await?.unwrap();
         verify_password(creds.password, &user_2.password_hash)?;
@@ -189,8 +198,8 @@ mod test {
 
         let result = auth_backend.get_user(&1).await?;
         assert!(result.is_none());
-        
-        let user_1 = test_util::create_user(&db, "john", "1234", false).await;
+
+        let user_1 = db::create_user(&db, "john".into(), "1234".into(), false).await?;
         let user_2 = auth_backend.get_user(&user_1.user_id).await?.unwrap();
         assert_eq!(user_1, user_2);
 

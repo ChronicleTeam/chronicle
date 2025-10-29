@@ -1,17 +1,17 @@
 use crate::{
-    Id,
+    Id, db,
     model::{
         Cell,
         data::{
             CreateField, Field, FieldIdentifier, FieldKind, FieldMetadata, TableIdentifier,
             UpdateField,
         },
+        viz::CreateAxis,
     },
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder, Row, types::Json};
 use std::{collections::HashMap, mem::discriminant};
-use tracing::debug;
 
 /// Add a field to this table and add a column to the actual SQL table.
 pub async fn create_field(
@@ -44,9 +44,6 @@ pub async fn create_field(
     let column_type = field_kind.get_sql_type();
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let field_ident = FieldIdentifier::new(field.field_id);
-
-    debug!("column_type {column_type}");
-    debug!("field_ident {field_ident}");
 
     sqlx::query(&format!(
         r#"
@@ -130,9 +127,11 @@ pub async fn update_field(
     let mut tx = conn.begin().await?;
 
     let Json(old_field_kind): Json<FieldKind> = sqlx::query_scalar(
-        r"SELECT field_kind
-        FROM meta_field
-        WHERE field_id = $1",
+        r#"
+            SELECT field_kind
+            FROM meta_field
+            WHERE field_id = $1
+        "#,
     )
     .bind(field_id)
     .fetch_one(tx.as_mut())
@@ -176,6 +175,8 @@ async fn convert_field_kind(
     old_field_kind: FieldKind,
 ) -> sqlx::Result<Field> {
     let mut tx = conn.begin().await?;
+
+    delete_field_axes(tx.as_mut(), field.field_id).await?;
 
     let field_ident = FieldIdentifier::new(field.field_id);
     let table_ident = TableIdentifier::new(field.table_id, "data_table");
@@ -257,7 +258,9 @@ pub async fn delete_field(
 ) -> sqlx::Result<()> {
     let mut tx = conn.begin().await?;
 
-    let table_id = sqlx::query_scalar(
+    delete_field_axes(tx.as_mut(), field_id).await?;
+
+    let table_id: Id = sqlx::query_scalar(
         r#"
             DELETE FROM meta_field
             WHERE field_id = $1
@@ -282,6 +285,64 @@ pub async fn delete_field(
 
     tx.commit().await?;
 
+    Ok(())
+}
+
+async fn delete_field_axes(
+    conn: impl Acquire<'_, Database = Postgres>,
+    field_id: Id,
+) -> sqlx::Result<()> {
+    let mut tx = conn.begin().await?;
+
+    let table_id: Id = sqlx::query_scalar(
+        r#"
+            SELECT table_id
+            FROM meta_field
+            WHERE field_id = $1
+        "#,
+    )
+    .bind(field_id)
+    .fetch_one(tx.as_mut())
+    .await?;
+
+    let affected_chart_ids: Vec<Id> = sqlx::query_scalar(
+        r#"
+            SELECT DISTINCT c.chart_id
+            FROM chart AS c
+            JOIN axis AS a
+            ON c.chart_id = a.chart_id
+            WHERE field_id = $1
+        "#,
+    )
+    .bind(field_id)
+    .fetch_all(tx.as_mut())
+    .await?;
+
+    sqlx::query(
+        r#"
+        DELETE FROM axis
+        WHERE axis_id = $1
+    "#,
+    )
+    .bind(field_id)
+    .execute(tx.as_mut())
+    .await?;
+
+    for chart_id in affected_chart_ids {
+        let axes: Vec<CreateAxis> = sqlx::query_as(
+            r#"
+                SELECT *
+                FROM axis
+                WHERE chart_id = $1
+            "#,
+        )
+        .bind(chart_id)
+        .fetch_all(tx.as_mut())
+        .await?;
+
+        db::set_axes(tx.as_mut(), chart_id, table_id, axes).await?;
+    }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -386,4 +447,158 @@ pub async fn field_exists(
     .bind(field_id)
     .fetch_one(executor)
     .await
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use std::collections::HashMap;
+
+    use itertools::Itertools;
+    use sqlx::{PgPool, types::Json};
+
+    use crate::{
+        db,
+        model::data::{CreateField, CreateTable, FieldIdentifier, FieldKind, TableIdentifier},
+        test_util::{self, FieldKindTest},
+    };
+
+    // TODO: consider testing the generated DDL
+    #[sqlx::test]
+    async fn create_field(db: PgPool) -> anyhow::Result<()> {
+        for (idx, field_kind_test) in test_util::field_kind_tests().into_iter().enumerate() {
+            let table = db::create_table(
+                &db,
+                CreateTable {
+                    parent_id: None,
+                    name: "test".into(),
+                    description: "".into(),
+                },
+            )
+            .await?;
+            let create_field = CreateField {
+                name: format!("Field {}", idx),
+                field_kind: field_kind_test.field_kind.clone(),
+            };
+            let field_1 = super::create_field(&db, table.table_id, create_field.clone()).await?;
+            assert_eq!(create_field.name, field_1.name);
+            assert_eq!(create_field.field_kind, field_1.field_kind.0);
+            let field_2 = sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
+                .bind(field_1.field_id)
+                .fetch_one(&db)
+                .await?;
+            assert_eq!(field_1, field_2);
+            field_kind_test
+                .test_insert(&db, table.table_id, field_1.field_id)
+                .await;
+        }
+        Ok(())
+    }
+
+    // TODO: consider testing the generated DDL
+    #[sqlx::test]
+    async fn create_fields(db: PgPool) -> anyhow::Result<()> {
+        let field_kind_tests = test_util::field_kind_tests()
+            .into_iter()
+            .enumerate()
+            .map(|(idx, f)| (format!("Field {}", idx), f))
+            .collect_vec();
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        let create_fields_1 = field_kind_tests
+            .iter()
+            .map(|(name, f)| CreateField {
+                name: name.clone(),
+                field_kind: f.field_kind.clone(),
+            })
+            .collect_vec();
+        let fields = super::create_fields(&db, table.table_id, create_fields_1.clone()).await?;
+
+        let field_ids = fields
+            .iter()
+            .map(|f| (f.name.clone(), f.field_id))
+            .collect::<HashMap<_, _>>();
+        let create_fields_2 = fields
+            .into_iter()
+            .map(|f| CreateField {
+                name: f.name,
+                field_kind: f.field_kind.0,
+            })
+            .collect_vec();
+        test_util::assert_eq_vec(create_fields_1.clone(), create_fields_2, |f| f.name.clone());
+
+        let create_fields_3 = sqlx::query_as::<_, (String, Json<FieldKind>)>(
+            r#"SELECT name, field_kind FROM meta_field WHERE table_id = $1"#,
+        )
+        .bind(table.table_id)
+        .fetch_all(&db)
+        .await?
+        .into_iter()
+        .map(|(name, field_kind)| CreateField {
+            name,
+            field_kind: field_kind.0,
+        })
+        .collect_vec();
+
+        test_util::assert_eq_vec(create_fields_1, create_fields_3, |f| f.name.clone());
+        for (name, field_kind_test) in field_kind_tests {
+            field_kind_test.test_insert(&db, table.table_id, *field_ids.get(&name).unwrap()).await;
+        }
+        Ok(())
+    }
+
+    // TODO: consider testing the generated DDL
+    #[sqlx::test]
+    async fn update_field(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    // TODO: consider testing the generated DDL
+    #[sqlx::test]
+    async fn convert_field_kind(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    // TODO: consider testing the generated DDL
+    #[sqlx::test]
+    async fn delete_field(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn delete_field_axes(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn get_fields(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn get_field_ids(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn set_field_order(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn get_fields_metadata(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn field_exists(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
 }

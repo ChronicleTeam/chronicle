@@ -156,6 +156,7 @@ async fn get_chart_data(
     Ok(Json(chart_data))
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         docs::{CHARTS_TAG, TransformOperationExt, template},

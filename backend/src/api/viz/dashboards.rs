@@ -107,6 +107,7 @@ async fn get_dashboards(
     Ok(Json(dashboards))
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         docs::{DASHBOARDS_TAG, TransformOperationExt, template},
