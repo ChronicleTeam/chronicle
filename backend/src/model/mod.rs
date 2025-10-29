@@ -178,8 +178,8 @@ impl Cell {
                 Cell::Integer(v) => num_traits::cast(v)?,
                 Cell::Decimal(v) => v.to_f64()?,
                 Cell::Boolean(v) => v.into(),
-                Cell::DateTime(_) => return None,
                 Cell::String(v) => v.parse().ok()?,
+                Cell::DateTime(_) => return None,
                 Cell::Float(_) | Cell::Null => return Some(self),
             })),
             FieldKind::Money { .. } => Some(Cell::Decimal(match self {

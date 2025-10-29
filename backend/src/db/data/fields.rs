@@ -25,14 +25,7 @@ pub async fn create_field(
         r#"
             INSERT INTO meta_field (table_id, name, field_kind)
             VALUES ($1, $2, $3)
-            RETURNING
-                field_id,
-                table_id,
-                name,
-                ordering,
-                field_kind,
-                created_at,
-                updated_at
+            RETURNING *
         "#,
     )
     .bind(table_id)
@@ -76,16 +69,7 @@ pub async fn create_fields(
                     .push_bind(Json(field.field_kind));
             })
             .push(
-                r#"
-                    RETURNING
-                        field_id,
-                        table_id,
-                        name,
-                        ordering,
-                        field_kind,
-                        created_at,
-                        updated_at
-                "#,
+                r#" RETURNING *"#,
             )
             .build_query_as()
             .fetch_all(tx.as_mut())
@@ -142,14 +126,7 @@ pub async fn update_field(
             UPDATE meta_field
             SET name = $1, field_kind = $2
             WHERE field_id = $3
-            RETURNING
-                field_id,
-                table_id,
-                name,
-                ordering,
-                field_kind,
-                created_at,
-                updated_at
+            RETURNING *
         "#,
     )
     .bind(name)
@@ -225,7 +202,7 @@ async fn convert_field_kind(
 
     let field_ident = FieldIdentifier::new(field.field_id);
 
-    QueryBuilder::<Postgres>::new(format!(
+    QueryBuilder::new(format!(
         r#"
             UPDATE {table_ident}
             SET {field_ident} = data.cell
@@ -350,14 +327,7 @@ async fn delete_field_axes(
 pub async fn get_fields(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Vec<Field>> {
     sqlx::query_as(
         r#"
-            SELECT
-                field_id,
-                table_id,
-                name,
-                ordering,
-                field_kind,
-                created_at,
-                updated_at
+            SELECT *
             FROM meta_field
             WHERE table_id = $1
         "#,
@@ -459,8 +429,8 @@ mod test {
 
     use crate::{
         db,
-        model::data::{CreateField, CreateTable, FieldIdentifier, FieldKind, TableIdentifier},
-        test_util::{self, FieldKindTest},
+        model::data::{CreateField, CreateTable, FieldKind},
+        test_util,
     };
 
     // TODO: consider testing the generated DDL
@@ -557,6 +527,16 @@ mod test {
     // TODO: consider testing the generated DDL
     #[sqlx::test]
     async fn update_field(db: PgPool) -> anyhow::Result<()> {
+         let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        
         todo!()
     }
 
