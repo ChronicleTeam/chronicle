@@ -6,8 +6,9 @@ use crate::{
 use aide::NoApi;
 use anyhow::anyhow;
 use axum::{
-    http::{header, HeaderValue},
-    response::Response, Router,
+    Router,
+    http::{HeaderValue, header},
+    response::Response,
 };
 use axum_login::{AuthManagerLayerBuilder, AuthSession, AuthnBackend, UserId};
 use password_auth::{generate_hash, verify_password};
@@ -41,7 +42,7 @@ impl AuthnBackend for AuthBackend {
         &self,
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let user = db::get_user_from_username(&self.db, creds.username).await?;
+        let user = db::get_user_by_username(&self.db, creds.username).await?;
 
         // Verifying the password is blocking and potentially slow, so we'll do so via
         // `spawn_blocking`.
@@ -55,7 +56,7 @@ impl AuthnBackend for AuthBackend {
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        Ok(db::get_user(&self.db, *user_id).await?)
+        Ok(db::get_user_by_id(&self.db, *user_id).await?)
     }
 }
 
@@ -88,7 +89,6 @@ pub async fn init(
     let backend = AuthBackend::new(db);
     let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer).build();
 
-
     let service = ServiceBuilder::new()
         .map_response(set_partitioned_cookie)
         .layer(auth_layer);
@@ -101,9 +101,7 @@ pub async fn set_admin_user(
     creds: Credentials,
 ) -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
-    if let Some(admin_user) =
-        db::get_user_from_username(tx.as_mut(), creds.username.clone()).await?
-    {
+    if let Some(admin_user) = db::get_user_by_username(tx.as_mut(), creds.username.clone()).await? {
         if !admin_user.is_admin {
             return Err(anyhow!("provided admin user does not have the admin role"));
         }
@@ -148,4 +146,63 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
         }
     }
     res
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use crate::{auth::AuthBackend, db, model::users::Credentials};
+    use axum_login::AuthnBackend;
+    use password_auth::verify_password;
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn authenticate(db: PgPool) -> anyhow::Result<()> {
+        let auth_backend = AuthBackend::new(db.clone());
+
+        let creds = Credentials {
+            username: "john".into(),
+            password: "1234".into(),
+        };
+        let creds_wrong_password = Credentials {
+            username: creds.username.clone(),
+            password: "4321".into(),
+        };
+        let creds_wrong_username = Credentials {
+            username: "jhon".into(),
+            password: creds.password.clone(),
+        };
+
+        let result = auth_backend.authenticate(creds.clone()).await?;
+        assert!(result.is_none());
+
+        let user_1 =
+            db::create_user(&db, creds.username.clone(), creds.password.clone(), false).await?;
+
+        let user_2 = auth_backend.authenticate(creds.clone()).await?.unwrap();
+        verify_password(creds.password, &user_2.password_hash)?;
+        assert_eq!(creds.username, user_2.username);
+        assert_eq!(user_1.is_admin, user_2.is_admin);
+
+        let result = auth_backend.authenticate(creds_wrong_password).await?;
+        assert!(result.is_none());
+        let result = auth_backend.authenticate(creds_wrong_username).await?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_user(db: PgPool) -> anyhow::Result<()> {
+        let auth_backend = AuthBackend::new(db.clone());
+
+        let result = auth_backend.get_user(&1).await?;
+        assert!(result.is_none());
+
+        let user_1 = db::create_user(&db, "john".into(), "1234".into(), false).await?;
+        let user_2 = auth_backend.get_user(&user_1.user_id).await?.unwrap();
+        assert_eq!(user_1, user_2);
+
+        Ok(())
+    }
 }

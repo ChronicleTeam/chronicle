@@ -324,6 +324,7 @@ where
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::data::entries::{

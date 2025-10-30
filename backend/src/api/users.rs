@@ -101,7 +101,7 @@ async fn create_user(
     }
     let mut tx = db.begin().await?;
 
-    if db::user_exists(tx.as_mut(), create_user.username.clone()).await? {
+    if db::user_exists_by_username(tx.as_mut(), create_user.username.clone()).await? {
         return Err(ApiError::Conflict(USERNAME_IS_TAKEN.into()));
     }
 
@@ -131,13 +131,14 @@ async fn update_user(
         return Err(ApiError::Forbidden);
     }
     let mut tx = db.begin().await?;
-
+    if !db::user_exists_by_id(tx.as_mut(), user_id).await? {
+        return Err(ApiError::NotFound);
+    }
     if let Some(username) = update_user.username.clone()
-        && db::user_exists(tx.as_mut(), username).await?
+        && db::user_exists_by_username(tx.as_mut(), username).await?
     {
         return Err(ApiError::Conflict(USERNAME_IS_TAKEN.into()));
     }
-
     let password_hash = if let Some(password) = update_user.password {
         Some(
             task::spawn_blocking(|| generate_hash(password))
@@ -147,7 +148,6 @@ async fn update_user(
     } else {
         None
     };
-
     let user = db::update_user(
         tx.as_mut(),
         user_id,
@@ -156,7 +156,6 @@ async fn update_user(
         None,
     )
     .await?;
-
     tx.commit().await?;
     Ok(Json(UserResponse {
         user_id: user.user_id,
@@ -177,6 +176,9 @@ async fn delete_user(
         return Err(ApiError::Forbidden);
     }
     let mut tx = db.begin().await?;
+    if !db::user_exists_by_id(tx.as_mut(), user_id).await? {
+        return Err(ApiError::NotFound);
+    }
     db::delete_user(tx.as_mut(), user_id).await?;
     tx.commit().await?;
     Ok(())
@@ -196,6 +198,7 @@ async fn get_all_users(
     Ok(Json(users))
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::users::INVALID_CREDENTIALS,
@@ -261,6 +264,7 @@ mod docs {
             "update_user",
             "Update the user's username of password. Requires admin privileges.",
         )
+        .response_description::<404, ()>("User not found")
         .response_description::<409, ()>("Username is taken")
     }
 
@@ -270,6 +274,7 @@ mod docs {
             "delete_user",
             "Delete a user. Requires admin privileges.",
         )
+        .response_description::<404, ()>("User not found")
     }
 
     pub fn get_all_users(op: TransformOperation) -> TransformOperation {
@@ -282,14 +287,15 @@ mod docs {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{
+        db,
         model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
         test_util,
     };
-    use axum::http::response;
     use serde_json::json;
-    use sqlx::{PgPool, QueryBuilder};
+    use sqlx::PgPool;
 
     #[sqlx::test]
     async fn login(db: PgPool) -> anyhow::Result<()> {
@@ -300,8 +306,13 @@ mod test {
             username: "john".into(),
             password: "1234".into(),
         };
-        let user =
-            test_util::create_user(&db, &credentials.username, &credentials.password, false).await;
+        let user = db::create_user(
+            &db,
+            credentials.username.clone(),
+            credentials.password.clone(),
+            false,
+        )
+        .await?;
         let select_user = SelectUser {
             user_id: user.user_id,
         };
@@ -342,7 +353,7 @@ mod test {
         let mut server = test_util::server(db.clone()).await;
         let path = "/api/logout";
 
-        let user = test_util::create_user(&db, "molly", "1234", false).await;
+        let user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &user).await;
 
         let response = server.get(path).await;
@@ -363,7 +374,7 @@ mod test {
         response.assert_status_ok();
         response.assert_json(&json!(null));
 
-        let user = test_util::create_user(&db, "molly", "1234", false).await;
+        let user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &user).await;
 
         let response = server.get(path).await;
@@ -387,21 +398,21 @@ mod test {
             password: "4321".into(),
         };
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_unauthorized();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_unauthorized();
 
-        let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
+        let auth_user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &auth_user).await;
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_forbidden();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_forbidden();
 
-        let user = test_util::create_user(&db, "tim", "1234", true).await;
+        let user = db::create_user(&db, "tim".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server, &user).await;
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_ok();
-        let user_response_1: UserResponse = respone.json();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_ok();
+        let user_response_1: UserResponse = response.json();
         assert_eq!(user_response_1.username, create_user.username);
         assert_eq!(user_response_1.is_admin, false);
         let user_response_2: UserResponse =
@@ -409,10 +420,10 @@ mod test {
                 .bind(user_response_1.user_id)
                 .fetch_one(&db)
                 .await?;
-        respone.assert_json(&user_response_2);
+        response.assert_json(&user_response_2);
 
-        let respone = server.post(path).form(&create_user).await;
-        respone.assert_status_conflict();
+        let response = server.post(path).form(&create_user).await;
+        response.assert_status_conflict();
 
         Ok(())
     }
@@ -421,26 +432,31 @@ mod test {
     async fn update_user(db: PgPool) -> anyhow::Result<()> {
         let mut server = test_util::server(db.clone()).await;
 
-        let user = test_util::create_user(&db, "john", "1234", false).await;
+        let user = db::create_user(&db, "john".into(), "1234".into(), false).await?;
         let update_user = UpdateUser {
             username: Some("jane".into()),
             password: Some("5678".into()),
         };
         let path = format!("/api/users/{}", user.user_id);
 
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_unauthorized();
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_unauthorized();
 
-        let auth_user = test_util::create_user(&db, "molly", "1234", false).await;
+        let auth_user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &auth_user).await;
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_forbidden();
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_forbidden();
 
-        let auth_user = test_util::create_user(&db, "tim", "1234", true).await;
+        let auth_user = db::create_user(&db, "tim".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server, &auth_user).await;
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_ok();
-        let user_response_1: UserResponse = respone.json();
+
+        let path_wrong = format!("/api/users/{}", 1000);
+        let response = server.patch(&path_wrong).form(&update_user).await;
+        response.assert_status_not_found();
+
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_ok();
+        let user_response_1: UserResponse = response.json();
         assert_eq!(
             user_response_1,
             UserResponse {
@@ -456,16 +472,49 @@ mod test {
                 .await?;
         assert_eq!(user_response_1, user_response_2);
 
-        let respone = server.patch(&path).form(&update_user).await;
-        respone.assert_status_conflict();
-        
+        let response = server.patch(&path).form(&update_user).await;
+        response.assert_status_conflict();
+
         Ok(())
     }
 
     #[sqlx::test]
     async fn delete_user(db: PgPool) -> anyhow::Result<()> {
-        let mut server = test_util::server(db.clone()).await;
-        todo!("Will need to test cascading delete");
+        let mut server_1 = test_util::server(db.clone()).await;
+        let path = format!("/api/users/{}", 1000);
+
+        let response = server_1.delete(&path).await;
+        response.assert_status_unauthorized();
+
+        let user_normal = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
+        test_util::login_session(&mut server_1, &user_normal).await;
+
+        let response = server_1.delete(&path).await;
+        response.assert_status_forbidden();
+
+        let mut server_2 = test_util::server(db.clone()).await;
+        let user_admin = db::create_user(&db, "john".into(), "1234".into(), true).await?;
+        test_util::login_session(&mut server_2, &user_admin).await;
+
+        let response = server_2.delete(&path).await;
+        response.assert_status_not_found();
+
+        let path = format!("/api/users/{}", user_normal.user_id);
+        let response = server_2.delete(&path).await;
+        response.assert_status_ok();
+        let not_exists: bool =
+            sqlx::query_scalar(r#"SELECT NOT EXISTS (SELECT 1 FROM app_user WHERE user_id = $1)"#)
+                .bind(user_normal.user_id)
+                .fetch_one(&db)
+                .await?;
+        assert!(not_exists);
+
+        let response = server_2.delete(&path).await;
+        response.assert_status_not_found();
+
+        let response = server_1.delete(&path).await;
+        response.assert_status_unauthorized();
+
         Ok(())
     }
 
@@ -473,8 +522,8 @@ mod test {
     async fn get_all_users(db: PgPool) -> anyhow::Result<()> {
         let mut server = test_util::server(db.clone()).await;
         let path = "/api/users";
-        let user_normal = test_util::create_user(&db, "python", "1234", false).await;
-        let user_admin = test_util::create_user(&db, "kotlin", "1234", true).await;
+        let user_normal = db::create_user(&db, "python".into(), "1234".into(), false).await?;
+        let user_admin = db::create_user(&db, "kotlin".into(), "1234".into(), true).await?;
 
         let response = server.get(path).await;
         response.assert_status_unauthorized();
@@ -494,15 +543,7 @@ mod test {
             })
             .to_vec();
         let mut users_2: Vec<UserResponse> = response.json();
-        users_1.sort_by_key(|u| u.user_id);
-        users_2.sort_by_key(|u| u.user_id);
-        assert!(users_1.len() == users_2.len());
-        assert!(
-            users_1
-                .into_iter()
-                .zip(users_2)
-                .all(|(user_1, user_2)| user_1 == user_2)
-        );
+        test_util::assert_eq_vec(users_1, users_2, |u| u.user_id);
 
         Ok(())
     }

@@ -183,13 +183,9 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
         FieldKind::Float {
             range_start,
             range_end,
-            number_precision,
-            number_scale,
             ..
         } => {
             validate_range(*range_start, *range_end)?;
-            *number_precision = number_precision.map(|n| n.max(1));
-            *number_scale = number_scale.map(|n| n.max(0));
         }
         FieldKind::Money {
             range_start,
@@ -236,6 +232,7 @@ where
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::data::fields::{FIELD_ID_NOT_FOUND, INVALID_ORDERING, INVALID_RANGE},

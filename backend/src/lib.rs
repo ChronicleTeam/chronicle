@@ -7,6 +7,7 @@ mod io;
 mod model;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub mod test_util;
 
 use crate::model::users::Credentials;
@@ -101,7 +102,6 @@ pub async fn serve() -> anyhow::Result<()> {
     setup_tracing();
 
     let config = AppConfig::build()?;
-    println!("{:?}", config.allowed_origin);
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), config.port);
     let listener = TcpListener::bind(addr).await?;
@@ -167,7 +167,6 @@ fn init_layers(
 /// Does nothing if called more than once.
 fn setup_tracing() {
     static INIT: std::sync::Once = std::sync::Once::new();
-
     INIT.call_once(|| {
         let _subscriber = tracing_subscriber::registry()
             .with(
@@ -205,4 +204,27 @@ where
             .decode(s)
             .map_err(serde::de::Error::custom)?,
     ))
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use crate::AppConfig;
+    use reqwest::StatusCode;
+
+    #[test]
+    fn build_app_config() -> anyhow::Result<()> {
+        dotenvy::from_filename_override("example.env")?;
+        let _config = AppConfig::build()?;
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn serve() -> anyhow::Result<()> {
+        dotenvy::from_filename_override("example.env")?;
+        tokio::task::spawn(async move { crate::serve().await.unwrap() });
+        let response = reqwest::get("http://localhost:5000/api").await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        Ok(())
+    }
 }

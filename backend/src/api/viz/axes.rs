@@ -67,18 +67,16 @@ async fn set_axes(
                         "{}: {FIELD_NOT_FOUND}",
                         axis.field_id,
                     )))?;
-
             if let Some(aggregate) = &axis.aggregate {
                 validate_axis(&aggregate, field_kind).map_err(|message| {
                     ApiError::UnprocessableEntity(format!("{}: {message}", axis.field_id,))
                 })?;
             }
-
             ApiResult::Ok(axis)
         })
         .try_collect()?;
 
-    let axes = db::set_axes(&db, chart_id, table_id, &field_kinds, axes).await?;
+    let axes = db::set_axes(&db, chart_id, table_id, axes).await?;
 
     Ok(Json(axes))
 }
@@ -111,6 +109,7 @@ fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE},

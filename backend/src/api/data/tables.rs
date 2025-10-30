@@ -334,6 +334,7 @@ async fn export_table_to_csv(
     Ok(buffer)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         docs::{TABLES_TAG, TransformOperationExt, template},
