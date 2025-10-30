@@ -68,9 +68,7 @@ pub async fn create_fields(
                     .push_bind(field.name)
                     .push_bind(Json(field.field_kind));
             })
-            .push(
-                r#" RETURNING *"#,
-            )
+            .push(r#" RETURNING *"#)
             .build_query_as()
             .fetch_all(tx.as_mut())
             .await?;
@@ -200,28 +198,34 @@ async fn convert_field_kind(
     )
     .await?;
 
-    let field_ident = FieldIdentifier::new(field.field_id);
+    let cells = cells
+        .into_iter()
+        .filter(|(_, cell)| !matches!(cell, Cell::Null))
+        .collect_vec();
 
-    QueryBuilder::new(format!(
-        r#"
-            UPDATE {table_ident}
-            SET {field_ident} = data.cell
-            FROM (
-        "#
-    ))
-    .push_values(cells, |mut builder, (id, cell)| {
-        builder.push_bind(id);
-        cell.push_bind(&mut builder);
-    })
-    .push(format!(
-        r#"
-            ) AS data (entry_id, cell)
-            WHERE {table_ident}.entry_id = data.entry_id
-        "#
-    ))
-    .build()
-    .execute(tx.as_mut())
-    .await?;
+    if !cells.is_empty() {
+        let field_ident = FieldIdentifier::new(field.field_id);
+        QueryBuilder::new(format!(
+            r#"
+                UPDATE {table_ident}
+                SET {field_ident} = data.cell
+                FROM (
+            "#
+        ))
+        .push_values(cells, |mut builder, (id, cell)| {
+            builder.push_bind(id);
+            cell.push_bind(&mut builder);
+        })
+        .push(format!(
+            r#"
+                ) AS data (entry_id, cell)
+                WHERE {table_ident}.entry_id = data.entry_id
+            "#
+        ))
+        .build()
+        .execute(tx.as_mut())
+        .await?;
+    }
 
     tx.commit().await?;
 
@@ -422,16 +426,20 @@ pub async fn field_exists(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::collections::HashMap;
-
-    use itertools::Itertools;
-    use sqlx::{PgPool, types::Json};
-
     use crate::{
         db,
-        model::data::{CreateField, CreateTable, FieldKind},
-        test_util,
+        model::{
+            Cell,
+            data::{
+                CreateField, CreateTable, Field, FieldIdentifier, FieldKind, TableIdentifier,
+                UpdateField,
+            },
+        },
+        test_util::{self, FieldKindTest},
     };
+    use itertools::Itertools;
+    use sqlx::{PgPool, types::Json};
+    use std::collections::HashMap;
 
     #[sqlx::test]
     async fn create_field(db: PgPool) -> anyhow::Result<()> {
@@ -446,7 +454,7 @@ mod test {
             )
             .await?;
             let create_field = CreateField {
-                name: format!("Field {}", idx),
+                name: idx.to_string(),
                 field_kind: field_kind_test.field_kind.clone(),
             };
             let field_1 = super::create_field(&db, table.table_id, create_field.clone()).await?;
@@ -457,9 +465,13 @@ mod test {
                 .fetch_one(&db)
                 .await?;
             assert_eq!(field_1, field_2);
-            field_kind_test
-                .test_insert(&db, table.table_id, field_1.field_id)
-                .await;
+            test_util::test_insert(
+                &db,
+                table.table_id,
+                field_1.field_id,
+                field_kind_test.test_value,
+            )
+            .await;
         }
         Ok(())
     }
@@ -469,7 +481,7 @@ mod test {
         let field_kind_tests = test_util::field_kind_tests()
             .into_iter()
             .enumerate()
-            .map(|(idx, f)| (format!("Field {}", idx), f))
+            .map(|(idx, f)| (idx.to_string(), f))
             .collect_vec();
         let table = db::create_table(
             &db,
@@ -516,15 +528,125 @@ mod test {
         .collect_vec();
 
         test_util::assert_eq_vec(create_fields_1, create_fields_3, |f| f.name.clone());
-        for (name, field_kind_test) in field_kind_tests {
-            field_kind_test.test_insert(&db, table.table_id, *field_ids.get(&name).unwrap()).await;
+        for (name, FieldKindTest { test_value, .. }) in field_kind_tests {
+            test_util::test_insert(
+                &db,
+                table.table_id,
+                *field_ids.get(&name).unwrap(),
+                test_value,
+            )
+            .await;
         }
         Ok(())
     }
 
     #[sqlx::test]
     async fn update_field(db: PgPool) -> anyhow::Result<()> {
-         let table = db::create_table(
+        // Test the following converts:
+        // to Integer
+        // to Float
+        // to Money
+        // to DateTime
+        // to Checkbox
+        // to Enumeration
+        // Only going to test conversions from Text as it has the most uncertainty
+
+        let old_field_kind = FieldKind::Text { is_required: false };
+        // Test conversion
+        for (
+            idx,
+            FieldKindTest {
+                field_kind,
+                test_value: new_value,
+            },
+        ) in test_util::field_kind_tests().into_iter().enumerate()
+        {
+            let old_value = Cell::String(match field_kind.clone() {
+                FieldKind::Text { .. } => continue,
+                FieldKind::Enumeration { values, .. } => {
+                    let idx = match new_value {
+                        Cell::Integer(v) => v,
+                        _ => panic!(),
+                    };
+                    values[&idx].clone()
+                }
+                _ => new_value.to_string(),
+            });
+            println!(
+                "{:?}: old_value: {:?} new_value {:?}",
+                field_kind, old_value, new_value
+            );
+
+            let table = db::create_table(
+                &db,
+                CreateTable {
+                    parent_id: None,
+                    name: "test".into(),
+                    description: "".into(),
+                },
+            )
+            .await?;
+            let name = format!("Old {idx}");
+            let old_field_1 = super::create_field(
+                &db,
+                table.table_id,
+                CreateField {
+                    name: name.clone(),
+                    field_kind: old_field_kind.clone(),
+                },
+            )
+            .await?;
+            test_util::test_insert(&db, table.table_id, old_field_1.field_id, old_value.clone())
+                .await;
+
+            let new_field_1 = super::update_field(
+                &db,
+                old_field_1.field_id,
+                UpdateField {
+                    name: name.clone(),
+                    field_kind: field_kind.clone(),
+                },
+            )
+            .await?;
+            assert_eq!(name, new_field_1.name);
+            assert_eq!(field_kind, new_field_1.field_kind.0);
+            assert_ne!(old_field_1.field_id, new_field_1.field_id);
+
+            let table_ident = TableIdentifier::new(table.table_id, "data_table");
+            let field_ident = FieldIdentifier::new(new_field_1.field_id);
+            let actual_new_value = Cell::from_field_row(
+                &sqlx::query(&format!(r#"SELECT {field_ident} FROM {table_ident}"#))
+                    .fetch_one(&db)
+                    .await?,
+                &field_ident.unquote(),
+                &field_kind,
+            )?;
+            assert_eq!(new_value, actual_new_value);
+
+            let mut old_field_2: Field =
+                sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
+                    .bind(old_field_1.field_id)
+                    .fetch_one(&db)
+                    .await?;
+            let mut new_field_2: Field =
+                sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
+                    .bind(new_field_1.field_id)
+                    .fetch_one(&db)
+                    .await?;
+            assert_ne!(old_field_1.name, old_field_2.name);
+            old_field_2.name = old_field_1.name.clone();
+            old_field_2.updated_at = None;
+            assert_eq!(old_field_1, old_field_2);
+            new_field_2.updated_at = None;
+            assert_eq!(new_field_1, new_field_2);
+
+            test_util::test_insert(&db, table.table_id, old_field_1.field_id, old_value).await;
+            test_util::test_insert(&db, table.table_id, new_field_1.field_id, new_value.clone())
+                .await;
+        }
+
+        // Test changing field metadata
+        let table = db::create_table(
             &db,
             CreateTable {
                 parent_id: None,
@@ -533,8 +655,34 @@ mod test {
             },
         )
         .await?;
-        
-        todo!()
+        let create_field = CreateField {
+            name: "test".into(),
+            field_kind: FieldKind::Integer {
+                is_required: false,
+                range_start: Some(10),
+                range_end: Some(40),
+            },
+        };
+        let field_id = super::create_field(&db, table.table_id, create_field)
+            .await?
+            .field_id;
+        let update_field = UpdateField {
+            name: "DIFFERENT".into(),
+            field_kind: FieldKind::Integer {
+                is_required: true,
+                range_start: Some(-99),
+                range_end: Some(99),
+            },
+        };
+        let field_1 = super::update_field(&db, field_id, update_field.clone()).await?;
+        assert_eq!(update_field.name, field_1.name);
+        assert_eq!(update_field.field_kind, field_1.field_kind.0);
+        let field_2: Field = sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
+            .bind(field_1.field_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(field_1, field_2);
+        Ok(())
     }
 
     #[sqlx::test]

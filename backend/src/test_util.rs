@@ -61,17 +61,23 @@ pub struct FieldKindTest {
     pub test_value: Cell,
 }
 
-impl FieldKindTest {
-    pub async fn test_insert(self, executor: impl PgExecutor<'_> + Copy, table_id: Id, field_id: Id) {
-        let table_ident = TableIdentifier::new(table_id, "data_table");
-        let field_ident = FieldIdentifier::new(field_id);
+pub async fn test_insert(
+    executor: impl PgExecutor<'_> + Copy,
+    table_id: Id,
+    field_id: Id,
+    test_value: Cell,
+) {
+    let table_ident = TableIdentifier::new(table_id, "data_table");
+    let field_ident = FieldIdentifier::new(field_id);
 
-        let sql = format!(r#"INSERT INTO {table_ident} ({field_ident}) VALUES ($1)"#);
-        let query = |value: Cell| value.bind(sqlx::query(&sql)).execute(executor);
-
-        println!("FieldKind {:?}", self.field_kind);
-        query(self.test_value).await.unwrap();
-    }
+    println!("{table_ident}.{field_ident}: Iserting: {:?}", test_value);
+    test_value
+        .bind(sqlx::query(&format!(
+            r#"INSERT INTO {table_ident} ({field_ident}) VALUES ($1)"#
+        )))
+        .execute(executor)
+        .await
+        .unwrap();
 }
 
 pub fn field_kind_tests() -> Vec<FieldKindTest> {
@@ -140,8 +146,8 @@ pub fn field_kind_tests() -> Vec<FieldKindTest> {
     ]
 }
 
-pub fn assert_eq_vec<T, F, K>(mut vec_1: Vec<T>, mut vec_2: Vec<T>, f: F) 
-where 
+pub fn assert_eq_vec<T, F, K>(mut vec_1: Vec<T>, mut vec_2: Vec<T>, f: F)
+where
     T: PartialEq + Debug,
     F: FnMut(&T) -> K + Copy,
     K: Ord,
