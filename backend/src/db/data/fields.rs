@@ -433,7 +433,6 @@ mod test {
         test_util,
     };
 
-    // TODO: consider testing the generated DDL
     #[sqlx::test]
     async fn create_field(db: PgPool) -> anyhow::Result<()> {
         for (idx, field_kind_test) in test_util::field_kind_tests().into_iter().enumerate() {
@@ -465,7 +464,6 @@ mod test {
         Ok(())
     }
 
-    // TODO: consider testing the generated DDL
     #[sqlx::test]
     async fn create_fields(db: PgPool) -> anyhow::Result<()> {
         let field_kind_tests = test_util::field_kind_tests()
@@ -524,7 +522,6 @@ mod test {
         Ok(())
     }
 
-    // TODO: consider testing the generated DDL
     #[sqlx::test]
     async fn update_field(db: PgPool) -> anyhow::Result<()> {
          let table = db::create_table(
@@ -540,20 +537,8 @@ mod test {
         todo!()
     }
 
-    // TODO: consider testing the generated DDL
-    #[sqlx::test]
-    async fn convert_field_kind(db: PgPool) -> anyhow::Result<()> {
-        todo!()
-    }
-
-    // TODO: consider testing the generated DDL
     #[sqlx::test]
     async fn delete_field(db: PgPool) -> anyhow::Result<()> {
-        todo!()
-    }
-
-    #[sqlx::test]
-    async fn delete_field_axes(db: PgPool) -> anyhow::Result<()> {
         todo!()
     }
 
