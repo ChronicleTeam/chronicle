@@ -3,10 +3,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use crate::Id;
+use crate::{
+    Id,
+    error::{ApiError, ApiResult},
+};
 
 /// The application user.
-#[derive(Clone, Serialize, Deserialize, FromRow)]
+#[derive(Clone, Serialize, Deserialize, FromRow, PartialEq, Eq)]
 pub struct User {
     pub user_id: Id,
     pub username: String,
@@ -41,32 +44,63 @@ impl AuthUser for User {
     }
 }
 
+#[derive(Debug, Clone, Copy, sqlx::Type, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema)]
+#[sqlx(type_name = "access_role")]
+pub enum AccessRole {
+    Viewer,
+    Editor,
+    Owner,
+}
+
+pub trait AccessRoleCheck {
+    fn check(self, required: AccessRole) -> ApiResult<()>;
+}
+
+impl AccessRoleCheck for Option<AccessRole> {
+    fn check(self, required: AccessRole) -> ApiResult<()> {
+        use AccessRole::*;
+        if let Some(actual) = self {
+            if match actual {
+                Viewer => matches!(required, Viewer),
+                Editor => matches!(required, Editor | Viewer),
+                Owner => true,
+            } {
+                Ok(())
+            } else {
+                Err(ApiError::Forbidden)
+            }
+        } else {
+            Err(ApiError::NotFound)
+        }
+    }
+}
+
 /// Credentials request type.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SelectUser {
     pub user_id: Id,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct CreateUser {
     pub username: String,
     pub password: String,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateUser {
     pub username: Option<String>,
     pub password: Option<String>,
 }
 
 /// User response type.
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct UserResponse {
     pub user_id: Id,
     pub username: String,

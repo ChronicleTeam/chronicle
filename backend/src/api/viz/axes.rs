@@ -1,18 +1,21 @@
 use crate::{
-    AppState, Id,
+    AppState,
     auth::AppAuthSession,
     db::{self},
     error::{ApiError, ApiResult},
     model::{
         data::FieldKind,
-        viz::{Aggregate, Axis, SetAxes},
+        users::{AccessRole, AccessRoleCheck},
+        viz::{Aggregate, Axis, SelectChart, SetAxes},
     },
 };
-use aide::{NoApi, axum::ApiRouter};
+use aide::{
+    NoApi,
+    axum::{ApiRouter, routing::put_with},
+};
 use axum::{
     Json,
     extract::{Path, State},
-    routing::put,
 };
 use axum_login::AuthSession;
 use itertools::Itertools;
@@ -23,38 +26,28 @@ const INVALID_AXIS_AGGREGATE: &str = "Axis aggregate is invalid for this field";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().nest(
-        "/dashboards/{dashboard-id}/charts/{chart-id}/axes",
-        ApiRouter::new().route("/", put(set_axes)),
+        "/dashboards/{dashboard_id}/charts/{chart_id}/axes",
+        ApiRouter::new().api_route("/", put_with(set_axes, docs::set_axes)),
     )
 }
 
-/// Set all the axes of the specified chart.
-///
-/// This is the only way to modify chart axes because the dynamic view needs to
-/// be rebuilt and it is much more convienient when receiving all the axes at once.
-///
-/// # Errors
-/// - [ApiError::Unauthorized]: User not authenticated
-/// - [ApiError::Forbidden]: User does not have access to this dashboard or chart
-/// - [ApiError::NotFound]: Dashboard or chart not found
-/// - [ApiError::UnprocessableEntity]:
-///     - <field_id>: [FIELD_NOT_FOUND]
-///     - <field_id>: [INVALID_AXIS_AGGREGATE]
-///
 async fn set_axes(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path((dashboard_id, chart_id)): Path<(Id, Id)>,
+    Path(SelectChart {
+        dashboard_id,
+        chart_id,
+    }): Path<SelectChart>,
     Json(SetAxes(axes)): Json<SetAxes>,
 ) -> ApiResult<Json<Vec<Axis>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_dashboard_relation(&db, user_id, dashboard_id)
+    db::get_dashboard_access(&db, user_id, dashboard_id)
         .await?
-        .to_api_result()?;
-    db::check_chart_relation(&db, dashboard_id, chart_id)
-        .await?
-        .to_api_result()?;
+        .check(AccessRole::Editor)?;
+    if !db::chart_exists(&db, dashboard_id, chart_id).await? {
+        return Err(ApiError::NotFound);
+    };
 
     let table_id = db::get_chart_table_id(&db, chart_id).await?;
 
@@ -74,18 +67,16 @@ async fn set_axes(
                         "{}: {FIELD_NOT_FOUND}",
                         axis.field_id,
                     )))?;
-
             if let Some(aggregate) = &axis.aggregate {
                 validate_axis(&aggregate, field_kind).map_err(|message| {
                     ApiError::UnprocessableEntity(format!("{}: {message}", axis.field_id,))
                 })?;
             }
-
             ApiResult::Ok(axis)
         })
         .try_collect()?;
 
-    let axes = db::set_axes(&db, chart_id, table_id, &field_kinds, axes).await?;
+    let axes = db::set_axes(&db, chart_id, table_id, axes).await?;
 
     Ok(Json(axes))
 }
@@ -115,5 +106,43 @@ fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'
             | FieldKind::DateTime { .. },
         ) => Ok(()),
         _ => Err(INVALID_AXIS_AGGREGATE),
+    }
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod docs {
+    use crate::{
+        api::viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE},
+        docs::{AXES_TAG, TransformOperationExt, template},
+        model::{users::AccessRole, viz::Axis},
+    };
+    use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
+    use itertools::Itertools;
+
+    const DASHBOARD_EDITOR: [(&str, AccessRole); 1] = [("Dashboard", AccessRole::Editor)];
+
+    fn axes<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        template::<R>(op, summary, description, true, AXES_TAG)
+    }
+
+    pub fn set_axes(op: TransformOperation) -> TransformOperation {
+        let errors = [FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE]
+            .into_iter()
+            .map(|v| format!("<field_id> : {v}"))
+            .join("\n\n");
+
+        axes::<Json<Vec<Axis>>>(
+            op,
+            "set_axes",
+            "Set all the axes of the specified chart and rebuild the dynamic view.",
+        )
+        .response_description::<404, ()>("Dashboard not found\n\nChart not found")
+        .response_description::<422, String>(&errors)
+        .required_access(DASHBOARD_EDITOR)
     }
 }

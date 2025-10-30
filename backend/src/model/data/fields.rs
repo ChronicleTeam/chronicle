@@ -8,7 +8,7 @@ use sqlx::{FromRow, types::Json};
 use std::{collections::HashMap, fmt};
 
 /// Table field entity.
-#[derive(Debug, Clone, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, PartialEq, FromRow, JsonSchema)]
 pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
@@ -22,7 +22,7 @@ pub struct Field {
 
 /// The field kind and associated options.
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(tag = "type")]
 pub enum FieldKind {
     /// Raw text data.
@@ -38,9 +38,6 @@ pub enum FieldKind {
         is_required: bool,
         range_start: Option<f64>,
         range_end: Option<f64>,
-        scientific_notation: bool,
-        number_precision: Option<i64>,
-        number_scale: Option<i64>,
     },
     /// A type for fixed precision money.
     Money {
@@ -55,7 +52,6 @@ pub enum FieldKind {
         is_required: bool,
         range_start: Option<DateTime<Utc>>,
         range_end: Option<DateTime<Utc>>,
-        date_time_format: String,
     },
     /// A URL.
     WebLink { is_required: bool },
@@ -89,21 +85,27 @@ impl FieldKind {
 }
 
 /// Create field request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, PartialEq, FromRow, JsonSchema)]
 pub struct CreateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
 /// Update field request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct UpdateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SelectField {
+    pub table_id: Id,
+    pub field_id: Id,
+}
+
 /// Set the field order request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
 /// DTO for when a field's ID and field kind is needed.

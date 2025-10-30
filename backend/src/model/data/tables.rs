@@ -1,4 +1,4 @@
-use crate::{Id, model::Cell};
+use crate::{model::{users::AccessRole, Cell}, Id};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,6 @@ use super::{CreateField, Entry, Field};
 #[derive(Debug, Serialize, FromRow, JsonSchema)]
 pub struct Table {
     pub table_id: Id,
-    pub user_id: Id,
     pub parent_id: Option<Id>,
     pub name: String,
     pub description: String,
@@ -34,6 +33,18 @@ pub struct UpdateTable {
     pub description: String,
 }
 
+#[derive(Debug, FromRow, Serialize, JsonSchema)]
+pub struct GetTable {
+    #[sqlx(flatten)]
+    pub table: Table,
+    pub access_role: AccessRole,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SelectTable {
+    pub table_id: Id,
+}
+
 /// Response for fetching entire table data.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct TableData {
@@ -42,6 +53,14 @@ pub struct TableData {
     pub entries: Vec<Entry>,
     pub children: Vec<TableData>,
 }
+
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct GetTableData  {
+    pub table_data: TableData,
+    pub access_role: AccessRole,
+}
+
 
 /// DTO for creating tables from imports.
 #[derive(Debug)]

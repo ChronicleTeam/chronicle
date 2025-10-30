@@ -1,5 +1,6 @@
 use crate::{Id, model::Cell};
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use std::{collections::HashMap, fmt};
@@ -7,7 +8,7 @@ use std::{collections::HashMap, fmt};
 use super::AxisField;
 
 /// Dashboard chart entity.
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
 pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
@@ -19,7 +20,7 @@ pub struct Chart {
 }
 
 /// The kind of chart to display.
-#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, JsonSchema)]
 #[sqlx(type_name = "chart_kind")]
 pub enum ChartKind {
     Table,
@@ -28,7 +29,7 @@ pub enum ChartKind {
 }
 
 /// Create chart request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateChart {
     pub table_id: Id,
     pub name: String,
@@ -36,14 +37,20 @@ pub struct CreateChart {
 }
 
 /// Update chart request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct UpdateChart {
     pub name: String,
     pub chart_kind: ChartKind,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SelectChart {
+    pub dashboard_id: Id,
+    pub chart_id: Id,
+}
+
 /// Response for fetching entire chart data.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ChartData {
     pub chart: Chart,
     pub axes: Vec<AxisField>,

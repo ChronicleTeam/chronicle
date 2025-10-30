@@ -1,20 +1,23 @@
 use super::AppState;
 use crate::{
-    Id,
     auth::AppAuthSession,
     db,
-    docs::{self, TABLES_TAG, TransformOperationExt},
     error::{ApiError, ApiResult, IntoAnyhow},
     io,
-    model::data::{CreateTable, CreateTableData, FieldMetadata, Table, TableData, UpdateTable},
+    model::{
+        data::{
+            CreateTable, CreateTableData, FieldMetadata, GetTable, GetTableData, SelectTable,
+            Table, TableData, UpdateTable,
+        },
+        users::{AccessRole, AccessRoleCheck},
+    },
 };
 use aide::{
-    NoApi, OperationOutput,
+    NoApi,
     axum::{
         ApiRouter,
         routing::{get_with, patch_with, post_with},
     },
-    transform::TransformOperation,
 };
 use axum::{
     Json,
@@ -36,37 +39,41 @@ pub fn router() -> ApiRouter<AppState> {
         ApiRouter::new()
             .api_route(
                 "/",
-                post_with(create_table, create_table_docs).get_with(get_tables, get_tables_docs),
+                post_with(create_table, docs::create_table).get_with(get_tables, docs::get_tables),
             )
             .api_route(
-                "/{table-id}",
-                patch_with(update_table, update_table_docs)
-                    .delete_with(delete_table, delete_table_docs),
+                "/{table_id}",
+                patch_with(update_table, docs::update_table)
+                    .delete_with(delete_table, docs::delete_table),
             )
             .api_route(
-                "/{table-id}/children",
-                get_with(get_table_children, get_table_children_docs),
+                "/{table_id}/children",
+                get_with(get_table_children, docs::get_table_children),
             )
             .api_route(
-                "/{table-id}/data",
-                get_with(get_table_data, get_table_data_docs),
+                "/{table_id}/data",
+                get_with(get_table_data, docs::get_table_data),
             )
             .api_route(
                 "/excel",
-                post_with(import_table_from_excel, import_table_from_excel_docs),
+                post_with(import_table_from_excel, docs::import_table_from_excel),
             )
             .api_route(
-                "/{table-id}/excel",
-                post_with(export_table_to_excel, export_table_to_excel_docs),
+                "/{table_id}/excel",
+                post_with(export_table_to_excel, docs::export_table_to_excel),
             )
             .api_route(
                 "/csv",
-                post_with(import_table_from_csv, import_table_from_csv_docs),
+                post_with(import_table_from_csv, docs::import_table_from_csv),
             )
             .api_route(
-                "/{table-id}/csv",
-                post_with(export_table_to_csv, export_table_to_csv_docs),
-            ),
+                "/{table_id}/csv",
+                post_with(export_table_to_csv, docs::export_table_to_csv),
+            ), // .api_route(
+               //     "/{table_id}/access",
+               //     post_with(create_table_access, create_table_access)
+               //         .patch_with(update_table_access, update_table_access),
+               // ),
     )
 }
 
@@ -76,65 +83,62 @@ async fn create_table(
     Json(create_table): Json<CreateTable>,
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    let table = db::create_table(&db, user_id, create_table).await?;
+    if let Some(parent_table_id) = create_table.parent_id {
+        db::get_table_access(&db, user_id, parent_table_id)
+            .await?
+            .check(AccessRole::Owner)?;
+    }
 
+    let table = db::create_table(tx.as_mut(), create_table).await?;
+    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
+
+    tx.commit().await?;
     Ok(Json(table))
-}
-
-fn create_table_docs(op: TransformOperation) -> TransformOperation {
-    tables_docs::<Json<Table>>(op, "create_table", "Create an empty user table.")
 }
 
 async fn update_table(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     Json(update_table): Json<UpdateTable>,
 ) -> ApiResult<Json<Table>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(tx.as_mut(), user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
-    let table = db::update_table(&db, table_id, update_table).await?;
+    let table = db::update_table(tx.as_mut(), table_id, update_table).await?;
 
+    tx.commit().await?;
     Ok(Json(table))
-}
-
-fn update_table_docs(op: TransformOperation) -> TransformOperation {
-    select_tables_docs::<Json<Table>>(op, "update_table", "Update a table's meta data.")
 }
 
 async fn delete_table(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(tx.as_mut(), user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Owner)?;
 
-    db::delete_table(&db, table_id).await?;
+    db::delete_table(tx.as_mut(), table_id).await?;
 
+    tx.commit().await?;
     Ok(())
-}
-
-fn delete_table_docs(op: TransformOperation) -> TransformOperation {
-    select_tables_docs::<()>(
-        op,
-        "delete_table",
-        "Delete a table, including all fields and entries.",
-    )
 }
 
 async fn get_tables(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-) -> ApiResult<Json<Vec<Table>>> {
+) -> ApiResult<Json<Vec<GetTable>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let tables = db::get_tables(&db, user_id).await?;
@@ -142,67 +146,49 @@ async fn get_tables(
     Ok(Json(tables))
 }
 
-fn get_tables_docs(op: TransformOperation) -> TransformOperation {
-    tables_docs::<Json<Vec<Table>>>(op, "get_tables", "Get all tables belonging to the user.")
-}
-
 async fn get_table_children(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let tables = db::get_table_children(&db, table_id).await?;
 
     Ok(Json(tables))
 }
 
-fn get_table_children_docs(op: TransformOperation) -> TransformOperation {
-    select_tables_docs::<Json<Vec<Table>>>(
-        op,
-        "get_table_children",
-        "Get all table children for the specified table.",
-    )
-}
-
 async fn get_table_data(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
-) -> ApiResult<Json<TableData>> {
+    Path(SelectTable { table_id }): Path<SelectTable>,
+) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
-        .await?
-        .to_api_result()?;
+    let access_role = db::get_table_access(&db, user_id, table_id).await?;
+    access_role.check(AccessRole::Viewer)?;
 
-    let data_table = db::get_table_data(&db, table_id).await?;
+    let table_data = db::get_table_data(&db, table_id).await?;
 
-    Ok(Json(data_table))
-}
-
-fn get_table_data_docs(op: TransformOperation) -> TransformOperation {
-    select_tables_docs::<Json<TableData>>(
-        op,
-        "get_table_data",
-        "Get all the meta data, fields, and entries of a table.",
-    )
+    Ok(Json(GetTableData {
+        table_data,
+        access_role: access_role.unwrap(),
+    }))
 }
 
 async fn import_table_from_excel(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
-) -> ApiResult<Json<Vec<TableData>>> {
+) -> ApiResult<Json<Vec<GetTableData>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
-        return Err(ApiError::BadRequest("Multipart has zero fields".into()));
+        return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
     let data = field.bytes().await.anyhow()?;
@@ -220,7 +206,9 @@ async fn import_table_from_excel(
         entries,
     } in create_tables
     {
-        let table = db::create_table(tx.as_mut(), user_id, table).await?;
+        let table = db::create_table(tx.as_mut(), table).await?;
+        db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id)
+            .await?;
         let fields = db::create_fields(tx.as_mut(), table.table_id, fields).await?;
         let entries = db::create_entries(
             tx.as_mut(),
@@ -233,39 +221,32 @@ async fn import_table_from_excel(
             entries,
         )
         .await?;
-        tables.push(TableData {
-            table,
-            fields,
-            entries,
-            children: Vec::new(),
+        tables.push(GetTableData {
+            table_data: TableData {
+                table,
+                fields,
+                entries,
+                children: Vec::new(),
+            },
+            access_role: AccessRole::Owner,
         })
     }
 
     tx.commit().await?;
-
     Ok(Json(tables))
-}
-
-fn import_table_from_excel_docs(op: TransformOperation) -> TransformOperation {
-    tables_docs::<Json<Vec<TableData>>>(
-        op,
-        "import_table_from_excel",
-        "Takes an Excel file and attempts to convert it into a table.",
-    )
-    .response_description::<400, ()>("Multipart has zero fields")
 }
 
 async fn export_table_to_excel(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     mut multipart: Multipart,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let mut spreadsheet = if let Some(field) = multipart.next_field().await.anyhow()? {
         let data = field.bytes().await.anyhow()?;
@@ -288,20 +269,11 @@ async fn export_table_to_excel(
     Ok(buffer)
 }
 
-fn export_table_to_excel_docs(op: TransformOperation) -> TransformOperation {
-    select_tables_docs::<Vec<u8>>(
-        op,
-        "export_table_to_excel",
-        "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
-    )
-    .response_description::<400, ()>("Multipart has zero fields")
-}
-
 async fn import_table_from_csv(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     mut multipart: Multipart,
-) -> ApiResult<Json<TableData>> {
+) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
     let Some(field) = multipart.next_field().await.unwrap() else {
@@ -316,7 +288,8 @@ async fn import_table_from_csv(
 
     let mut tx = db.begin().await?;
 
-    let table = db::create_table(tx.as_mut(), user_id, create_table.table).await?;
+    let table = db::create_table(tx.as_mut(), create_table.table).await?;
+    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
     let fields = db::create_fields(tx.as_mut(), table.table_id, create_table.fields).await?;
     let entries = db::create_entries(
         tx.as_mut(),
@@ -332,32 +305,26 @@ async fn import_table_from_csv(
 
     tx.commit().await?;
 
-    Ok(Json(TableData {
-        table,
-        fields,
-        entries,
-        children: Vec::new(),
+    Ok(Json(GetTableData {
+        table_data: TableData {
+            table,
+            fields,
+            entries,
+            children: Vec::new(),
+        },
+        access_role: AccessRole::Owner,
     }))
-}
-
-fn import_table_from_csv_docs(op: TransformOperation) -> TransformOperation {
-    tables_docs::<Json<TableData>>(
-        op,
-        "import_table_from_csv",
-        "Takes a CSV file and attempts to convert it into a table.",
-    )
-    .response_description::<400, ()>("Multipart has zero fields")
 }
 
 async fn export_table_to_csv(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    db::check_table_relation(&db, user_id, table_id)
+    db::get_table_access(&db, user_id, table_id)
         .await?
-        .to_api_result()?;
+        .check(AccessRole::Viewer)?;
 
     let mut buffer = Vec::new();
     let csv_writer = csv::Writer::from_writer(Cursor::new(&mut buffer));
@@ -367,28 +334,112 @@ async fn export_table_to_csv(
     Ok(buffer)
 }
 
-fn export_table_to_csv_docs(op: TransformOperation) -> TransformOperation {
-    select_tables_docs::<Vec<u8>>(
-        op,
-        "export_table_to_csv",
-        "Converts the specified table into a CSV file.",
-    )
-}
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod docs {
+    use crate::{
+        docs::{TABLES_TAG, TransformOperationExt, template},
+        model::{
+            data::{GetTable, GetTableData, Table},
+            users::AccessRole,
+        },
+    };
+    use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
 
-fn tables_docs<'a, R: OperationOutput>(
-    op: TransformOperation<'a>,
-    summary: &'a str,
-    description: &'a str,
-) -> TransformOperation<'a> {
-    docs::template::<R>(op, summary, description, true, TABLES_TAG)
-}
+    const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
+    const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
 
-fn select_tables_docs<'a, R: OperationOutput>(
-    op: TransformOperation<'a>,
-    summary: &'a str,
-    description: &'a str,
-) -> TransformOperation<'a> {
-    tables_docs::<R>(op, summary, description)
-        .response_description::<403, ()>("User does not have access to that table")
-        .response_description::<404, ()>("Table not found")
+    fn tables<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        template::<R>(op, summary, description, true, TABLES_TAG)
+    }
+
+    pub fn select_tables<'a, R: OperationOutput>(
+        op: TransformOperation<'a>,
+        summary: &'a str,
+        description: &'a str,
+    ) -> TransformOperation<'a> {
+        tables::<R>(op, summary, description).response_description::<404, ()>("Table not found")
+    }
+
+    pub fn create_table(op: TransformOperation) -> TransformOperation {
+        tables::<Json<Table>>(op, "create_table", "Create an empty user table.")
+            .response_description::<404, ()>("Parent table not found")
+    }
+
+    pub fn update_table(op: TransformOperation) -> TransformOperation {
+        select_tables::<Json<Table>>(op, "update_table", "Update a table's meta data.")
+            .required_access(TABLE_OWNER)
+    }
+
+    pub fn delete_table(op: TransformOperation) -> TransformOperation {
+        select_tables::<()>(
+            op,
+            "delete_table",
+            "Delete a table, including all fields and entries.",
+        )
+        .required_access(TABLE_OWNER)
+    }
+
+    pub fn get_tables(op: TransformOperation) -> TransformOperation {
+        tables::<Json<Vec<GetTable>>>(op, "get_tables", "Get all tables viewable to the user.")
+    }
+
+    pub fn get_table_children(op: TransformOperation) -> TransformOperation {
+        select_tables::<Json<Vec<Table>>>(
+            op,
+            "get_table_children",
+            "Get all table children for the specified table.",
+        )
+        .required_access(TABLE_VIEWER)
+    }
+
+    pub fn get_table_data(op: TransformOperation) -> TransformOperation {
+        select_tables::<Json<GetTableData>>(
+            op,
+            "get_table_data",
+            "Get all the meta data, fields, and entries of a table.",
+        )
+        .required_access(TABLE_VIEWER)
+    }
+
+    pub fn import_table_from_excel(op: TransformOperation) -> TransformOperation {
+        tables::<Json<Vec<GetTableData>>>(
+            op,
+            "import_table_from_excel",
+            "Takes an Excel file and attempts to convert it into a table.",
+        )
+        .response_description::<400, ()>("Multipart has zero fields")
+    }
+
+    pub fn export_table_to_excel(op: TransformOperation) -> TransformOperation {
+        select_tables::<Vec<u8>>(
+            op,
+            "export_table_to_excel",
+            "Converts the specified table into an Excel file. Can optionally take an input Excel file in which to add the table to.",
+        )
+        .required_access(TABLE_VIEWER)
+        .response_description::<400, ()>("Multipart has zero fields")
+    }
+
+    pub fn import_table_from_csv(op: TransformOperation) -> TransformOperation {
+        tables::<Json<GetTableData>>(
+            op,
+            "import_table_from_csv",
+            "Takes a CSV file and attempts to convert it into a table.",
+        )
+        .response_description::<400, ()>("Multipart has zero fields")
+    }
+
+    pub fn export_table_to_csv(op: TransformOperation) -> TransformOperation {
+        select_tables::<Vec<u8>>(
+            op,
+            "export_table_to_csv",
+            "Converts the specified table into a CSV file.",
+        )
+        .required_access(TABLE_VIEWER)
+    }
 }

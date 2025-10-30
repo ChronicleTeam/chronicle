@@ -1,7 +1,7 @@
 use super::{entry_from_row, select_columns, update_columns};
 use crate::{
     Id,
-    db::{Relation, data::insert_columns},
+    db::data::insert_columns,
     model::{
         Cell,
         data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},
@@ -9,59 +9,6 @@ use crate::{
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
-
-/// Add an entry to the actual SQL table.
-pub async fn create_entry(
-    conn: impl Acquire<'_, Database = Postgres>,
-    table_id: Id,
-    parent_id: Option<Id>,
-    cells: Vec<(Cell, FieldMetadata)>,
-) -> sqlx::Result<Entry> {
-    let mut tx = conn.begin().await?;
-
-    let (entry, fields): (Vec<_>, Vec<_>) = cells.into_iter().unzip();
-
-    let field_idents = fields
-        .iter()
-        .map(|field| FieldIdentifier::new(field.field_id))
-        .collect_vec();
-
-    let parameters = (1..=entry.len())
-        .map(|i| format!("${i}"))
-        .chain(parent_id.map(|_| format!("${}", entry.len() + 1)))
-        .join(", ");
-
-    let insert_columns = insert_columns(parent_id.is_some(), &field_idents);
-
-    let return_columns = select_columns(parent_id.is_some(), &field_idents);
-
-    let table_ident = TableIdentifier::new(table_id, "data_table");
-
-    let insert_query = format!(
-        r#"
-            INSERT INTO {table_ident} ({insert_columns})
-            VALUES ({parameters})
-            RETURNING {return_columns}
-
-        "#,
-    );
-    let mut insert_query = sqlx::query(&insert_query);
-
-    for cell in entry {
-        insert_query = cell.bind(insert_query);
-    }
-
-    if let Some(parent_id) = parent_id {
-        insert_query = insert_query.bind(parent_id);
-    }
-
-    let row = insert_query.fetch_one(tx.as_mut()).await?;
-    let entry = entry_from_row(row, &fields).unwrap();
-
-    tx.commit().await?;
-
-    Ok(entry)
-}
 
 /// Add entries to the actual SQL table.
 pub async fn create_entries(
@@ -189,22 +136,48 @@ pub async fn delete_entry(
 }
 
 /// Return the [Relation] between the table and this entry.
-pub async fn check_entry_relation(
+pub async fn entry_exists(
     executor: impl PgExecutor<'_>,
     table_id: Id,
     entry_id: Id,
-) -> sqlx::Result<Relation> {
+) -> sqlx::Result<bool> {
     let table_ident = TableIdentifier::new(table_id, "data_table");
-
-    Ok(sqlx::query(&format!(
+    sqlx::query_scalar(&format!(
         r#"
-            SELECT entry_id
-            FROM {table_ident}
-            WHERE entry_id = $1
-        "#
+            SELECT EXISTS (
+                SELECT 1
+                FROM {table_ident}
+                WHERE entry_id = $1
+            )
+        "#,
     ))
     .bind(entry_id)
-    .fetch_optional(executor)
-    .await?
-    .map_or(Relation::Absent, |_| Relation::Owned))
+    .fetch_one(executor)
+    .await
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn create_entries(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn update_entry(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn delete_entry(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
+
+    #[sqlx::test]
+    async fn entry_exists(db: PgPool) -> anyhow::Result<()> {
+        todo!()
+    }
 }

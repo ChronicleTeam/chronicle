@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     Id,
     model::{
@@ -7,14 +5,13 @@ use crate::{
         viz::{Axis, AxisIdentifier, ChartIdentifier, CreateAxis},
     },
 };
-use sqlx::{Acquire, Postgres, QueryBuilder};
+use sqlx::{Acquire, Postgres, QueryBuilder, types::Json};
 
 /// Set the list of axes of this chart using the given table as data source.
 pub async fn set_axes(
     conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,
     table_id: Id,
-    field_kinds: &HashMap<Id, FieldKind>,
     axes: Vec<CreateAxis>,
 ) -> sqlx::Result<Vec<Axis>> {
     let mut tx = conn.begin().await?;
@@ -59,11 +56,21 @@ pub async fn set_axes(
     for axis in &axes {
         let field_ident = FieldIdentifier::new(axis.field_id);
         let item = if let Some(aggregate) = &axis.aggregate {
+            let Json(field_kind): Json<FieldKind> = sqlx::query_scalar(
+                r#"
+                    SELECT field_kind
+                    FROM meta_field
+                    WHERE field_id = $1
+                "#,
+            )
+            .bind(axis.field_id)
+            .fetch_one(tx.as_mut())
+            .await?;
             &format!(
                 "{}({})::{}",
                 aggregate.get_sql_aggregate(),
                 field_ident,
-                aggregate.get_sql_type(&field_kinds.get(&axis.field_id).unwrap()),
+                aggregate.get_sql_type(&field_kind),
             )
         } else {
             group_by_columns.push(field_ident.to_string());

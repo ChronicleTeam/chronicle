@@ -33,6 +33,7 @@ tower-http = { version = "0.6", features = [
   "timeout",
   "trace",
   "cors",
+  "limit"
 ] }
 tower-sessions = { version = "0.14", default-features = false, features = [
   "signed",
@@ -91,4 +92,8 @@ itertools = "0.14"
 base64 = "0.22"
 
 [dev-dependencies]
-mime = "0.3"
+axum-test = "18.1"
+reqwest = "0.12"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
