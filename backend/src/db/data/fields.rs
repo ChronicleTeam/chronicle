@@ -413,7 +413,7 @@ pub async fn field_exists(
             SELECT EXISTS (
                 SELECT 1
                 FROM meta_field
-                WHERE table_id = $1 field_id = $2
+                WHERE table_id = $1 AND field_id = $2
             )
         "#,
     )
@@ -427,15 +427,15 @@ pub async fn field_exists(
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{
-        db,
+        Id, db,
         model::{
             Cell,
             data::{
-                CreateField, CreateTable, Field, FieldIdentifier, FieldKind, TableIdentifier,
-                UpdateField,
+                CreateField, CreateTable, Field, FieldIdentifier, FieldKind, FieldMetadata,
+                TableIdentifier, UpdateField,
             },
         },
-        test_util::{self, FieldKindTest},
+        test_util,
     };
     use itertools::Itertools;
     use sqlx::{PgPool, types::Json};
@@ -443,7 +443,8 @@ mod test {
 
     #[sqlx::test]
     async fn create_field(db: PgPool) -> anyhow::Result<()> {
-        for (idx, field_kind_test) in test_util::field_kind_tests().into_iter().enumerate() {
+        for (idx, (field_kind, test_value)) in test_util::field_tests().into_iter().enumerate()
+        {
             let table = db::create_table(
                 &db,
                 CreateTable {
@@ -455,7 +456,7 @@ mod test {
             .await?;
             let create_field = CreateField {
                 name: idx.to_string(),
-                field_kind: field_kind_test.field_kind.clone(),
+                field_kind: field_kind.clone(),
             };
             let field_1 = super::create_field(&db, table.table_id, create_field.clone()).await?;
             assert_eq!(create_field.name, field_1.name);
@@ -465,20 +466,17 @@ mod test {
                 .fetch_one(&db)
                 .await?;
             assert_eq!(field_1, field_2);
-            test_util::test_insert(
-                &db,
-                table.table_id,
-                field_1.field_id,
-                field_kind_test.test_value,
-            )
-            .await;
+            assert!(
+                test_util::test_insert_cell(&db, table.table_id, field_1.field_id, test_value,)
+                    .await
+            );
         }
         Ok(())
     }
 
     #[sqlx::test]
     async fn create_fields(db: PgPool) -> anyhow::Result<()> {
-        let field_kind_tests = test_util::field_kind_tests()
+        let field_kind_tests = test_util::field_tests()
             .into_iter()
             .enumerate()
             .map(|(idx, f)| (idx.to_string(), f))
@@ -494,9 +492,9 @@ mod test {
         .await?;
         let create_fields_1 = field_kind_tests
             .iter()
-            .map(|(name, f)| CreateField {
+            .map(|(name, (field_kind, _))| CreateField {
                 name: name.clone(),
-                field_kind: f.field_kind.clone(),
+                field_kind: field_kind.clone(),
             })
             .collect_vec();
         let fields = super::create_fields(&db, table.table_id, create_fields_1.clone()).await?;
@@ -528,14 +526,16 @@ mod test {
         .collect_vec();
 
         test_util::assert_eq_vec(create_fields_1, create_fields_3, |f| f.name.clone());
-        for (name, FieldKindTest { test_value, .. }) in field_kind_tests {
-            test_util::test_insert(
-                &db,
-                table.table_id,
-                *field_ids.get(&name).unwrap(),
-                test_value,
-            )
-            .await;
+        for (name, (_, test_value)) in field_kind_tests {
+            assert!(
+                test_util::test_insert_cell(
+                    &db,
+                    table.table_id,
+                    *field_ids.get(&name).unwrap(),
+                    test_value,
+                )
+                .await
+            );
         }
         Ok(())
     }
@@ -553,13 +553,7 @@ mod test {
 
         let old_field_kind = FieldKind::Text { is_required: false };
         // Test conversion
-        for (
-            idx,
-            FieldKindTest {
-                field_kind,
-                test_value: new_value,
-            },
-        ) in test_util::field_kind_tests().into_iter().enumerate()
+        for (idx, (field_kind, new_value)) in test_util::field_tests().into_iter().enumerate()
         {
             let old_value = Cell::String(match field_kind.clone() {
                 FieldKind::Text { .. } => continue,
@@ -596,8 +590,13 @@ mod test {
                 },
             )
             .await?;
-            test_util::test_insert(&db, table.table_id, old_field_1.field_id, old_value.clone())
-                .await;
+            test_util::test_insert_cell(
+                &db,
+                table.table_id,
+                old_field_1.field_id,
+                old_value.clone(),
+            )
+            .await;
 
             let new_field_1 = super::update_field(
                 &db,
@@ -640,9 +639,19 @@ mod test {
             new_field_2.updated_at = None;
             assert_eq!(new_field_1, new_field_2);
 
-            test_util::test_insert(&db, table.table_id, old_field_1.field_id, old_value).await;
-            test_util::test_insert(&db, table.table_id, new_field_1.field_id, new_value.clone())
-                .await;
+            assert!(
+                test_util::test_insert_cell(&db, table.table_id, old_field_1.field_id, old_value)
+                    .await
+            );
+            assert!(
+                test_util::test_insert_cell(
+                    &db,
+                    table.table_id,
+                    new_field_1.field_id,
+                    new_value.clone()
+                )
+                .await
+            );
         }
 
         // Test changing field metadata
@@ -687,31 +696,240 @@ mod test {
 
     #[sqlx::test]
     async fn delete_field(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        let field = super::create_field(
+            &db,
+            table.table_id,
+            CreateField {
+                name: "test".into(),
+                field_kind: FieldKind::Checkbox,
+            },
+        )
+        .await?;
+        super::delete_field(&db, field.field_id).await?;
+        let not_exists: bool = sqlx::query_scalar(
+            r#"SELECT NOT EXISTS (SELECT 1 FROM meta_field WHERE field_id = $1)"#,
+        )
+        .bind(field.field_id)
+        .fetch_one(&db)
+        .await?;
+        assert!(not_exists);
+        assert!(
+            !test_util::test_insert_cell(&db, table.table_id, field.field_id, Cell::Boolean(true))
+                .await
+        );
+        Ok(())
     }
 
     #[sqlx::test]
     async fn get_fields(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        let mut fields_1: Vec<Field> = Vec::new();
+        for (idx, field_kind) in [
+            FieldKind::Checkbox,
+            FieldKind::Text { is_required: false },
+            FieldKind::DateTime {
+                is_required: false,
+                range_start: None,
+                range_end: None,
+            },
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            fields_1.push(
+                super::create_field(
+                    &db,
+                    table.table_id,
+                    CreateField {
+                        name: idx.to_string(),
+                        field_kind,
+                    },
+                )
+                .await?,
+            );
+        }
+        let fields_2 = super::get_fields(&db, table.table_id).await?;
+        test_util::assert_eq_vec(fields_1, fields_2, |f| f.field_id);
+        Ok(())
     }
 
     #[sqlx::test]
     async fn get_field_ids(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        let mut field_ids_1: Vec<Id> = Vec::new();
+        for (idx, field_kind) in [
+            FieldKind::Checkbox,
+            FieldKind::Text { is_required: false },
+            FieldKind::DateTime {
+                is_required: false,
+                range_start: None,
+                range_end: None,
+            },
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            field_ids_1.push(
+                super::create_field(
+                    &db,
+                    table.table_id,
+                    CreateField {
+                        name: idx.to_string(),
+                        field_kind,
+                    },
+                )
+                .await?
+                .field_id,
+            );
+        }
+        let field_ids_2 = super::get_field_ids(&db, table.table_id).await?;
+        test_util::assert_eq_vec(field_ids_1, field_ids_2, |f| *f);
+        Ok(())
     }
 
     #[sqlx::test]
     async fn set_field_order(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        let mut fields_1: Vec<Field> = Vec::new();
+        for (idx, field_kind) in [
+            FieldKind::Checkbox,
+            FieldKind::Text { is_required: false },
+            FieldKind::DateTime {
+                is_required: false,
+                range_start: None,
+                range_end: None,
+            },
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            fields_1.push(
+                super::create_field(
+                    &db,
+                    table.table_id,
+                    CreateField {
+                        name: idx.to_string(),
+                        field_kind,
+                    },
+                )
+                .await?,
+            );
+        }
+        let initial_ordering = fields_1.iter().map(|f| f.ordering).collect_vec();
+        assert_eq!(vec![0, 1, 2], initial_ordering);
+        let field_ordering_1 = fields_1
+            .iter()
+            .zip(initial_ordering.into_iter().rev())
+            .map(|(f, ordering)| (f.field_id, ordering))
+            .collect_vec();
+        super::set_field_order(&db, HashMap::from_iter(field_ordering_1.clone())).await?;
+        let field_ordering_2: Vec<(Id, i32)> =
+            sqlx::query_as(r#"SELECT field_id, ordering FROM meta_field WHERE table_id = $1 ORDER BY field_id"#)
+                .bind(table.table_id)
+                .fetch_all(&db)
+                .await?;
+        assert_eq!(field_ordering_1, field_ordering_2);
+        Ok(())
     }
 
     #[sqlx::test]
     async fn get_fields_metadata(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        let mut fields_metadata_1: Vec<FieldMetadata> = Vec::new();
+        for (idx, field_kind) in [
+            FieldKind::Checkbox,
+            FieldKind::Text { is_required: false },
+            FieldKind::DateTime {
+                is_required: false,
+                range_start: None,
+                range_end: None,
+            },
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let field = super::create_field(
+                &db,
+                table.table_id,
+                CreateField {
+                    name: idx.to_string(),
+                    field_kind,
+                },
+            )
+            .await?;
+            fields_metadata_1.push(FieldMetadata {
+                field_id: field.field_id,
+                field_kind: field.field_kind,
+            });
+        }
+        let fields_metadata_2 = super::get_fields_metadata(&db, table.table_id).await?;
+        test_util::assert_eq_vec(fields_metadata_1, fields_metadata_2, |f| f.field_id);
+        Ok(())
     }
 
     #[sqlx::test]
     async fn field_exists(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+        assert!(!super::field_exists(&db, table.table_id, 1).await?);
+        let field = super::create_field(
+            &db,
+            table.table_id,
+            CreateField {
+                name: "test".into(),
+                field_kind: FieldKind::Checkbox,
+            },
+        )
+        .await?;
+        assert!(super::field_exists(&db, table.table_id, field.field_id).await?);
+        Ok(())
     }
 }

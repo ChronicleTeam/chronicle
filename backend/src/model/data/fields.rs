@@ -109,7 +109,7 @@ pub struct SelectField {
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
 /// DTO for when a field's ID and field kind is needed.
-#[derive(Debug, FromRow)]
+#[derive(Debug, Clone, FromRow, PartialEq)]
 pub struct FieldMetadata {
     pub field_id: Id,
     pub field_kind: Json<FieldKind>,

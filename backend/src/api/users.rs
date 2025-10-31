@@ -294,6 +294,7 @@ mod test {
         model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
         test_util,
     };
+    use password_auth::generate_hash;
     use serde_json::json;
     use sqlx::PgPool;
 
@@ -309,7 +310,7 @@ mod test {
         let user = db::create_user(
             &db,
             credentials.username.clone(),
-            credentials.password.clone(),
+            generate_hash(credentials.password.clone()),
             false,
         )
         .await?;
