@@ -58,26 +58,6 @@ pub enum ApiError {
 }
 
 impl ApiError {
-    /// Create an `ApiError::UnprocessableEntity` from a collection of [`ErrorMessage`]
-    ///
-    /// This is a convience to manually creating the error.
-    // pub fn unprocessable_entity<K, V>(errors: impl IntoIterator<Item = (K, V)>) -> Self
-    // where
-    //     K: Into<Cow<'static, str>>,
-    //     V: Into<Cow<'static, str>>,
-    // {
-    //     let mut error_map = HashMap::new();
-
-    //     for (key, val) in errors {
-    //         error_map
-    //             .entry(key.into())
-    //             .or_insert_with(Vec::new)
-    //             .push(val.into());
-    //     }
-
-    //     Self::UnprocessableEntity { errors: error_map }
-    // }
-
     /// Maps `ApiError` variants to `StatusCode`s
     fn status_code(&self) -> StatusCode {
         match self {
@@ -131,16 +111,3 @@ where
         self.map_err(anyhow::Error::from)
     }
 }
-
-// pub trait IntoMessage<T> {
-//     fn into_msg(self) -> Result<T, anyhow::Error>;
-// }
-
-// impl<T, E> IntoMessage<T> for Result<T, E>
-// where
-//     E: Display + Debug + Send + Sync + 'static,
-// {
-//     fn into_msg(self) -> Result<T, anyhow::Error> {
-//         self.map_err(anyhow::Error::msg)
-//     }
-// }

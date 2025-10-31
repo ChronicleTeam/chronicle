@@ -2287,20 +2287,6 @@
               "is_required": {
                 "type": "boolean"
               },
-              "number_precision": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "format": "int64"
-              },
-              "number_scale": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "format": "int64"
-              },
               "range_end": {
                 "type": [
                   "number",
@@ -2314,15 +2300,11 @@
                   "null"
                 ],
                 "format": "double"
-              },
-              "scientific_notation": {
-                "type": "boolean"
               }
             },
             "required": [
               "type",
-              "is_required",
-              "scientific_notation"
+              "is_required"
             ]
           },
           {
@@ -2384,9 +2366,6 @@
                 "type": "string",
                 "const": "DateTime"
               },
-              "date_time_format": {
-                "type": "string"
-              },
               "is_required": {
                 "type": "boolean"
               },
@@ -2407,8 +2386,7 @@
             },
             "required": [
               "type",
-              "is_required",
-              "date_time_format"
+              "is_required"
             ]
           },
           {
