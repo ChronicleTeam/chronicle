@@ -39,7 +39,7 @@ async fn set_axes(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
@@ -114,8 +114,8 @@ fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
-        api::viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE},
-        docs::{AXES_TAG, TransformOperationExt, template},
+        api::{viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE}, NO_DATA_IN_REQUEST_BODY},
+        docs::{template, TransformOperationExt, AXES_TAG},
         model::{access::AccessRole, viz::Axis},
     };
     use aide::{OperationOutput, transform::TransformOperation};
@@ -143,6 +143,7 @@ mod docs {
             "set_axes",
             "Set all the axes of the specified chart and rebuild the dynamic view.",
         )
+        .response_description::<40, String>(NO_DATA_IN_REQUEST_BODY)
         .response_description::<404, ()>("Dashboard not found\n\nChart not found")
         .response_description::<422, String>(&errors)
         .required_access(DASHBOARD_EDITOR)

@@ -59,7 +59,7 @@ async fn create_entries(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
 
@@ -93,7 +93,7 @@ async fn update_entry(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
@@ -121,7 +121,7 @@ async fn delete_entry(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
@@ -307,11 +307,11 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
-        api::data::entries::{
+        api::{data::entries::{
             ENUMERATION_VALUE_MISSING, INVALID_FIELD_ID, INVALID_TYPE, IS_REQUIRED,
             NO_PARENT_TABLE, PARENT_ID_NOT_FOUND,
-        },
-        docs::{ENTRIES_TAG, TransformOperationExt, template},
+        }, NO_DATA_IN_REQUEST_BODY},
+        docs::{template, TransformOperationExt, ENTRIES_TAG},
         model::{access::AccessRole, data::Entry},
     };
     use aide::{OperationOutput, transform::TransformOperation};
@@ -336,7 +336,7 @@ mod docs {
             INVALID_FIELD_ID,
         ]
         .into_iter()
-        .map(|v| format!("<field_id> : {v}"))
+        .map(|v| format!("<field_id>: {v}"))
         .chain([NO_PARENT_TABLE.into(), PARENT_ID_NOT_FOUND.into()])
         .join("\n\n");
 
@@ -345,6 +345,7 @@ mod docs {
             "create_entries",
             "Create many entries in a table. Can optionally take a parent entry ID.",
         )
+        .response_description::<400, String>(NO_DATA_IN_REQUEST_BODY)
         .response_description::<404, ()>("Table not found")
         .response_description::<422, String>(&errors)
         .required_access(TABLE_EDITOR)

@@ -53,7 +53,7 @@ async fn create_field(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -74,7 +74,7 @@ async fn update_field(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -98,7 +98,7 @@ async fn delete_field(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -119,7 +119,7 @@ async fn get_fields(
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_access(&db, Resource::Table, table_id, user_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -137,7 +137,7 @@ async fn set_field_order(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -243,8 +243,8 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
-        api::data::fields::{FIELD_ID_NOT_FOUND, INVALID_ORDERING, INVALID_RANGE},
-        docs::{FIELDS_TAG, TransformOperationExt, template},
+        api::{data::fields::{FIELD_ID_NOT_FOUND, INVALID_ORDERING, INVALID_RANGE}, NO_DATA_IN_REQUEST_BODY},
+        docs::{template, TransformOperationExt, FIELDS_TAG},
         model::{access::AccessRole, data::Field},
     };
     use aide::{OperationOutput, transform::TransformOperation};
@@ -302,6 +302,7 @@ mod docs {
             "set_field_order",
             "Set the order of all fields in a table. Ordering numbers must go from `0` to `n-1` where `n` is the total number of fields",
         )
+        .response_description::<400, String>(NO_DATA_IN_REQUEST_BODY)
         .response_description::<422, String>(&format!(
             "<field_id>: {FIELD_ID_NOT_FOUND}\n\n<field_id>: {INVALID_ORDERING}"
         ))

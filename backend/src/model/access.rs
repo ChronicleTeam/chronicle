@@ -74,7 +74,7 @@ pub struct DeleteAccess {
     pub username: String,
 }
 
-#[derive(Debug, Deserialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
 pub struct GetAccess {
     pub username: String,
     pub access_role: AccessRole,

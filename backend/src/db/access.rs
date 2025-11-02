@@ -91,9 +91,12 @@ pub async fn get_all_access(
     let tablename = resource.access_tablename();
     sqlx::query_as(&format!(
         r#"
-            SELECT user_id, access_role
-            FROM {tablename}
+            SELECT username, access_role
+            FROM {tablename} AS a
+            JOIN app_user AS u
+            ON a.user_id = u.user_id
             WHERE resource_id = $1
+
         "#
     ))
     .bind(resource_id)
@@ -101,7 +104,7 @@ pub async fn get_all_access(
     .await
 }
 
-pub async fn get_access(
+pub async fn get_access_role(
     executor: impl PgExecutor<'_>,
     resource: Resource,
     resource_id: Id,

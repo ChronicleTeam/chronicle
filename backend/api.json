@@ -1004,6 +1004,12 @@
           "404": {
             "description": "Table not found\n\nField not found"
           },
+          "400": {
+            "description": "No data in request body",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
           "422": {
             "description": "<field_id>: Field ID not found\n\n<field_id>: Ordering number does not follow the sequence",
             "content": {
@@ -1028,6 +1034,18 @@
         ],
         "summary": "create_entries",
         "description": "Create many entries in a table. Can optionally take a parent entry ID.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
         "requestBody": {
           "description": "Create entry request. Keys map to field IDs.",
           "content": {
@@ -1056,11 +1074,17 @@
           "401": {
             "description": "User is not authenticated"
           },
+          "400": {
+            "description": "No data in request body",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
           "404": {
             "description": "Table not found"
           },
           "422": {
-            "description": "<field_id> : A value is required\n\n<field_id> : Value is not the correct type\n\n<field_id> : Enumeration value is does not exist\n\n<field_id> : Field ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "description": "<field_id>: A value is required\n\n<field_id>: Value is not the correct type\n\n<field_id>: Enumeration value is does not exist\n\n<field_id>: Field ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
             "content": {
               "text/plain; charset=utf-8": {}
             }
@@ -1649,6 +1673,12 @@
           "401": {
             "description": "User is not authenticated"
           },
+          "40": {
+            "description": "No data in request body",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
           "404": {
             "description": "Dashboard not found\n\nChart not found"
           },
@@ -1660,6 +1690,266 @@
           },
           "403": {
             "description": "Required access roles: Dashboard: Editor"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      }
+    },
+    "/api/{resource}/{resource_id}/access": {
+      "get": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "get_all_access",
+        "description": "Get all user access to the resource.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Resource"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GetAccess"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "403": {
+            "description": "Required access roles: Resource: Owner"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "create_access",
+        "description": "Create a new user access to the resource.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Resource"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "403": {
+            "description": "Required access roles: Resource: Owner"
+          },
+          "409": {
+            "description": "User already has access",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          },
+          "422": {
+            "description": "Username not found",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "delete_access",
+        "description": "Delete a list of user access.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Resource"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DeleteAccess"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "403": {
+            "description": "Required access roles: Resource: Owner"
+          },
+          "422": {
+            "description": "Username not found: <username>, ...",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "update_access",
+        "description": "Update a list of user access roles for the resource.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Resource"
+            },
+            "style": "simple"
+          },
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "style": "simple"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/UpdateAccess"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "User is not authenticated"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "403": {
+            "description": "Required access roles: Resource: Owner"
+          },
+          "422": {
+            "description": "Username not found: <username>, ...",
+            "content": {
+              "text/plain; charset=utf-8": {}
+            }
           }
         },
         "security": [
@@ -1952,6 +2242,21 @@
           "Line"
         ]
       },
+      "CreateAccess": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "access_role"
+        ]
+      },
       "CreateAxis": {
         "description": "Create axis request.",
         "type": "object",
@@ -2140,6 +2445,17 @@
           "name",
           "description",
           "created_at"
+        ]
+      },
+      "DeleteAccess": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
         ]
       },
       "Entry": {
@@ -2450,6 +2766,21 @@
           }
         ]
       },
+      "GetAccess": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "access_role"
+        ]
+      },
       "GetDashboard": {
         "type": "object",
         "properties": {
@@ -2493,6 +2824,13 @@
         "required": [
           "table_data",
           "access_role"
+        ]
+      },
+      "Resource": {
+        "type": "string",
+        "enum": [
+          "Table",
+          "Dashboard"
         ]
       },
       "SelectChart": {
@@ -2539,6 +2877,22 @@
         "required": [
           "table_id",
           "field_id"
+        ]
+      },
+      "SelectResource": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "$ref": "#/components/schemas/Resource"
+          },
+          "resource_id": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "resource",
+          "resource_id"
         ]
       },
       "SelectTable": {
@@ -2651,6 +3005,21 @@
           "fields",
           "entries",
           "children"
+        ]
+      },
+      "UpdateAccess": {
+        "type": "object",
+        "properties": {
+          "access_role": {
+            "$ref": "#/components/schemas/AccessRole"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "access_role"
         ]
       },
       "UpdateChart": {

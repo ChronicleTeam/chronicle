@@ -57,10 +57,10 @@ async fn create_chart(
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
-    db::get_access(tx.as_mut(), Resource::Table, create_chart.table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, create_chart.table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -82,7 +82,7 @@ async fn update_chart(
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
@@ -106,7 +106,7 @@ async fn delete_chart(
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
@@ -126,7 +126,7 @@ async fn get_charts(
 ) -> ApiResult<Json<Vec<Chart>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_access(&db, Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(&db, Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -144,7 +144,7 @@ async fn get_chart_data(
 ) -> ApiResult<Json<ChartData>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
-    db::get_access(&db, Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(&db, Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
     if !db::chart_exists(&db, dashboard_id, chart_id).await? {

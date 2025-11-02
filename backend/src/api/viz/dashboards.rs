@@ -69,7 +69,7 @@ async fn update_dashboard(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -87,7 +87,7 @@ async fn delete_dashboard(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 

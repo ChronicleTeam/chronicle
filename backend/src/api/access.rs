@@ -1,7 +1,13 @@
 use crate::{
-    api::NO_DATA_IN_REQUEST_BODY, auth::AppAuthSession, db::{self, get_access}, error::{ApiError, ApiResult}, model::access::{
-        AccessRole, AccessRoleCheck, CreateAccess, DeleteAccess, SelectResource, UpdateAccess,
-    }, AppState, Id
+    AppState, Id,
+    api::NO_DATA_IN_REQUEST_BODY,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::access::{
+        AccessRole, AccessRoleCheck, CreateAccess, DeleteAccess, GetAccess, Resource,
+        SelectResource, UpdateAccess,
+    },
 };
 use aide::{
     NoApi,
@@ -13,16 +19,19 @@ use axum::{
 };
 use axum_login::AuthSession;
 use itertools::Itertools;
+use sqlx::PgConnection;
 
 const USERNAME_NOT_FOUND: &str = "Username not found";
+const USER_ALREADY_HAS_ACCESS: &str = "User already has access";
 const OWNER_CANNOT_MODIFY_THEIR_OWN_ACCESS: &str = "Owner cannot modify their own access";
 
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().api_route(
         "/{resource}/{resource_id}/access",
         post_with(create_access, docs::create_access)
-            .patch_with(update_access, docs::update_access)
-            .delete_with(delete_access, docs::delete_access).get_with(get_access, docs::get_access),
+            .patch_with(update_many_access, docs::update_access)
+            .delete_with(delete_many_access, docs::delete_access)
+            .get_with(get_all_access, docs::get_all_access),
     )
 }
 
@@ -39,7 +48,7 @@ async fn create_access(
 ) -> ApiResult<()> {
     let auth_user_id = auth_user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
-    db::get_access(tx.as_mut(), resource, resource_id, auth_user_id)
+    db::get_access_role(tx.as_mut(), resource, resource_id, auth_user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -47,6 +56,10 @@ async fn create_access(
         .await?
         .ok_or(ApiError::UnprocessableEntity(USERNAME_NOT_FOUND.into()))?
         .user_id;
+
+    if let Some(_) = db::get_access_role(tx.as_mut(), resource, resource_id, user_id).await? {
+        return Err(ApiError::Conflict(USER_ALREADY_HAS_ACCESS.into()));
+    }
 
     db::create_access(
         tx.as_mut(),
@@ -61,7 +74,7 @@ async fn create_access(
     Ok(())
 }
 
-async fn update_access(
+async fn update_many_access(
     State(AppState { db }): State<AppState>,
     NoApi(AuthSession {
         user: auth_user, ..
@@ -74,47 +87,34 @@ async fn update_access(
 ) -> ApiResult<()> {
     let auth_user_id = auth_user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
-    db::get_access(tx.as_mut(), resource, resource_id, auth_user_id)
+    db::get_access_role(tx.as_mut(), resource, resource_id, auth_user_id)
         .await?
         .check(AccessRole::Owner)?;
 
     if update_access_vec.is_empty() {
         return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()));
     }
+    let (usernames, access_roles): (Vec<_>, Vec<_>) = update_access_vec
+        .into_iter()
+        .map(|a| (a.username, a.access_role))
+        .unzip();
+    let user_ids =
+        get_users_with_access(tx.as_mut(), auth_user_id, resource, resource_id, usernames)
+            .await?;
 
-    let mut user_access_roles: Vec<(Id, AccessRole)> = Vec::new();
-    let mut not_found_usernames: Vec<String> = Vec::new();
-    for UpdateAccess {
-        username,
-        access_role,
-    } in update_access_vec
-    {
-        if let Some(user) = db::get_user_by_username(tx.as_mut(), username.clone()).await? {
-            if user.user_id == auth_user_id {
-                return Err(ApiError::UnprocessableEntity(
-                    OWNER_CANNOT_MODIFY_THEIR_OWN_ACCESS.into(),
-                ));
-            }
-            user_access_roles.push((user.user_id, access_role));
-        } else {
-            not_found_usernames.push(username);
-        }
-    }
-
-    if !not_found_usernames.is_empty() {
-        return Err(ApiError::UnprocessableEntity(format!(
-            "Usernames not found: {}",
-            not_found_usernames.into_iter().join(", ")
-        )));
-    }
-
-    db::update_many_access(tx.as_mut(), resource, resource_id, user_access_roles).await?;
+    db::update_many_access(
+        tx.as_mut(),
+        resource,
+        resource_id,
+        user_ids.into_iter().zip(access_roles),
+    )
+    .await?;
 
     tx.commit().await?;
     Ok(())
 }
 
-async fn delete_access(
+async fn delete_many_access(
     State(AppState { db }): State<AppState>,
     NoApi(AuthSession {
         user: auth_user, ..
@@ -127,7 +127,7 @@ async fn delete_access(
 ) -> ApiResult<()> {
     let auth_user_id = auth_user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
-    db::get_access(tx.as_mut(), resource, resource_id, auth_user_id)
+    db::get_access_role(tx.as_mut(), resource, resource_id, auth_user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -135,14 +135,62 @@ async fn delete_access(
         return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()));
     }
 
+    let user_ids: Vec<Id> = get_users_with_access(
+        tx.as_mut(),
+        auth_user_id,
+        resource,
+        resource_id,
+        delete_access_vec.into_iter().map(|a| a.username),
+    )
+    .await?;
+
+    db::delete_many_access(tx.as_mut(), resource, resource_id, user_ids).await?;
+
+    tx.commit().await?;
+    Ok(())
+}
+
+async fn get_all_access(
+    State(AppState { db }): State<AppState>,
+    NoApi(AuthSession {
+        user: auth_user, ..
+    }): AppAuthSession,
+    Path(SelectResource {
+        resource,
+        resource_id,
+    }): Path<SelectResource>,
+) -> ApiResult<Json<Vec<GetAccess>>> {
+    let auth_user_id = auth_user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
+    db::get_access_role(tx.as_mut(), resource, resource_id, auth_user_id)
+        .await?
+        .check(AccessRole::Owner)?;
+
+    let get_access_vec = db::get_all_access(tx.as_mut(), resource, resource_id).await?; 
+    tx.commit().await?;
+    Ok(Json(get_access_vec))
+}
+async fn get_users_with_access(
+    conn: &mut PgConnection,
+    auth_user_id: Id,
+    resource: Resource,
+    resource_id: Id,
+    usernames: impl IntoIterator<Item = String>,
+) -> ApiResult<Vec<Id>> {
     let mut user_ids: Vec<Id> = Vec::new();
     let mut not_found_usernames: Vec<String> = Vec::new();
-    for DeleteAccess { username } in delete_access_vec {
-        if let Some(user) = db::get_user_by_username(tx.as_mut(), username.clone()).await? {
+    for username in usernames {
+        if let Some(user) = db::get_user_by_username(conn.as_mut(), username.clone()).await? {
             if user.user_id == auth_user_id {
                 return Err(ApiError::UnprocessableEntity(
                     OWNER_CANNOT_MODIFY_THEIR_OWN_ACCESS.into(),
                 ));
+            }
+            if db::get_access_role(conn.as_mut(), resource, resource_id, user.user_id)
+                .await?
+                .is_none()
+            {
+                not_found_usernames.push(username);
             }
             user_ids.push(user.user_id);
         } else {
@@ -152,20 +200,21 @@ async fn delete_access(
 
     if !not_found_usernames.is_empty() {
         return Err(ApiError::UnprocessableEntity(format!(
-            "Usernames not found: {}",
+            "{USERNAME_NOT_FOUND}: {}",
             not_found_usernames.into_iter().join(", ")
         )));
     }
-
-    db::delete_many_access(tx.as_mut(), resource, resource_id, user_ids).await?;
-
-    tx.commit().await?;
-    Ok(())
+    Ok(user_ids)
 }
 
 mod docs {
-    use crate::docs::{ACCESS_TAG, TransformOperationExt, template};
+    use crate::{
+        api::access::{USERNAME_NOT_FOUND, USER_ALREADY_HAS_ACCESS},
+        docs::{template, TransformOperationExt, ACCESS_TAG},
+        model::access::{AccessRole, GetAccess},
+    };
     use aide::{OperationOutput, transform::TransformOperation};
+    use axum::Json;
 
     fn access<'a, R: OperationOutput>(
         op: TransformOperation<'a>,
@@ -173,18 +222,35 @@ mod docs {
         description: &'a str,
     ) -> TransformOperation<'a> {
         template::<R>(op, summary, description, true, ACCESS_TAG)
-            .response_description::<403, ()>("User is not an admin")
+            .response_description::<404, ()>("Resource not found")
+            .required_access([("Resource", AccessRole::Owner)])
     }
 
     pub fn create_access(op: TransformOperation) -> TransformOperation {
-        access::<()>(op, "", "")
+        access::<()>(
+            op,
+            "create_access",
+            "Create a new user access to the resource.",
+        )
+        .response_description::<409, String>(USER_ALREADY_HAS_ACCESS)
+        .response_description::<422, String>(USERNAME_NOT_FOUND)
     }
 
     pub fn update_access(op: TransformOperation) -> TransformOperation {
-        access::<()>(op, "", "")
+        access::<()>(
+            op,
+            "update_access",
+            "Update a list of user access roles for the resource.",
+        )
+        .response_description::<422, String>(&format!("{USERNAME_NOT_FOUND}: <username>, ..."))
     }
 
     pub fn delete_access(op: TransformOperation) -> TransformOperation {
-        access::<()>(op, "", "")
+        access::<()>(op, "delete_access", "Delete a list of user access.")
+            .response_description::<422, String>(&format!("{USERNAME_NOT_FOUND}: <username>, ..."))
+    }
+
+    pub fn get_all_access(op: TransformOperation) -> TransformOperation {
+        access::<Json<Vec<GetAccess>>>(op, "get_all_access", "Get all user access to the resource.")
     }
 }

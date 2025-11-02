@@ -1,12 +1,8 @@
+use crate::Id;
 use axum_login::AuthUser;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-
-use crate::{
-    Id,
-    error::{ApiError, ApiResult},
-};
 
 /// The application user.
 #[derive(Clone, Serialize, Deserialize, FromRow, PartialEq, Eq)]
@@ -43,7 +39,6 @@ impl AuthUser for User {
         self.password_hash.as_bytes()
     }
 }
-
 
 /// Credentials request type.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

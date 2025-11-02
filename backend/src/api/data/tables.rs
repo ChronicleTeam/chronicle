@@ -82,7 +82,7 @@ async fn create_table(
     let mut tx = db.begin().await?;
 
     if let Some(parent_table_id) = create_table.parent_id {
-        db::get_access(&db, Resource::Table, parent_table_id, user_id)
+        db::get_access_role(&db, Resource::Table, parent_table_id, user_id)
             .await?
             .check(AccessRole::Owner)?;
     }
@@ -110,7 +110,7 @@ async fn update_table(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -128,7 +128,7 @@ async fn delete_table(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -156,7 +156,7 @@ async fn get_table_children(
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_access(&db, Resource::Table, table_id, user_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -172,7 +172,7 @@ async fn get_table_data(
 ) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let access_role = db::get_access(&db, Resource::Table, table_id, user_id).await?;
+    let access_role = db::get_access_role(&db, Resource::Table, table_id, user_id).await?;
     access_role.check(AccessRole::Viewer)?;
 
     let table_data = db::get_table_data(&db, table_id).await?;
@@ -252,7 +252,7 @@ async fn export_table_to_excel(
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_access(&db, Resource::Table, table_id, user_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -336,7 +336,7 @@ async fn export_table_to_csv(
     Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    db::get_access(&db, Resource::Table, table_id, user_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
