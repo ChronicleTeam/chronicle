@@ -1,7 +1,14 @@
 use crate::{
-    api::NO_DATA_IN_REQUEST_BODY, auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::{
-        access::{AccessRole, AccessRoleCheck, Resource}, data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry}, Cell
-    }, AppState, Id
+    AppState, Id,
+    api::NO_DATA_IN_REQUEST_BODY,
+    auth::AppAuthSession,
+    db,
+    error::{ApiError, ApiResult},
+    model::{
+        Cell,
+        access::{AccessRole, AccessRoleCheck, Resource},
+        data::{CreateEntries, Entry, FieldKind, FieldMetadata, SelectTable, UpdateEntry},
+    },
 };
 use aide::{
     NoApi,
@@ -19,7 +26,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
 use serde_json::Value;
-use sqlx::PgExecutor;
+use sqlx::PgConnection;
 use std::{collections::HashMap, str::FromStr};
 
 const IS_REQUIRED: &str = "A value is required";
@@ -46,32 +53,32 @@ pub fn router() -> ApiRouter<AppState> {
 async fn create_entries(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     Json(CreateEntries { parent_id, entries }): Json<CreateEntries>,
 ) -> ApiResult<Json<Vec<Entry>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    
+    let mut tx = db.begin().await?;
 
-    db::get_access(&db, Resource::Table, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
 
     if entries.is_empty() {
-        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()))
+        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()));
     }
 
     if let Some(parent_entry_id) = parent_id {
-        check_parent_id(&db, parent_entry_id, table_id).await?;
+        check_parent_id(tx.as_mut(), parent_entry_id, table_id).await?;
     }
 
-    let fields = db::get_fields_metadata(&db, table_id).await?;
+    let fields = db::get_fields_metadata(tx.as_mut(), table_id).await?;
 
     let entries = entries
         .into_iter()
         .map(|cells| convert_cells(cells, &fields))
         .try_collect()?;
 
-    let entries = db::create_entries(&db, table_id, parent_id, fields, entries).await?;
+    let entries = db::create_entries(tx.as_mut(), table_id, parent_id, fields, entries).await?;
 
     tx.commit().await?;
     Ok(Json(entries))
@@ -83,24 +90,24 @@ async fn update_entry(
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry { parent_id, cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
-
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_access(&db, Resource::Table, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
-    if !db::entry_exists(&db, table_id, entry_id).await? {
+    if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
         return Err(ApiError::NotFound);
     }
     if let Some(parent_entry_id) = parent_id {
-        check_parent_id(&db, parent_entry_id, table_id).await?;
+        check_parent_id(tx.as_mut(), parent_entry_id, table_id).await?;
     }
 
-    let fields = db::get_fields_metadata(&db, table_id).await?;
+    let fields = db::get_fields_metadata(tx.as_mut(), table_id).await?;
 
     let cells = convert_cells(cells, &fields)?;
 
-    let entry = db::update_entry(&db, table_id, entry_id, parent_id, fields, cells).await?;
+    let entry = db::update_entry(tx.as_mut(), table_id, entry_id, parent_id, fields, cells).await?;
 
     tx.commit().await?;
     Ok(Json(entry))
@@ -112,28 +119,30 @@ async fn delete_entry(
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_access(&db, Resource::Table, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
-    if !db::entry_exists(&db, table_id, entry_id).await? {
+    if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
         return Err(ApiError::NotFound);
     }
 
-    db::delete_entry(&db, table_id, entry_id).await?;
+    db::delete_entry(tx.as_mut(), table_id, entry_id).await?;
 
+    tx.commit().await?;
     Ok(())
 }
 
 async fn check_parent_id(
-    executor: impl PgExecutor<'_> + Clone,
+    conn: &mut PgConnection,
     parent_entry_id: Id,
     table_id: Id,
 ) -> ApiResult<()> {
-    let parent_table_id = db::get_table_parent_id(executor.clone(), table_id)
+    let parent_table_id = db::get_table_parent_id(conn.as_mut(), table_id)
         .await?
         .ok_or(ApiError::UnprocessableEntity(NO_PARENT_TABLE.into()))?;
-    if !db::entry_exists(executor, parent_table_id, parent_entry_id).await? {
+    if !db::entry_exists(conn.as_mut(), parent_table_id, parent_entry_id).await? {
         return Err(ApiError::UnprocessableEntity(PARENT_ID_NOT_FOUND.into()));
     }
     Ok(())
@@ -206,9 +215,6 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
             FieldKind::Float {
                 range_start,
                 range_end,
-                // scientific_notation,
-                // number_precision,
-                // number_scale,
                 ..
             },
         ) => {

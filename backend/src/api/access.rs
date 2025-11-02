@@ -1,5 +1,7 @@
 use crate::{
-    auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::access::{AccessRole, AccessRoleCheck, CreateAccess, DeleteAccess, GetAccess, SelectResource, UpdateAccess}, AppState, Id
+    api::NO_DATA_IN_REQUEST_BODY, auth::AppAuthSession, db::{self, get_access}, error::{ApiError, ApiResult}, model::access::{
+        AccessRole, AccessRoleCheck, CreateAccess, DeleteAccess, SelectResource, UpdateAccess,
+    }, AppState, Id
 };
 use aide::{
     NoApi,
@@ -15,12 +17,12 @@ use itertools::Itertools;
 const USERNAME_NOT_FOUND: &str = "Username not found";
 const OWNER_CANNOT_MODIFY_THEIR_OWN_ACCESS: &str = "Owner cannot modify their own access";
 
-
 pub fn router() -> ApiRouter<AppState> {
     ApiRouter::new().api_route(
         "/{resource}/{resource_id}/access",
         post_with(create_access, docs::create_access)
-            .patch_with(update_access, docs::update_access).delete_with(delete_access, docs::delete_access),
+            .patch_with(update_access, docs::update_access)
+            .delete_with(delete_access, docs::delete_access).get_with(get_access, docs::get_access),
     )
 }
 
@@ -76,6 +78,10 @@ async fn update_access(
         .await?
         .check(AccessRole::Owner)?;
 
+    if update_access_vec.is_empty() {
+        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()));
+    }
+
     let mut user_access_roles: Vec<(Id, AccessRole)> = Vec::new();
     let mut not_found_usernames: Vec<String> = Vec::new();
     for UpdateAccess {
@@ -108,7 +114,6 @@ async fn update_access(
     Ok(())
 }
 
-
 async fn delete_access(
     State(AppState { db }): State<AppState>,
     NoApi(AuthSession {
@@ -127,15 +132,12 @@ async fn delete_access(
         .check(AccessRole::Owner)?;
 
     if delete_access_vec.is_empty() {
-        re
+        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()));
     }
 
     let mut user_ids: Vec<Id> = Vec::new();
     let mut not_found_usernames: Vec<String> = Vec::new();
-    for DeleteAccess {
-        username,
-    } in delete_access_vec
-    {
+    for DeleteAccess { username } in delete_access_vec {
         if let Some(user) = db::get_user_by_username(tx.as_mut(), username.clone()).await? {
             if user.user_id == auth_user_id {
                 return Err(ApiError::UnprocessableEntity(
@@ -162,9 +164,7 @@ async fn delete_access(
 }
 
 mod docs {
-    use crate::{
-        docs::{ACCESS_TAG, TransformOperationExt, template},
-    };
+    use crate::docs::{ACCESS_TAG, TransformOperationExt, template};
     use aide::{OperationOutput, transform::TransformOperation};
 
     fn access<'a, R: OperationOutput>(
@@ -181,6 +181,10 @@ mod docs {
     }
 
     pub fn update_access(op: TransformOperation) -> TransformOperation {
+        access::<()>(op, "", "")
+    }
+
+    pub fn delete_access(op: TransformOperation) -> TransformOperation {
         access::<()>(op, "", "")
     }
 }
