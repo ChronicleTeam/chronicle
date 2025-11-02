@@ -1,6 +1,6 @@
 use crate::{
-    Id,
-    model::users::{AccessRole, User, UserResponse},
+    Id, db,
+    model::users::{User, UserResponse},
 };
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
@@ -84,6 +84,8 @@ pub async fn delete_user(
     .bind(user_id)
     .execute(tx.as_mut())
     .await?;
+    db::delete_tables_without_owner(tx.as_mut()).await?;
+    db::delete_dashboards_without_owner(tx.as_mut()).await?;
     tx.commit().await?;
     Ok(())
 }
@@ -175,112 +177,13 @@ pub async fn user_exists_by_id(executor: impl PgExecutor<'_>, user_id: Id) -> sq
     .await
 }
 
-pub async fn create_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = (Id, AccessRole)>,
-    resource_id: Id,
-    table_name: &str,
-) -> sqlx::Result<()> {
-    let mut tx = conn.begin().await?;
-
-    QueryBuilder::new(format!(
-        r#"INSERT INTO {table_name} (user_id, resource_id, access_role)"#
-    ))
-    .push_values(users, |mut builder, (user_id, access_role)| {
-        builder
-            .push_bind(user_id)
-            .push_bind(resource_id)
-            .push_bind(access_role);
-    })
-    .build()
-    .execute(tx.as_mut())
-    .await?;
-
-    tx.commit().await?;
-    Ok(())
-}
-
-pub async fn update_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = (Id, AccessRole)>,
-    resource_id: Id,
-    table_name: &str,
-) -> sqlx::Result<()> {
-    let mut tx = conn.begin().await?;
-
-    QueryBuilder::new(format!(
-        r#"
-            UPDATE {table_name} AS t
-            SET access_role = v.access_role
-            FROM (
-        "#
-    ))
-    .push_values(users, |mut builder, (user_id, access_role)| {
-        builder.push_bind(user_id).push_bind(access_role);
-    })
-    .push(format!(
-        r#"
-            ) AS v(user_id, access_role)
-            WHERE t.user_id = v.user_id
-            AND t.resource_id = 
-        "#
-    ))
-    .push_bind(resource_id)
-    .build()
-    .execute(tx.as_mut())
-    .await?;
-
-    tx.commit().await?;
-    Ok(())
-}
-
-pub async fn delete_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = Id>,
-    resource_id: Id,
-    table_name: &str,
-) -> sqlx::Result<()> {
-    let mut tx = conn.begin().await?;
-
-    QueryBuilder::new(format!(r#"DELETE FROM {table_name} WHERE resource_id = "#))
-        .push_bind(resource_id)
-        .push(format!(" AND user_id IN ("))
-        .push_values(users, |mut builder, user_id| {
-            builder.push_bind(user_id);
-        })
-        .push(")")
-        .build()
-        .execute(tx.as_mut())
-        .await?;
-
-    tx.commit().await?;
-    Ok(())
-}
-
-/// Return the [Relation] between the user and this table.
-pub async fn get_access(
-    executor: impl PgExecutor<'_>,
-    user_id: Id,
-    resource_id: Id,
-    table_name: &str,
-) -> sqlx::Result<Option<AccessRole>> {
-    sqlx::query_scalar::<_, AccessRole>(&format!(
-        r#"
-            SELECT access_role
-            FROM {table_name}
-            WHERE user_id = $1 AND resource_id = $2
-        "#
-    ))
-    .bind(user_id)
-    .bind(resource_id)
-    .fetch_optional(executor)
-    .await
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use crate::{model::users::{User, UserResponse}, test_util};
+    use crate::{
+        model::users::{User, UserResponse},
+        test_util,
+    };
     use sqlx::PgPool;
 
     #[sqlx::test]

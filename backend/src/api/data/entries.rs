@@ -1,12 +1,13 @@
 use crate::{
     AppState, Id,
+    api::NO_DATA_IN_REQUEST_BODY,
     auth::AppAuthSession,
     db,
     error::{ApiError, ApiResult},
     model::{
         Cell,
-        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
-        users::{AccessRole, AccessRoleCheck},
+        access::{AccessRole, AccessRoleCheck, Resource},
+        data::{CreateEntries, Entry, FieldKind, FieldMetadata, SelectTable, UpdateEntry},
     },
 };
 use aide::{
@@ -25,7 +26,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
 use serde_json::Value;
-use sqlx::PgExecutor;
+use sqlx::PgConnection;
 use std::{collections::HashMap, str::FromStr};
 
 const IS_REQUIRED: &str = "A value is required";
@@ -49,62 +50,40 @@ pub fn router() -> ApiRouter<AppState> {
     )
 }
 
-/// Create many entries in a table.
-///
-/// Can optionally take a parent entry ID.
-///
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table or
-/// - [`ApiError::NotFound`]: Table or parent entry not found
-/// - [`ApiError::UnprocessableEntity`]:
-///     - <field_id>: [`IS_REQUIRED`]
-///     - <field_id>: [`INVALID_TYPE`]
-///     - <field_id>: [`ENUMERATION_VALUE_MISSING`]
-///     - <field_id>: [`INVALID_FIELD_ID`]
-///
 async fn create_entries(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
-    Path(table_id): Path<Id>,
+    Path(SelectTable { table_id }): Path<SelectTable>,
     Json(CreateEntries { parent_id, entries }): Json<CreateEntries>,
 ) -> ApiResult<Json<Vec<Entry>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
 
-    if let Some(parent_entry_id) = parent_id {
-        check_parent_id(&db, parent_entry_id, table_id).await?;
+    if entries.is_empty() {
+        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()));
     }
 
-    let fields = db::get_fields_metadata(&db, table_id).await?;
+    if let Some(parent_entry_id) = parent_id {
+        check_parent_id(tx.as_mut(), parent_entry_id, table_id).await?;
+    }
+
+    let fields = db::get_fields_metadata(tx.as_mut(), table_id).await?;
 
     let entries = entries
         .into_iter()
         .map(|cells| convert_cells(cells, &fields))
         .try_collect()?;
 
-    let entries = db::create_entries(&db, table_id, parent_id, fields, entries).await?;
+    let entries = db::create_entries(tx.as_mut(), table_id, parent_id, fields, entries).await?;
 
+    tx.commit().await?;
     Ok(Json(entries))
 }
 
-/// Update an entry in a table.
-///
-/// Can optionally take a parent entry ID.
-///
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table, entry, or parent entry not found
-/// - [`ApiError::UnprocessableEntity`]:
-///     - [`IS_REQUIRED`]
-///     - [`INVALID_TYPE`]
-///     - [`ENUMERATION_VALUE_MISSING`]
-///     - [`INVALID_FIELD_ID`]
-///
 async fn update_entry(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -112,23 +91,25 @@ async fn update_entry(
     Json(UpdateEntry { parent_id, cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
-    if !db::entry_exists(&db, table_id, entry_id).await? {
+    if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
         return Err(ApiError::NotFound);
     }
     if let Some(parent_entry_id) = parent_id {
-        check_parent_id(&db, parent_entry_id, table_id).await?;
+        check_parent_id(tx.as_mut(), parent_entry_id, table_id).await?;
     }
 
-    let fields = db::get_fields_metadata(&db, table_id).await?;
+    let fields = db::get_fields_metadata(tx.as_mut(), table_id).await?;
 
     let cells = convert_cells(cells, &fields)?;
 
-    let entry = db::update_entry(&db, table_id, entry_id, parent_id, fields, cells).await?;
+    let entry = db::update_entry(tx.as_mut(), table_id, entry_id, parent_id, fields, cells).await?;
 
+    tx.commit().await?;
     Ok(Json(entry))
 }
 
@@ -138,28 +119,30 @@ async fn delete_entry(
     Path((table_id, entry_id)): Path<(Id, Id)>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
-    if !db::entry_exists(&db, table_id, entry_id).await? {
+    if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
         return Err(ApiError::NotFound);
     }
 
-    db::delete_entry(&db, table_id, entry_id).await?;
+    db::delete_entry(tx.as_mut(), table_id, entry_id).await?;
 
+    tx.commit().await?;
     Ok(())
 }
 
 async fn check_parent_id(
-    executor: impl PgExecutor<'_> + Clone,
+    conn: &mut PgConnection,
     parent_entry_id: Id,
     table_id: Id,
 ) -> ApiResult<()> {
-    let parent_table_id = db::get_table_parent_id(executor.clone(), table_id)
+    let parent_table_id = db::get_table_parent_id(conn.as_mut(), table_id)
         .await?
         .ok_or(ApiError::UnprocessableEntity(NO_PARENT_TABLE.into()))?;
-    if !db::entry_exists(executor, parent_table_id, parent_entry_id).await? {
+    if !db::entry_exists(conn.as_mut(), parent_table_id, parent_entry_id).await? {
         return Err(ApiError::UnprocessableEntity(PARENT_ID_NOT_FOUND.into()));
     }
     Ok(())
@@ -232,9 +215,6 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
             FieldKind::Float {
                 range_start,
                 range_end,
-                // scientific_notation,
-                // number_precision,
-                // number_scale,
                 ..
             },
         ) => {
@@ -327,17 +307,17 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
-        api::data::entries::{
+        api::{data::entries::{
             ENUMERATION_VALUE_MISSING, INVALID_FIELD_ID, INVALID_TYPE, IS_REQUIRED,
             NO_PARENT_TABLE, PARENT_ID_NOT_FOUND,
-        },
-        docs::{ENTRIES_TAG, TransformOperationExt, template},
-        model::{data::Entry, users::AccessRole},
+        }, NO_DATA_IN_REQUEST_BODY},
+        docs::{template, TransformOperationExt, ENTRIES_TAG},
+        model::{access::AccessRole, data::Entry},
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
     use itertools::Itertools;
-    
+
     const TABLE_EDITOR: [(&str, AccessRole); 1] = [("Table", AccessRole::Editor)];
 
     fn entries<'a, R: OperationOutput>(
@@ -356,7 +336,7 @@ mod docs {
             INVALID_FIELD_ID,
         ]
         .into_iter()
-        .map(|v| format!("<field_id> : {v}"))
+        .map(|v| format!("<field_id>: {v}"))
         .chain([NO_PARENT_TABLE.into(), PARENT_ID_NOT_FOUND.into()])
         .join("\n\n");
 
@@ -365,6 +345,7 @@ mod docs {
             "create_entries",
             "Create many entries in a table. Can optionally take a parent entry ID.",
         )
+        .response_description::<400, String>(NO_DATA_IN_REQUEST_BODY)
         .response_description::<404, ()>("Table not found")
         .response_description::<422, String>(&errors)
         .required_access(TABLE_EDITOR)

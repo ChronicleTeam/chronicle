@@ -5,7 +5,11 @@ edition = "2024"
 
 [dependencies]
 # Web framework
-axum = { version = "0.8", features = ["multipart", "tower-log"] }
+axum = { version = "0.8", features = [
+  "macros",
+  "multipart",
+  "tower-log"
+] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
 axum-macros = "0.5"
 
