@@ -44,36 +44,6 @@ impl AuthUser for User {
     }
 }
 
-#[derive(Debug, Clone, Copy, sqlx::Type, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema)]
-#[sqlx(type_name = "access_role")]
-pub enum AccessRole {
-    Viewer,
-    Editor,
-    Owner,
-}
-
-pub trait AccessRoleCheck {
-    fn check(self, required: AccessRole) -> ApiResult<()>;
-}
-
-impl AccessRoleCheck for Option<AccessRole> {
-    fn check(self, required: AccessRole) -> ApiResult<()> {
-        use AccessRole::*;
-        if let Some(actual) = self {
-            if match actual {
-                Viewer => matches!(required, Viewer),
-                Editor => matches!(required, Editor | Viewer),
-                Owner => true,
-            } {
-                Ok(())
-            } else {
-                Err(ApiError::Forbidden)
-            }
-        } else {
-            Err(ApiError::NotFound)
-        }
-    }
-}
 
 /// Credentials request type.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

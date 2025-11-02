@@ -6,8 +6,9 @@
 //! module, they should assume validation has already occured and return
 //! only database errors on failures.
 
+mod access;
 mod data;
 mod users;
 mod viz;
 
-pub use {data::*, users::*, viz::*};
+pub use {access::*, data::*, users::*, viz::*};

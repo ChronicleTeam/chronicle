@@ -1,13 +1,9 @@
 use crate::{
-    AppState,
-    auth::AppAuthSession,
-    db::{self},
-    error::{ApiError, ApiResult},
-    model::{
+    auth::AppAuthSession, db::{self}, error::{ApiError, ApiResult}, model::{
+        access::{AccessRole, AccessRoleCheck, Resource},
         data::FieldKind,
-        users::{AccessRole, AccessRoleCheck},
         viz::{Aggregate, Axis, SelectChart, SetAxes},
-    },
+    }, AppState
 };
 use aide::{
     NoApi,
@@ -42,7 +38,7 @@ async fn set_axes(
 ) -> ApiResult<Json<Vec<Axis>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_dashboard_access(&db, user_id, dashboard_id)
+    db::get_access(&db, Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::chart_exists(&db, dashboard_id, chart_id).await? {
@@ -114,7 +110,7 @@ mod docs {
     use crate::{
         api::viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE},
         docs::{AXES_TAG, TransformOperationExt, template},
-        model::{users::AccessRole, viz::Axis},
+        model::{access::AccessRole, viz::Axis},
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;

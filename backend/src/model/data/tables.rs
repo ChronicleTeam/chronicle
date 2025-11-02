@@ -1,4 +1,4 @@
-use crate::{model::{users::AccessRole, Cell}, Id};
+use crate::{model::{access::AccessRole, Cell}, Id};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

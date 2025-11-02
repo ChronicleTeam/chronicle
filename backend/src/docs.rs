@@ -9,12 +9,13 @@ use axum::{Extension, Json, Router, routing::get};
 use itertools::Itertools;
 use std::{fs::File, io::BufWriter, sync::Arc};
 
-use crate::{AppState, model::users::AccessRole};
+use crate::{AppState, model::access::AccessRole};
 
 // Tags to seperate API doc endpoints into categories.
 
 pub const AUTHENTICATION_TAG: &str = "Authentication";
 pub const USERS_TAG: &str = "Users";
+pub const ACCESS_TAG: &str = "Access";
 
 pub const TABLES_TAG: &str = "Tables";
 pub const FIELDS_TAG: &str = "Fields";

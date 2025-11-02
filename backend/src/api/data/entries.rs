@@ -1,13 +1,7 @@
 use crate::{
-    AppState, Id,
-    auth::AppAuthSession,
-    db,
-    error::{ApiError, ApiResult},
-    model::{
-        Cell,
-        data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry},
-        users::{AccessRole, AccessRoleCheck},
-    },
+    api::NO_DATA_IN_REQUEST_BODY, auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::{
+        access::{AccessRole, AccessRoleCheck, Resource}, data::{CreateEntries, Entry, FieldKind, FieldMetadata, UpdateEntry}, Cell
+    }, AppState, Id
 };
 use aide::{
     NoApi,
@@ -49,20 +43,6 @@ pub fn router() -> ApiRouter<AppState> {
     )
 }
 
-/// Create many entries in a table.
-///
-/// Can optionally take a parent entry ID.
-///
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table or
-/// - [`ApiError::NotFound`]: Table or parent entry not found
-/// - [`ApiError::UnprocessableEntity`]:
-///     - <field_id>: [`IS_REQUIRED`]
-///     - <field_id>: [`INVALID_TYPE`]
-///     - <field_id>: [`ENUMERATION_VALUE_MISSING`]
-///     - <field_id>: [`INVALID_FIELD_ID`]
-///
 async fn create_entries(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -70,10 +50,15 @@ async fn create_entries(
     Json(CreateEntries { parent_id, entries }): Json<CreateEntries>,
 ) -> ApiResult<Json<Vec<Entry>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(&db, Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
+
+    if entries.is_empty() {
+        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()))
+    }
 
     if let Some(parent_entry_id) = parent_id {
         check_parent_id(&db, parent_entry_id, table_id).await?;
@@ -88,32 +73,20 @@ async fn create_entries(
 
     let entries = db::create_entries(&db, table_id, parent_id, fields, entries).await?;
 
+    tx.commit().await?;
     Ok(Json(entries))
 }
 
-/// Update an entry in a table.
-///
-/// Can optionally take a parent entry ID.
-///
-/// # Errors
-/// - [`ApiError::Unauthorized`]: User not authenticated
-/// - [`ApiError::Forbidden`]: User does not have access to that table
-/// - [`ApiError::NotFound`]: Table, entry, or parent entry not found
-/// - [`ApiError::UnprocessableEntity`]:
-///     - [`IS_REQUIRED`]
-///     - [`INVALID_TYPE`]
-///     - [`ENUMERATION_VALUE_MISSING`]
-///     - [`INVALID_FIELD_ID`]
-///
 async fn update_entry(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
     Path((table_id, entry_id)): Path<(Id, Id)>,
     Json(UpdateEntry { parent_id, cells }): Json<UpdateEntry>,
 ) -> ApiResult<Json<Entry>> {
+
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(&db, Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::entry_exists(&db, table_id, entry_id).await? {
@@ -129,6 +102,7 @@ async fn update_entry(
 
     let entry = db::update_entry(&db, table_id, entry_id, parent_id, fields, cells).await?;
 
+    tx.commit().await?;
     Ok(Json(entry))
 }
 
@@ -139,7 +113,7 @@ async fn delete_entry(
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(&db, Resource::Table, user_id, table_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::entry_exists(&db, table_id, entry_id).await? {
@@ -332,12 +306,12 @@ mod docs {
             NO_PARENT_TABLE, PARENT_ID_NOT_FOUND,
         },
         docs::{ENTRIES_TAG, TransformOperationExt, template},
-        model::{data::Entry, users::AccessRole},
+        model::{access::AccessRole, data::Entry},
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
     use itertools::Itertools;
-    
+
     const TABLE_EDITOR: [(&str, AccessRole); 1] = [("Table", AccessRole::Editor)];
 
     fn entries<'a, R: OperationOutput>(

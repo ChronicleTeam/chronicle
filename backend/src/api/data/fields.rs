@@ -1,14 +1,10 @@
 use crate::{
-    AppState,
-    auth::AppAuthSession,
-    db,
-    error::{ApiError, ApiResult},
-    model::{
+    api::NO_DATA_IN_REQUEST_BODY, auth::AppAuthSession, db, error::{ApiError, ApiResult}, model::{
+        access::{AccessRole, AccessRoleCheck, Resource},
         data::{
             CreateField, Field, FieldKind, SelectField, SelectTable, SetFieldOrder, UpdateField,
         },
-        users::{AccessRole, AccessRoleCheck},
-    },
+    }, AppState
 };
 use aide::{
     NoApi,
@@ -55,15 +51,17 @@ async fn create_field(
     Json(mut create_field): Json<CreateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
     validate_field_kind(&mut create_field.field_kind)?;
 
-    let field = db::create_field(&db, table_id, create_field).await?;
+    let field = db::create_field(tx.as_mut(), table_id, create_field).await?;
 
+    tx.commit().await?;
     Ok(Json(field))
 }
 
@@ -74,19 +72,21 @@ async fn update_field(
     Json(mut update_field): Json<UpdateField>,
 ) -> ApiResult<Json<Field>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
-    if !db::field_exists(&db, table_id, field_id).await? {
+    if !db::field_exists(tx.as_mut(), table_id, field_id).await? {
         return Err(ApiError::NotFound);
     };
 
     validate_field_kind(&mut update_field.field_kind)?;
 
-    let field = db::update_field(&db, field_id, update_field).await?;
+    let field = db::update_field(tx.as_mut(), field_id, update_field).await?;
 
+    tx.commit().await?;
     Ok(Json(field))
 }
 
@@ -96,17 +96,19 @@ async fn delete_field(
     Path(SelectField { table_id, field_id }): Path<SelectField>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
-    if !db::field_exists(&db, table_id, field_id).await? {
+    if !db::field_exists(tx.as_mut(), table_id, field_id).await? {
         return Err(ApiError::NotFound);
     };
 
-    db::delete_field(&db, field_id).await?;
+    db::delete_field(tx.as_mut(), field_id).await?;
 
+    tx.commit().await?;
     Ok(())
 }
 
@@ -117,7 +119,7 @@ async fn get_fields(
 ) -> ApiResult<Json<Vec<Field>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -133,12 +135,17 @@ async fn set_field_order(
     Json(SetFieldOrder(order)): Json<SetFieldOrder>,
 ) -> ApiResult<()> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
+    let mut tx = db.begin().await?;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
-    let mut field_ids: HashSet<_> = db::get_field_ids(&db, table_id)
+    if order.is_empty() {
+        return Err(ApiError::BadRequest(NO_DATA_IN_REQUEST_BODY.into()))
+    }
+
+    let mut field_ids: HashSet<_> = db::get_field_ids(tx.as_mut(), table_id)
         .await?
         .into_iter()
         .collect();
@@ -167,8 +174,9 @@ async fn set_field_order(
         return Err(ApiError::UnprocessableEntity(error_messages.join(", ")));
     }
 
-    db::set_field_order(&db, order).await?;
+    db::set_field_order(tx.as_mut(), order).await?;
 
+    tx.commit().await?;
     Ok(())
 }
 
@@ -237,11 +245,11 @@ mod docs {
     use crate::{
         api::data::fields::{FIELD_ID_NOT_FOUND, INVALID_ORDERING, INVALID_RANGE},
         docs::{FIELDS_TAG, TransformOperationExt, template},
-        model::{data::Field, users::AccessRole},
+        model::{access::AccessRole, data::Field},
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
-    
+
     const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
     const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
 

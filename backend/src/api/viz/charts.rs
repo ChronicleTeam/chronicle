@@ -4,7 +4,7 @@ use crate::{
     db,
     error::{ApiError, ApiResult},
     model::{
-        users::{AccessRole, AccessRoleCheck},
+        access::{AccessRole, AccessRoleCheck, Resource},
         viz::{Chart, ChartData, CreateChart, SelectChart, SelectDashboard, UpdateChart},
     },
 };
@@ -57,10 +57,10 @@ async fn create_chart(
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
+    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
-    db::get_table_access(tx.as_mut(), user_id, create_chart.table_id)
+    db::get_access(tx.as_mut(), Resource::Table, create_chart.table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -82,7 +82,7 @@ async fn update_chart(
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
+    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
@@ -106,7 +106,7 @@ async fn delete_chart(
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
+    db::get_access(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::chart_exists(tx.as_mut(), dashboard_id, chart_id).await? {
@@ -126,7 +126,7 @@ async fn get_charts(
 ) -> ApiResult<Json<Vec<Chart>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_dashboard_access(&db, user_id, dashboard_id)
+    db::get_access(&db, Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -144,7 +144,7 @@ async fn get_chart_data(
 ) -> ApiResult<Json<ChartData>> {
     let user_id = user.ok_or(ApiError::Forbidden)?.user_id;
 
-    db::get_dashboard_access(&db, user_id, dashboard_id)
+    db::get_access(&db, Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
     if !db::chart_exists(&db, dashboard_id, chart_id).await? {
@@ -161,7 +161,7 @@ mod docs {
     use crate::{
         docs::{CHARTS_TAG, TransformOperationExt, template},
         model::{
-            users::AccessRole,
+            access::AccessRole,
             viz::{Chart, ChartData},
         },
     };

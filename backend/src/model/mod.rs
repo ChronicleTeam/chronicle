@@ -12,6 +12,7 @@
 pub mod data;
 pub mod users;
 pub mod viz;
+pub mod access;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use data::FieldKind;
