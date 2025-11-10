@@ -26,6 +26,23 @@ pub async fn set_axes(
     .execute(tx.as_mut())
     .await?;
 
+    let chart_ident = ChartIdentifier::new(chart_id, "data_view");
+    sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
+        .execute(tx.as_mut())
+        .await?;
+
+    if axes.is_empty() {
+        sqlx::query(&format!(
+            r#"
+                CREATE VIEW {chart_ident} AS
+                SELECT NULL WHERE FALSE
+            "#
+        ))
+        .execute(tx.as_mut())
+        .await?;
+        return Ok(Vec::new());
+    }
+
     let axes: Vec<Axis> =
         QueryBuilder::new(r#"INSERT INTO axis (chart_id, field_id, axis_kind, aggregate)"#)
             .push_values(axes, |mut builder, axis| {
@@ -88,13 +105,7 @@ pub async fn set_axes(
         String::new()
     };
 
-    let chart_ident = ChartIdentifier::new(chart_id, "data_view");
     let table_ident = TableIdentifier::new(table_id, "data_table");
-
-    sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
-        .execute(tx.as_mut())
-        .await?;
-
     sqlx::query(&format!(
         r#"
             CREATE VIEW {chart_ident} AS
@@ -107,6 +118,5 @@ pub async fn set_axes(
     .await?;
 
     tx.commit().await?;
-
     Ok(axes)
 }

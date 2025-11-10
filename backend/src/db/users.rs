@@ -297,19 +297,4 @@ mod test {
         assert!(super::user_exists_by_username(&db, user.username).await?);
         Ok(())
     }
-
-    // #[sqlx::test]
-    // async fn create_access(db: PgPool) -> anyhow::Result<()> {
-    //     Ok(())
-    // }
-
-    // #[sqlx::test]
-    // async fn update_access(db: PgPool) -> anyhow::Result<()> {
-    //     Ok(())
-    // }
-
-    // #[sqlx::test]
-    // async fn delete_access(db: PgPool) -> anyhow::Result<()> {
-    //     Ok(())
-    // }
 }
