@@ -294,6 +294,7 @@ mod test {
         model::users::{CreateUser, Credentials, SelectUser, UpdateUser, UserResponse},
         test_util,
     };
+    use password_auth::generate_hash;
     use serde_json::json;
     use sqlx::PgPool;
 
@@ -309,7 +310,7 @@ mod test {
         let user = db::create_user(
             &db,
             credentials.username.clone(),
-            credentials.password.clone(),
+            generate_hash(credentials.password.clone()),
             false,
         )
         .await?;
@@ -535,14 +536,14 @@ mod test {
         test_util::login_session(&mut server, &user_admin).await;
         let response = server.get(path).await;
         response.assert_status_ok();
-        let mut users_1 = [user_normal, user_admin]
+        let users_1 = [user_normal, user_admin]
             .map(|user| UserResponse {
                 user_id: user.user_id,
                 username: user.username,
                 is_admin: user.is_admin,
             })
             .to_vec();
-        let mut users_2: Vec<UserResponse> = response.json();
+        let users_2: Vec<UserResponse> = response.json();
         test_util::assert_eq_vec(users_1, users_2, |u| u.user_id);
 
         Ok(())

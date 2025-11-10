@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 /// Table entry entity.
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, PartialEq, JsonSchema)]
 pub struct Entry {
     pub entry_id: Id,
     pub parent_id: Option<Id>,

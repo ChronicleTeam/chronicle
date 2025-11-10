@@ -1,14 +1,12 @@
 use super::{entry_from_row, select_columns};
 use crate::{
-    Id,
-    db,
+    Id, db,
     model::{
         data::{
             CreateTable, Field, FieldIdentifier, FieldMetadata, GetTable, Table, TableData,
             TableIdentifier, UpdateTable,
         },
-        users::AccessRole,
-        viz::ChartIdentifier,
+        access::AccessRole,
     },
 };
 use futures::future::join_all;
@@ -105,20 +103,16 @@ pub async fn delete_table(
 
     let chart_ids: Vec<Id> = sqlx::query_scalar(
         r#"
-            DELETE FROM chart
+            SELECT chart_id
+            FROM chart
             WHERE table_id = $1
-            RETURNING chart_id
         "#,
     )
     .bind(table_id)
     .fetch_all(tx.as_mut())
     .await?;
-
     for chart_id in chart_ids {
-        let chart_ident = ChartIdentifier::new(chart_id, "data_view");
-        sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
-            .execute(tx.as_mut())
-            .await?;
+        db::delete_chart(tx.as_mut(), chart_id).await?;
     }
 
     sqlx::query(
@@ -143,7 +137,10 @@ pub async fn delete_table(
 }
 
 /// Get the parent ID of this table.
-pub async fn get_table_parent_id(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx::Result<Option<Id>> {
+pub async fn get_table_parent_id(
+    executor: impl PgExecutor<'_>,
+    table_id: Id,
+) -> sqlx::Result<Option<Id>> {
     sqlx::query_scalar(
         r#"
             SELECT parent_id
@@ -282,34 +279,29 @@ pub async fn get_table_data(
     })
 }
 
-pub async fn create_table_access(
+pub async fn delete_tables_without_owner(
     conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = (Id, AccessRole)>,
-    resource_id: Id,
 ) -> sqlx::Result<()> {
-    db::create_access(conn, users, resource_id, "meta_table_access").await
-}
+    let mut tx = conn.begin().await?;
+    let table_ids: Vec<Id> = sqlx::query_scalar(
+        r#"
+        SELECT table_id
+        FROM meta_table AS t
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM meta_table_access AS a
+            WHERE a.resource_id = t.table_id
+            AND a.access_role = $1
+        )
+    "#,
+    )
+    .bind(AccessRole::Owner)
+    .fetch_all(tx.as_mut())
+    .await?;
 
-pub async fn update_table_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = (Id, AccessRole)>,
-    resource_id: Id,
-) -> sqlx::Result<()> {
-    db::update_access(conn, users, resource_id, "meta_table_access").await
-}
-
-pub async fn delete_table_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = Id>,
-    resource_id: Id,
-) -> sqlx::Result<()> {
-    db::delete_access(conn, users, resource_id, "meta_table_access").await
-}
-
-pub async fn get_table_access(
-    executor: impl PgExecutor<'_>,
-    user_id: Id,
-    resource_id: Id,
-) -> sqlx::Result<Option<AccessRole>> {
-    db::get_access(executor, user_id, resource_id, "meta_table_access").await
+    for table_id in table_ids {
+        delete_table(tx.as_mut(), table_id).await?;
+    }
+    tx.commit().await?;
+    Ok(())
 }

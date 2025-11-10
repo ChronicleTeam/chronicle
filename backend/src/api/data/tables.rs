@@ -5,11 +5,11 @@ use crate::{
     error::{ApiError, ApiResult, IntoAnyhow},
     io,
     model::{
+        access::{AccessRole, AccessRoleCheck, Resource},
         data::{
             CreateTable, CreateTableData, FieldMetadata, GetTable, GetTableData, SelectTable,
             Table, TableData, UpdateTable,
         },
-        users::{AccessRole, AccessRoleCheck},
     },
 };
 use aide::{
@@ -69,11 +69,7 @@ pub fn router() -> ApiRouter<AppState> {
             .api_route(
                 "/{table_id}/csv",
                 post_with(export_table_to_csv, docs::export_table_to_csv),
-            ), // .api_route(
-               //     "/{table_id}/access",
-               //     post_with(create_table_access, create_table_access)
-               //         .patch_with(update_table_access, update_table_access),
-               // ),
+            ),
     )
 }
 
@@ -86,13 +82,20 @@ async fn create_table(
     let mut tx = db.begin().await?;
 
     if let Some(parent_table_id) = create_table.parent_id {
-        db::get_table_access(&db, user_id, parent_table_id)
+        db::get_access_role(&db, Resource::Table, parent_table_id, user_id)
             .await?
             .check(AccessRole::Owner)?;
     }
 
     let table = db::create_table(tx.as_mut(), create_table).await?;
-    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
+    db::create_access(
+        tx.as_mut(),
+        Resource::Table,
+        table.table_id,
+        user_id,
+        AccessRole::Owner,
+    )
+    .await?;
 
     tx.commit().await?;
     Ok(Json(table))
@@ -107,7 +110,7 @@ async fn update_table(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_table_access(tx.as_mut(), user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -125,7 +128,7 @@ async fn delete_table(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_table_access(tx.as_mut(), user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -153,7 +156,7 @@ async fn get_table_children(
 ) -> ApiResult<Json<Vec<Table>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -169,7 +172,7 @@ async fn get_table_data(
 ) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let access_role = db::get_table_access(&db, user_id, table_id).await?;
+    let access_role = db::get_access_role(&db, Resource::Table, table_id, user_id).await?;
     access_role.check(AccessRole::Viewer)?;
 
     let table_data = db::get_table_data(&db, table_id).await?;
@@ -197,7 +200,6 @@ async fn import_table_from_excel(
     let create_tables = io::import_table_from_excel(spreadsheet);
 
     let mut tx = db.begin().await?;
-
     let mut tables = Vec::new();
 
     for CreateTableData {
@@ -207,8 +209,14 @@ async fn import_table_from_excel(
     } in create_tables
     {
         let table = db::create_table(tx.as_mut(), table).await?;
-        db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id)
-            .await?;
+        db::create_access(
+            tx.as_mut(),
+            Resource::Table,
+            table.table_id,
+            user_id,
+            AccessRole::Owner,
+        )
+        .await?;
         let fields = db::create_fields(tx.as_mut(), table.table_id, fields).await?;
         let entries = db::create_entries(
             tx.as_mut(),
@@ -244,7 +252,7 @@ async fn export_table_to_excel(
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -287,9 +295,15 @@ async fn import_table_from_csv(
     let create_table = io::import_table_from_csv(csv_reader, &name).anyhow()?;
 
     let mut tx = db.begin().await?;
-
     let table = db::create_table(tx.as_mut(), create_table.table).await?;
-    db::create_table_access(tx.as_mut(), [(user_id, AccessRole::Owner)], table.table_id).await?;
+    db::create_access(
+        tx.as_mut(),
+        Resource::Table,
+        table.table_id,
+        user_id,
+        AccessRole::Owner,
+    )
+    .await?;
     let fields = db::create_fields(tx.as_mut(), table.table_id, create_table.fields).await?;
     let entries = db::create_entries(
         tx.as_mut(),
@@ -322,7 +336,7 @@ async fn export_table_to_csv(
     Path(SelectTable { table_id }): Path<SelectTable>,
 ) -> ApiResult<Vec<u8>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
-    db::get_table_access(&db, user_id, table_id)
+    db::get_access_role(&db, Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Viewer)?;
 
@@ -339,8 +353,8 @@ mod docs {
     use crate::{
         docs::{TABLES_TAG, TransformOperationExt, template},
         model::{
+            access::AccessRole,
             data::{GetTable, GetTableData, Table},
-            users::AccessRole,
         },
     };
     use aide::{OperationOutput, transform::TransformOperation};

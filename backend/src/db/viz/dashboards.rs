@@ -1,5 +1,7 @@
 use crate::{
-    db, model::{users::AccessRole, viz::{ChartIdentifier, CreateDashboard, Dashboard, GetDashboard, UpdateDashboard}}, Id
+    db, model::{
+        access::AccessRole, viz::{CreateDashboard, Dashboard, GetDashboard, UpdateDashboard}
+    }, Id
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
@@ -69,20 +71,16 @@ pub async fn delete_dashboard(
 
     let chart_ids: Vec<Id> = sqlx::query_scalar(
         r#"
-            DELETE FROM chart
+            SELECT chart_id
+            FROM chart
             WHERE dashboard_id = $1
-            RETURNING chart_id
         "#,
     )
     .bind(dashboard_id)
     .fetch_all(tx.as_mut())
     .await?;
-
     for chart_id in chart_ids {
-        let chart_ident = ChartIdentifier::new(chart_id, "data_view");
-        sqlx::query(&format!(r#"DROP VIEW {chart_ident}"#))
-            .execute(tx.as_mut())
-            .await?;
+        db::delete_chart(tx.as_mut(), chart_id).await?;
     }
 
     sqlx::query(
@@ -119,34 +117,29 @@ pub async fn get_dashboards(
     .await
 }
 
-pub async fn create_dashboard_access(
+pub async fn delete_dashboards_without_owner(
     conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = (Id, AccessRole)>,
-    resource_id: Id,
 ) -> sqlx::Result<()> {
-    db::create_access(conn, users, resource_id, "dashboard_access").await
-}
+    let mut tx = conn.begin().await?;
+    let dashboard_ids: Vec<Id> = sqlx::query_scalar(
+        r#"
+        SELECT dashboard_id
+        FROM dashboard AS d
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM dashboard_access AS a
+            WHERE a.resource_id = d.dashboard_id
+            AND a.access_role = $1
+        )
+    "#,
+    )
+    .bind(AccessRole::Owner)
+    .fetch_all(tx.as_mut())
+    .await?;
 
-pub async fn update_dashboard_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = (Id, AccessRole)>,
-    resource_id: Id,
-) -> sqlx::Result<()> {
-    db::update_access(conn, users, resource_id, "dashboard_access").await
-}
-
-pub async fn delete_dashboard_access(
-    conn: impl Acquire<'_, Database = Postgres>,
-    users: impl IntoIterator<Item = Id>,
-    resource_id: Id,
-) -> sqlx::Result<()> {
-    db::delete_access(conn, users, resource_id, "dashboard_access").await
-}
-
-pub async fn get_dashboard_access(
-    executor: impl PgExecutor<'_>,
-    user_id: Id,
-    resource_id: Id,
-) -> sqlx::Result<Option<AccessRole>> {
-    db::get_access(executor, user_id, resource_id, "dashboard_access").await
+    for dashboard_id in dashboard_ids {
+        delete_dashboard(tx.as_mut(), dashboard_id).await?;
+    }
+    tx.commit().await?;
+    Ok(())
 }

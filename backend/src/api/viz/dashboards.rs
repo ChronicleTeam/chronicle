@@ -4,7 +4,7 @@ use crate::{
     db,
     error::{ApiError, ApiResult},
     model::{
-        users::{AccessRole, AccessRoleCheck},
+        access::{AccessRole, AccessRoleCheck, Resource},
         viz::{CreateDashboard, Dashboard, GetDashboard, SelectDashboard, UpdateDashboard},
     },
 };
@@ -47,10 +47,12 @@ async fn create_dashboard(
     let mut tx = db.begin().await?;
 
     let dashboard = db::create_dashboard(&db, create_dashboard).await?;
-    db::create_table_access(
+    db::create_access(
         tx.as_mut(),
-        [(user_id, AccessRole::Owner)],
+        Resource::Dashboard,
         dashboard.dashboard_id,
+        user_id,
+        AccessRole::Owner,
     )
     .await?;
 
@@ -67,7 +69,7 @@ async fn update_dashboard(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -85,7 +87,7 @@ async fn delete_dashboard(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_dashboard_access(tx.as_mut(), user_id, dashboard_id)
+    db::get_access_role(tx.as_mut(), Resource::Dashboard, dashboard_id, user_id)
         .await?
         .check(AccessRole::Owner)?;
 
@@ -95,7 +97,6 @@ async fn delete_dashboard(
     Ok(())
 }
 
-// TODO
 async fn get_dashboards(
     NoApi(AuthSession { user, .. }): AppAuthSession,
     State(AppState { db, .. }): State<AppState>,
@@ -111,7 +112,7 @@ async fn get_dashboards(
 mod docs {
     use crate::{
         docs::{DASHBOARDS_TAG, TransformOperationExt, template},
-        model::{users::AccessRole, viz::Dashboard},
+        model::{access::AccessRole, viz::Dashboard},
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;

@@ -1,7 +1,6 @@
-use super::{entry_from_row, select_columns, update_columns};
+use super::{entry_from_row, insert_columns, select_columns, update_columns};
 use crate::{
     Id,
-    db::data::insert_columns,
     model::{
         Cell,
         data::{Entry, FieldIdentifier, FieldMetadata, TableIdentifier},
@@ -18,12 +17,6 @@ pub async fn create_entries(
     fields: Vec<FieldMetadata>,
     entries: Vec<Vec<Cell>>,
 ) -> sqlx::Result<Vec<Entry>> {
-    assert!(
-        entries
-            .iter()
-            .next()
-            .map_or(true, |entry| entry.len() == fields.len())
-    );
     let mut tx = conn.begin().await?;
 
     let table_ident = TableIdentifier::new(table_id, "data_table");
@@ -71,7 +64,7 @@ pub async fn update_entry(
     entry_id: Id,
     parent_id: Option<Id>,
     fields: Vec<FieldMetadata>,
-    cells: Vec<Cell>,
+    entry: Vec<Cell>,
 ) -> sqlx::Result<Entry> {
     let mut tx = conn.begin().await?;
 
@@ -96,7 +89,7 @@ pub async fn update_entry(
     );
     let mut update_query = sqlx::query(&update_query).bind(entry_id);
 
-    for cell in cells {
+    for cell in entry {
         update_query = cell.bind(update_query);
     }
     if let Some(parent_id) = parent_id {
@@ -159,25 +152,100 @@ pub async fn entry_exists(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
+    use crate::{
+        db::{
+            self,
+            data::{entry_from_row, select_columns},
+        },
+        model::data::{CreateField, CreateTable, FieldIdentifier, FieldMetadata, TableIdentifier},
+        test_util,
+    };
+    use itertools::Itertools;
     use sqlx::PgPool;
+    use std::iter;
 
     #[sqlx::test]
     async fn create_entries(db: PgPool) -> anyhow::Result<()> {
-        todo!()
+        let table = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?;
+
+        let mut fields: Vec<FieldMetadata> = Vec::new();
+        let (field_kinds, entry): (Vec<_>, Vec<_>) = test_util::field_tests().into_iter().unzip();
+        for (idx, field_kind) in field_kinds.into_iter().enumerate() {
+            let field = db::create_field(
+                &db,
+                table.table_id,
+                CreateField {
+                    name: idx.to_string(),
+                    field_kind,
+                },
+            )
+            .await?;
+            fields.push(FieldMetadata {
+                field_id: field.field_id,
+                field_kind: field.field_kind,
+            });
+        }
+
+        let entries_1 = iter::repeat_n(entry, 3).collect_vec();
+        let parent_id = None;
+        let entries_2 = super::create_entries(
+            &db,
+            table.table_id,
+            parent_id,
+            fields.clone(),
+            entries_1.clone(),
+        )
+        .await?;
+        let field_ids = fields.iter().map(|f| f.field_id).collect_vec();
+        let entries_2_fmt = entries_2
+            .iter()
+            .map(|e| {
+                field_ids
+                    .iter()
+                    .map(|id| e.cells.get(id).unwrap().clone())
+                    .collect_vec()
+            })
+            .collect_vec();
+        assert_eq!(entries_1, entries_2_fmt,);
+        assert!(entries_2.iter().all(|e| e.parent_id == parent_id));
+
+        let table_ident = TableIdentifier::new(table.table_id, "data_table");
+        let field_idents = fields
+            .iter()
+            .map(|field| FieldIdentifier::new(field.field_id))
+            .collect_vec();
+        let select_columns = select_columns(parent_id.is_some(), &field_idents);
+        let entries_3 = sqlx::query(&format!(r#"SELECT {select_columns} FROM {table_ident}"#))
+            .fetch_all(&db)
+            .await?
+            .into_iter()
+            .map(|row| entry_from_row(row, &fields).unwrap())
+            .collect_vec();
+        assert_eq!(entries_2, entries_3,);
+
+        Ok(())
     }
 
-    #[sqlx::test]
-    async fn update_entry(db: PgPool) -> anyhow::Result<()> {
-        todo!()
-    }
+    // #[sqlx::test]
+    // async fn update_entry(db: PgPool) -> anyhow::Result<()> {
+    //     todo!()
+    // }
 
-    #[sqlx::test]
-    async fn delete_entry(db: PgPool) -> anyhow::Result<()> {
-        todo!()
-    }
+    // #[sqlx::test]
+    // async fn delete_entry(db: PgPool) -> anyhow::Result<()> {
+    //     todo!()
+    // }
 
-    #[sqlx::test]
-    async fn entry_exists(db: PgPool) -> anyhow::Result<()> {
-        todo!()
-    }
+    // #[sqlx::test]
+    // async fn entry_exists(db: PgPool) -> anyhow::Result<()> {
+    //     todo!()
+    // }
 }
