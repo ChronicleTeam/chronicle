@@ -57,6 +57,19 @@ pub enum ApiError {
     Anyhow(#[from] anyhow::Error),
 }
 
+impl PartialEq for ApiError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::BadRequest(l0), Self::BadRequest(r0)) => l0 == r0,
+            (Self::Conflict(l0), Self::Conflict(r0)) => l0 == r0,
+            (Self::UnprocessableEntity(l0), Self::UnprocessableEntity(r0)) => l0 == r0,
+            (Self::Sqlx(l0), Self::Sqlx(r0)) => l0.to_string() == r0.to_string(),
+            (Self::Anyhow(l0), Self::Anyhow(r0)) => l0.to_string() == r0.to_string(),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
 impl ApiError {
     /// Maps `ApiError` variants to `StatusCode`s
     fn status_code(&self) -> StatusCode {

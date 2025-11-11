@@ -20,7 +20,7 @@ fn select_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String
         .chain(
             ["entry_id", "created_at", "updated_at"]
                 .into_iter()
-                .chain(if with_parent { Some("parent_id") } else { None })
+                .chain(with_parent.then(|| "parent_id"))
                 .map(|x| x.to_string()),
         )
         .join(", ")
@@ -31,11 +31,7 @@ fn insert_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String
     field_idents
         .iter()
         .map(|x| x.to_string())
-        .chain(if with_parent {
-            Some("parent_id".to_string())
-        } else {
-            None
-        })
+        .chain(with_parent.then(|| "parent_id".to_string()))
         .join(", ")
 }
 
@@ -44,11 +40,7 @@ fn update_columns(with_parent: bool, field_idents: &[FieldIdentifier], position:
     field_idents
         .iter()
         .map(|x| x.to_string())
-        .chain(if with_parent {
-            Some("parent_id".to_string())
-        } else {
-            None
-        })
+        .chain(with_parent.then(|| "parent_id".to_string()))
         .enumerate()
         .map(|(i, field_ident)| format!("{field_ident} = ${}", position + i))
         .join(", ")
@@ -76,4 +68,59 @@ fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entr
             })
             .try_collect()?,
     })
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use crate::model::data::FieldIdentifier;
+    use itertools::Itertools;
+
+    #[test]
+    fn select_columns() {
+        let field_idents = [1, 2, 3]
+            .into_iter()
+            .map(|id| FieldIdentifier::new(id))
+            .collect_vec();
+        let select_columns = super::select_columns(false, &field_idents);
+        assert_eq!(
+            select_columns,
+            r#""f1", "f2", "f3", entry_id, created_at, updated_at"#
+        );
+
+        let select_columns = super::select_columns(true, &field_idents);
+        assert_eq!(
+            select_columns,
+            r#""f1", "f2", "f3", entry_id, created_at, updated_at, parent_id"#
+        );
+    }
+
+    #[test]
+    fn insert_columns() {
+        let field_idents = [1, 2, 3]
+            .into_iter()
+            .map(|id| FieldIdentifier::new(id))
+            .collect_vec();
+        let insert_columns = super::insert_columns(false, &field_idents);
+        assert_eq!(insert_columns, r#""f1", "f2", "f3""#);
+
+        let insert_columns = super::insert_columns(true, &field_idents);
+        assert_eq!(insert_columns, r#""f1", "f2", "f3", parent_id"#);
+    }
+
+    #[test]
+    fn update_columns() {
+        let field_idents = [1, 2, 3]
+            .into_iter()
+            .map(|id| FieldIdentifier::new(id))
+            .collect_vec();
+        let update_columns = super::update_columns(false, &field_idents, 1);
+        assert_eq!(update_columns, r#""f1" = $1, "f2" = $2, "f3" = $3"#);
+
+        let update_columns = super::update_columns(true, &field_idents, 2);
+        assert_eq!(
+            update_columns,
+            r#""f1" = $2, "f2" = $3, "f3" = $4, parent_id = $5"#
+        );
+    }
 }

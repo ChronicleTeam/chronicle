@@ -9,10 +9,10 @@
 //! - Deserialize: Convert from JSON for requests.
 //! - FromRow: Convert from an SQL query result.
 
+pub mod access;
 pub mod data;
 pub mod users;
 pub mod viz;
-pub mod access;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use data::FieldKind;

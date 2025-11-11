@@ -1,12 +1,12 @@
-use std::{collections::HashMap, fmt::Debug};
-
 use crate::{
     AppConfig, AppState, Id, api,
     auth::{self, AppAuthSession},
+    db,
     error::{ApiResult, IntoAnyhow},
     init_layers,
     model::{
         Cell,
+        access::{AccessRole, AccessRoleCheck, Resource},
         data::{FieldIdentifier, FieldKind, TableIdentifier},
         users::User,
     },
@@ -15,11 +15,13 @@ use aide::openapi::OpenApi;
 use axum::{
     Json, Router,
     http::header::SET_COOKIE,
+    response::IntoResponse,
     routing::{get, post},
 };
-use axum_test::TestServer;
+use axum_test::{TestResponse, TestServer};
 use chrono::DateTime;
-use sqlx::{PgExecutor, PgPool};
+use sqlx::{Acquire, PgExecutor, PgPool, Postgres};
+use std::{collections::HashMap, fmt::Debug};
 
 async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
     session.login(&user).await.anyhow()?;
@@ -143,4 +145,37 @@ where
     vec_1.sort_by_key(f);
     vec_2.sort_by_key(f);
     assert_eq!(vec_1, vec_2);
+}
+
+pub async fn test_access_control<R, F>(
+    conn: impl Acquire<'_, Database = Postgres>,
+    resource: Resource,
+    resource_id: Id,
+    user_id: Id,
+    required: AccessRole,
+    request: R,
+) where
+    R: Fn() -> F,
+    F: Future<Output = TestResponse>,
+{
+    let mut conn = conn.acquire().await.unwrap();
+    for access_role in [
+        None,
+        Some(AccessRole::Viewer),
+        Some(AccessRole::Editor),
+        Some(AccessRole::Owner),
+    ] {
+        db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id])
+            .await
+            .unwrap();
+        if let Some(access_role) = access_role {
+            db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role)
+                .await
+                .unwrap();
+        }
+        let expected = access_role.check(required).into_response().status();
+        let actual = request().await.status_code();
+        println!("access_role {access_role:?} expected {expected:?} actual {actual:?}");
+        assert_eq!(expected, actual);
+    }
 }

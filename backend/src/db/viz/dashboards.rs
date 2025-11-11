@@ -103,7 +103,7 @@ pub async fn get_dashboards_for_user(
         r#"
             SELECT *
             FROM dashboard AS d
-            JOIN dashboard_access AS a
+            JOIN dashboard_access_v AS a
             ON d.dashboard_id = a.resource_id
             WHERE user_id = $1
         "#,

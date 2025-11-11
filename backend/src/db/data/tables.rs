@@ -2,11 +2,11 @@ use super::{entry_from_row, select_columns};
 use crate::{
     Id, db,
     model::{
+        access::AccessRole,
         data::{
             CreateTable, Field, FieldIdentifier, FieldMetadata, GetTable, Table, TableData,
             TableIdentifier, UpdateTable,
         },
-        access::AccessRole,
     },
 };
 use futures::future::join_all;
@@ -149,7 +149,7 @@ pub async fn get_table_parent_id(
         "#,
     )
     .bind(table_id)
-    .fetch_optional(executor)
+    .fetch_one(executor)
     .await
 }
 
@@ -159,7 +159,7 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
         r#"
             SELECT *
             FROM meta_table AS t
-            JOIN meta_table_access AS a
+            JOIN meta_table_access_v AS a
             ON t.table_id = a.resource_id
             WHERE user_id = $1
         "#,
