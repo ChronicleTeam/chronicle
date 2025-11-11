@@ -44,13 +44,7 @@ pub async fn update_dashboard(
             UPDATE dashboard
             SET name = $1, description = $2
             WHERE dashboard_id = $3
-            RETURNING
-                dashboard_id,
-                user_id,
-                name,
-                description,
-                created_at,
-                updated_at
+            RETURNING *
         "#,
     )
     .bind(name)
@@ -151,14 +145,16 @@ pub async fn delete_dashboards_without_owner(
 mod test {
     use anyhow::Ok;
     use axum::Json;
+    use itertools::Itertools;
     use sqlx::{PgPool, query_as};
 
     use crate::{
-        db::create_user,
+        db::{self, access, create_user},
         model::{
             access::AccessRole,
             viz::{CreateDashboard, UpdateDashboard},
         },
+        test_util,
     };
 
     #[sqlx::test]
@@ -278,18 +274,32 @@ mod test {
         )
         .await?;
 
-        let dashboard_list = super::get_dashboards_for_user(&db, user.user_id).await?;
-        assert!(dashboard_list.len() == 2);
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Dashboard,
+            dashboard1.dashboard_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Dashboard,
+            dashboard2.dashboard_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
 
-        assert!(
-            dashboard1 == dashboard_list.get(0).unwrap().dashboard
-                || dashboard2 == dashboard_list.get(0).unwrap().dashboard
-        );
-        assert!(
-            dashboard1 == dashboard_list.get(1).unwrap().dashboard
-                || dashboard2 == dashboard_list.get(1).unwrap().dashboard
-        );
+        let dashboard_list = super::get_dashboards_for_user(&db, user.user_id)
+            .await?
+            .into_iter()
+            .map(|d| d.dashboard)
+            .collect_vec();
 
+        test_util::assert_eq_vec(dashboard_list, vec![dashboard1, dashboard2], |d| {
+            d.dashboard_id
+        });
         Ok(())
     }
 

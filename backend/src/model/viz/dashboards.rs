@@ -28,7 +28,7 @@ pub struct UpdateDashboard {
     pub description: String,
 }
 
-#[derive(Debug, FromRow, Serialize, JsonSchema)]
+#[derive(Debug, FromRow, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct GetDashboard {
     #[sqlx(flatten)]
     pub dashboard: Dashboard,
@@ -39,4 +39,3 @@ pub struct GetDashboard {
 pub struct SelectDashboard {
     pub dashboard_id: Id,
 }
-
