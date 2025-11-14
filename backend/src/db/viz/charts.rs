@@ -249,7 +249,6 @@ pub async fn get_chart_data(
     Ok(ChartData { chart, axes, cells })
 }
 
-
 pub async fn chart_exists(
     executor: impl PgExecutor<'_>,
     dashboard_id: Id,
