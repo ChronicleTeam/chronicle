@@ -103,7 +103,7 @@ async fn get_dashboards(
 ) -> ApiResult<Json<Vec<GetDashboard>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let dashboards = db::get_dashboards(&db, user_id).await?;
+    let dashboards = db::get_dashboards_for_user(&db, user_id).await?;
 
     Ok(Json(dashboards))
 }
@@ -153,5 +153,50 @@ mod docs {
             "get_dashboards",
             "Get all dashboards viewable to the user.",
         )
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use aide::{OperationOutput, transform::TransformOperation};
+    use anyhow::Ok;
+    use sqlx::PgPool;
+
+    use crate::{db, model::viz::CreateDashboard, test_util};
+
+    #[sqlx::test]
+    async fn create_dashboard(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let path = "/api/";
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn update_dashboard(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn delete_dashboard(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_dashboards(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+
+        let db1 = db::create_dashboard(
+            &db,
+            CreateDashboard {
+                name: "blazinglyfast".into(),
+                description: "it's just better".into(),
+            },
+        );
+
+        Ok(())
     }
 }
