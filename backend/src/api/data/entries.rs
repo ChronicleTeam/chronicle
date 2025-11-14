@@ -59,7 +59,7 @@ async fn create_entries(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
 
@@ -93,7 +93,7 @@ async fn update_entry(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table,table_id,  user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
@@ -121,7 +121,7 @@ async fn delete_entry(
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
 
-    db::get_access_role(tx.as_mut(), Resource::Table, user_id, table_id)
+    db::get_access_role(tx.as_mut(), Resource::Table, table_id, user_id)
         .await?
         .check(AccessRole::Editor)?;
     if !db::entry_exists(tx.as_mut(), table_id, entry_id).await? {
