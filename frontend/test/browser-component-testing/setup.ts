@@ -4,7 +4,7 @@ import { vi, beforeEach } from 'vitest'
 import { clearUser } from '../../src/lib/user.svelte.ts'
 
 beforeEach(async () => {
-  vi.resetModules();
+  // vi.resetModules();
   await clearUser();
 })
 

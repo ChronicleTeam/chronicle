@@ -39,16 +39,14 @@
     postCreateTable({ name, description: "", table_id: -1, user_id: -1 })
       .then(afterTableCreation)
       .catch((e: APIError) => {
-        errors.table.add =
-          "Error: " + (e.body as { [key: string]: string }).name;
+        errors.table.add = "Error: " + e.body.toString();
       });
 
   const importTable = (file: File) =>
     postImportTable(file)
       .then(afterTableCreation)
       .catch((e) => {
-        errors.table.add =
-          "Error: " + (e.body as { [key: string]: string }).name;
+        errors.table.add = "Error: " + e.body.toString();
       });
 </script>
 
@@ -101,6 +99,7 @@
         <p class="self-start font-semibold mb-4">Import existing table</p>
         <div class="join">
           <input
+            aria-label="file input"
             class="file-input join-item"
             type="file"
             accept=".xlsx,.csv"
@@ -108,9 +107,9 @@
           />
           <button
             class="btn join-item"
-            onclick={() =>
-              importTableFiles ? importTable(importTableFiles[0]) : null}
-            disabled={!importTableFiles}>Import</button
+            onclick={() => importTable((importTableFiles as FileList)[0])}
+            disabled={!importTableFiles || importTableFiles.length === 0}
+            >Import</button
           >
         </div>
         {#if errors.table.add !== ""}
