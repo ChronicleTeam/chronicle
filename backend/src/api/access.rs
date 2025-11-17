@@ -207,6 +207,7 @@ async fn get_users_with_access(
     Ok(user_ids)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
         api::access::{USERNAME_NOT_FOUND, USER_ALREADY_HAS_ACCESS},

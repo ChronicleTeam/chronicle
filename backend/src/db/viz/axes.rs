@@ -120,3 +120,46 @@ pub async fn set_axes(
     tx.commit().await?;
     Ok(axes)
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use sqlx::PgPool;
+    use crate::{db, model::{data::CreateTable, viz::{ChartKind, CreateChart, CreateDashboard}}};
+
+    #[sqlx::test]
+    async fn set_axes(db: PgPool) -> anyhow::Result<()> {
+        // Things to test:
+        // axis SQL table
+        // dynamic view data
+        // all aggregates + 1 group by column
+        let dashboard_id = db::create_dashboard(
+            &db,
+            CreateDashboard {
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .dashboard_id;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                name: "test".into(),
+                description: "".into(),
+                parent_id: None,
+            },
+        )
+        .await?
+        .table_id;
+        let create_chart = CreateChart {
+            table_id,
+            name: "test".into(),
+            chart_kind: ChartKind::Bar,
+        };
+        let chart_id = db::create_chart(&db, dashboard_id, create_chart.clone()).await?.chart_id;
+        
+
+        Ok(())
+    }
+}
