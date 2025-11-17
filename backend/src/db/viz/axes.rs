@@ -120,3 +120,15 @@ pub async fn set_axes(
     tx.commit().await?;
     Ok(axes)
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn set_axes(db: PgPool) -> anyhow::Result<()> {
+
+        Ok(())
+    }
+}
