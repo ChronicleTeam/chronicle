@@ -272,8 +272,6 @@ pub async fn chart_exists(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::collections::HashMap;
-
     use crate::{
         db,
         model::{
@@ -286,8 +284,8 @@ mod test {
         },
         test_util,
     };
-    use itertools::Itertools;
     use sqlx::PgPool;
+    use std::collections::HashMap;
 
     #[sqlx::test]
     async fn create_chart(db: PgPool) -> anyhow::Result<()> {
@@ -576,7 +574,7 @@ mod test {
         .await?;
         let integer_id = integer_field.field_id;
 
-        let entries = db::create_entries(
+        let _entries = db::create_entries(
             &db,
             table_id,
             None,
