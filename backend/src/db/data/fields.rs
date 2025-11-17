@@ -188,7 +188,7 @@ async fn convert_field_kind(
     .execute(tx.as_mut())
     .await?;
 
-    let field = create_field(
+    let new_field = create_field(
         tx.as_mut(),
         field.table_id,
         CreateField {
@@ -204,7 +204,7 @@ async fn convert_field_kind(
         .collect_vec();
 
     if !cells.is_empty() {
-        let field_ident = FieldIdentifier::new(field.field_id);
+        let field_ident = FieldIdentifier::new(new_field.field_id);
         QueryBuilder::new(format!(
             r#"
                 UPDATE {table_ident}
@@ -227,9 +227,24 @@ async fn convert_field_kind(
         .await?;
     }
 
+    sqlx::query(
+        r#"
+            UPDATE meta_field
+            SET ordering = CASE field_id
+                WHEN $1 THEN (SELECT ordering FROM meta_field WHERE field_id = $2)
+                WHEN $2 THEN (SELECT ordering FROM meta_field WHERE field_id = $1)
+            END
+            WHERE field_id IN ($1, $2);
+        "#,
+    )
+    .bind(field.field_id)
+    .bind(new_field.field_id)
+    .execute(tx.as_mut())
+    .await?;
+
     tx.commit().await?;
 
-    Ok(field)
+    Ok(new_field)
 }
 
 /// Delete this field and remove the column from the actual SQL table.
