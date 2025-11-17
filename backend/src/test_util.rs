@@ -1,5 +1,3 @@
-use std::{collections::HashMap, fmt::Debug};
-
 use crate::{
     AppConfig, AppState, Id, api,
     auth::{self, AppAuthSession},
@@ -20,6 +18,7 @@ use axum::{
 use axum_test::TestServer;
 use chrono::DateTime;
 use sqlx::{PgExecutor, PgPool};
+use std::{collections::HashMap, fmt::Debug};
 
 async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
     session.login(&user).await.anyhow()?;

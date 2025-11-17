@@ -8,7 +8,7 @@ use sqlx::{FromRow, types::Json};
 use crate::{Id, model::data::FieldKind};
 
 /// Chart axis entity.
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq)]
 pub struct Axis {
     pub axis_id: Id,
     pub chart_id: Id,
@@ -33,7 +33,7 @@ pub enum AxisKind {
 }
 
 /// The aggregate function of the axis.
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, JsonSchema, PartialEq, Eq)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
     Sum,
@@ -81,7 +81,7 @@ pub struct CreateAxis {
 pub struct SetAxes(pub Vec<CreateAxis>);
 
 /// An axis and its associated field.
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq)]
 pub struct AxisField {
     #[sqlx(flatten)]
     pub axis: Axis,
