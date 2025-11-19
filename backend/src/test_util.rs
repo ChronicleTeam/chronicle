@@ -147,16 +147,17 @@ where
     assert_eq!(vec_1, vec_2);
 }
 
-pub async fn test_access_control<F>(
+pub async fn test_access_control<R, F>(
     conn: impl Acquire<'_, Database = Postgres>,
     resource: Resource,
     resource_id: Id,
     user_id: Id,
     required: AccessRole,
-    request: F,
+    request: R,
 )
 where
-    F: Fn() -> TestRequest,
+    R: Fn() ->  F,
+    F: Future<Output = TestResponse>,
 {
     let mut conn = conn.acquire().await.unwrap();
     for access_role in [
@@ -165,6 +166,7 @@ where
         Some(AccessRole::Editor),
         Some(AccessRole::Owner),
     ] {
+        
         db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id]).await.unwrap();
         if let Some(access_role) = access_role {
             db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role).await.unwrap();
