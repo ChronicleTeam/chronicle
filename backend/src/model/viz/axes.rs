@@ -33,7 +33,7 @@ pub enum AxisKind {
 }
 
 /// The aggregate function of the axis.
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, JsonSchema, PartialEq, Eq)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
     Sum,

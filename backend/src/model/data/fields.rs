@@ -69,7 +69,7 @@ pub enum FieldKind {
 
 impl FieldKind {
     /// Map the field kind to the PostgreSQL data type.
-    pub fn get_sql_type(&self) -> &'static str {
+    pub fn get_sql_column(&self) -> &'static str {
         match self {
             FieldKind::Text { .. } => "TEXT",
             FieldKind::Integer { .. } => "BIGINT",
@@ -79,6 +79,21 @@ impl FieldKind {
             FieldKind::DateTime { .. } => "TIMESTAMPTZ",
             FieldKind::WebLink { .. } => "TEXT COLLATE case_insensitive",
             FieldKind::Checkbox => "BOOLEAN NOT NULL DEFAULT FALSE",
+            FieldKind::Enumeration { .. } => "BIGINT",
+        }
+    }
+
+    /// Map the field kind to the PostgreSQL data type.
+    pub fn get_sql_type(&self) -> &'static str {
+        match self {
+            FieldKind::Text { .. } => "TEXT",
+            FieldKind::Integer { .. } => "BIGINT",
+            FieldKind::Float { .. } => "DOUBLE PRECISION",
+            FieldKind::Money { .. } => "numeric_money",
+            FieldKind::Progress { .. } => "BIGINT",
+            FieldKind::DateTime { .. } => "TIMESTAMPTZ",
+            FieldKind::WebLink { .. } => "TEXT",
+            FieldKind::Checkbox => "BOOLEAN",
             FieldKind::Enumeration { .. } => "BIGINT",
         }
     }
