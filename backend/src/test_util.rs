@@ -18,7 +18,7 @@ use axum::{
 use axum_test::TestServer;
 use chrono::DateTime;
 use sqlx::{PgExecutor, PgPool};
-use std::{collections::HashMap, fmt::Debug};
+use std::{cmp::Ordering, collections::HashMap, fmt::Debug};
 
 async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
     session.login(&user).await.anyhow()?;
@@ -143,3 +143,15 @@ where
     vec_2.sort_by_key(f);
     assert_eq!(vec_1, vec_2);
 }
+
+pub fn assert_eq_vec_cmp<T, F, K>(mut vec_1: Vec<T>, mut vec_2: Vec<T>, f: F)
+where
+    T: PartialEq + Debug,
+    F: FnMut(&T, &T) -> Ordering + Copy,
+    K: Ord,
+{
+    vec_1.sort_by(f);
+    vec_2.sort_by(f);
+    assert_eq!(vec_1, vec_2);
+}
+

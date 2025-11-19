@@ -20,7 +20,7 @@ pub struct Axis {
 }
 
 /// The kind of axis for constructing the actual chart.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type, JsonSchema)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type, JsonSchema)]
 #[sqlx(type_name = "axis_kind")]
 pub enum AxisKind {
     X,
@@ -33,7 +33,7 @@ pub enum AxisKind {
 }
 
 /// The aggregate function of the axis.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, JsonSchema, PartialEq, Eq, Hash)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
     Sum,
@@ -69,7 +69,7 @@ impl Aggregate {
 }
 
 /// Create axis request.
-#[derive(Debug, Deserialize, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, FromRow, JsonSchema, PartialEq, Eq, Hash)]
 pub struct CreateAxis {
     pub field_id: Id,
     pub axis_kind: AxisKind,

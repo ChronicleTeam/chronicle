@@ -124,15 +124,13 @@ pub async fn set_axes(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::collections::HashMap;
+    use std::{collections::{HashMap, HashSet}, mem};
 
     use crate::{
         db,
         model::{
-            Cell,
-            data::{CreateField, CreateTable, FieldKind, FieldMetadata},
-            viz::{Aggregate, AxisKind, ChartKind, CreateAxis, CreateChart, CreateDashboard},
-        },
+            data::{CreateField, CreateTable, FieldKind, FieldMetadata}, viz::{Aggregate, AxisKind, ChartKind, CreateAxis, CreateChart, CreateDashboard}, Cell
+        }, test_util,
     };
     use chrono::DateTime;
     use itertools::Itertools;
@@ -397,7 +395,7 @@ mod test {
 
         let group_by_column = columns.remove(0);
 
-        let mut axes = vec![CreateAxis {
+        let mut create_axes_1 = vec![CreateAxis {
             field_id: group_by_column.0.field_id,
             axis_kind: AxisKind::X,
             aggregate: None,
@@ -405,7 +403,7 @@ mod test {
 
         for (field, _, aggregates) in &columns {
             for aggregate in aggregates {
-                axes.push(CreateAxis {
+                create_axes_1.push(CreateAxis {
                     field_id: field.field_id,
                     axis_kind: AxisKind::Y,
                     aggregate: Some(*aggregate),
@@ -413,9 +411,18 @@ mod test {
             }
         }
 
-        super::set_axes(&db, chart_id, table_id, axes).await?;
+        let axes = super::set_axes(&db, chart_id, table_id, create_axes_1.clone()).await?;
+        let create_axes_2: HashSet<_> = axes.iter().map(|a| CreateAxis {
+            field_id: a.field_id,
+            axis_kind: a.axis_kind,
+            aggregate: a.aggregate,
+        }).collect();
+        assert_eq!(create_axes_1.len(), create_axes_2.len());
+        for create_axis in &create_axes_1 {
+            assert!(create_axes_2.get(create_axis).is_some());
+        }
 
-        panic!();
+        // More to do here
 
         Ok(())
     }
