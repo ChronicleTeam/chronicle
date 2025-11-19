@@ -331,7 +331,7 @@ mod test {
         db,
         model::{
             access::{AccessRole, Resource},
-            data::{CreateField, CreateTable, Field, FieldKind},
+            data::{CreateField, CreateTable, Field, FieldKind, UpdateField},
         },
         test_util,
     };
@@ -355,7 +355,6 @@ mod test {
             name: "abc".into(),
             field_kind: FieldKind::Checkbox,
         };
-
         server
             .post(&path)
             .json(&create_field)
@@ -370,9 +369,16 @@ mod test {
             table_id,
             user.user_id,
             AccessRole::Owner,
-            || server.post(&path).json(&create_field),
+            async || server.post(&path).json(&create_field).await,
         )
         .await;
+
+        let path_wrong = format!("/api/tables/1000");
+        server
+            .post(&path_wrong)
+            .json(&create_field)
+            .await
+            .assert_status_not_found();
 
         let create_field = CreateField {
             name: "def".into(),
@@ -404,11 +410,159 @@ mod test {
 
     #[sqlx::test]
     async fn update_field(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                name: "Test".into(),
+                description: "".into(),
+                parent_id: None,
+            },
+        )
+        .await?
+        .table_id;
+        let field_id = db::create_field(
+            &db,
+            table_id,
+            CreateField {
+                name: "abc".into(),
+                field_kind: FieldKind::Checkbox,
+            },
+        )
+        .await?
+        .field_id;
+        let path = format!("/api/tables/{table_id}/fields/{field_id}");
+
+        let update_field = UpdateField {
+            name: "def".into(),
+            field_kind: FieldKind::Checkbox,
+        };
+        server
+            .patch(&path)
+            .json(&update_field)
+            .await
+            .assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Owner,
+            async || server.patch(&path).json(&update_field).await,
+        )
+        .await;
+
+        for path_wrong in [
+            format!("/api/tables/{table_id}/fields/1000"),
+            format!("/api/tables/1000/fields/{field_id}"),
+        ] {
+            server
+                .patch(&path_wrong)
+                .json(&update_field)
+                .await
+                .assert_status_not_found();
+        }
+
+        let update_field = UpdateField {
+            name: "ghj".into(),
+            field_kind: FieldKind::Text { is_required: false },
+        };
+        let response = server.patch(&path).json(&update_field).await;
+        response.assert_status_ok();
+        let field_1: Field = response.json();
+        assert_eq!(field_1.name, update_field.name);
+        assert_eq!(field_1.field_kind.0, update_field.field_kind);
+        let field_2: Field = sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
+            .bind(field_1.field_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(field_1, field_2);
+
+        let create_field = UpdateField {
+            name: "ghj".into(),
+            field_kind: FieldKind::Enumeration {
+                is_required: false,
+                values: HashMap::from_iter([(0, "A".into())]),
+                default_value: 1,
+            },
+        };
+        let response = server.patch(&path).json(&create_field).await;
+        response.assert_status_unprocessable_entity();
         Ok(())
     }
 
     #[sqlx::test]
     async fn delete_field(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                name: "Test".into(),
+                description: "".into(),
+                parent_id: None,
+            },
+        )
+        .await?
+        .table_id;
+        let field_id = db::create_field(
+            &db,
+            table_id,
+            CreateField {
+                name: "abc".into(),
+                field_kind: FieldKind::Checkbox,
+            },
+        )
+        .await?
+        .field_id;
+        let path = format!("/api/tables/{table_id}/fields/{field_id}");
+
+        server.delete(&path).await.assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Owner,
+            async || {
+                let field_id = db::create_field(
+                    &db,
+                    table_id,
+                    CreateField {
+                        name: "abc".into(),
+                        field_kind: FieldKind::Checkbox,
+                    },
+                )
+                .await
+                .unwrap()
+                .field_id;
+                server.delete(&format!("/api/tables/{table_id}/fields/{field_id}")).await
+            },
+        )
+        .await;
+
+        for path_wrong in [
+            format!("/api/tables/{table_id}/fields/1000"),
+            format!("/api/tables/1000/fields/{field_id}"),
+        ] {
+            server.delete(&path_wrong).await.assert_status_not_found();
+        }
+
+        server.delete(&path).await.assert_status_ok();
+        let not_exists: bool = sqlx::query_scalar(
+            r#"SELECT NOT EXISTS (SELECT 1 FROM meta_field WHERE field_id = $1)"#,
+        )
+        .bind(field_id)
+        .fetch_one(&db)
+        .await?;
+        assert!(not_exists);
+
+        server.delete(&path).await.assert_status_not_found();
         Ok(())
     }
 

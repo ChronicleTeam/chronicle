@@ -108,7 +108,7 @@ pub struct CreateField {
 }
 
 /// Update field request.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateField {
     pub name: String,
     pub field_kind: FieldKind,
