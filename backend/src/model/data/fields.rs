@@ -8,7 +8,7 @@ use sqlx::{FromRow, types::Json};
 use std::{collections::HashMap, fmt};
 
 /// Table field entity.
-#[derive(Debug, Clone, Serialize, PartialEq, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow, JsonSchema)]
 pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
@@ -61,7 +61,8 @@ pub enum FieldKind {
     Enumeration {
         is_required: bool,
         #[schemars(with = "HashMap<i64, String>")]
-        #[serde_as(as = "HashMap<DisplayFromStr, _>")] // https://github.com/serde-rs/json/issues/496
+        #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+        // https://github.com/serde-rs/json/issues/496
         values: HashMap<i64, String>,
         default_value: i64,
     },
@@ -100,7 +101,7 @@ impl FieldKind {
 }
 
 /// Create field request.
-#[derive(Debug, Clone, Deserialize, PartialEq, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow, JsonSchema)]
 pub struct CreateField {
     pub name: String,
     pub field_kind: FieldKind,

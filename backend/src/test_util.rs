@@ -1,10 +1,12 @@
 use crate::{
     AppConfig, AppState, Id, api,
     auth::{self, AppAuthSession},
+    db,
     error::{ApiResult, IntoAnyhow},
     init_layers,
     model::{
         Cell,
+        access::{AccessRole, AccessRoleCheck, Resource},
         data::{FieldIdentifier, FieldKind, TableIdentifier},
         users::User,
     },
@@ -13,12 +15,13 @@ use aide::openapi::OpenApi;
 use axum::{
     Json, Router,
     http::header::SET_COOKIE,
+    response::IntoResponse,
     routing::{get, post},
 };
-use axum_test::TestServer;
+use axum_test::{TestRequest, TestResponse, TestServer};
 use chrono::DateTime;
-use sqlx::{PgExecutor, PgPool};
-use std::{cmp::Ordering, collections::HashMap, fmt::Debug};
+use sqlx::{Acquire, PgExecutor, PgPool, Postgres};
+use std::{collections::HashMap, fmt::Debug};
 
 async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
     session.login(&user).await.anyhow()?;
@@ -144,14 +147,30 @@ where
     assert_eq!(vec_1, vec_2);
 }
 
-pub fn assert_eq_vec_cmp<T, F, K>(mut vec_1: Vec<T>, mut vec_2: Vec<T>, f: F)
+pub async fn test_access_control<F>(
+    conn: impl Acquire<'_, Database = Postgres>,
+    resource: Resource,
+    resource_id: Id,
+    user_id: Id,
+    required: AccessRole,
+    request: F,
+)
 where
-    T: PartialEq + Debug,
-    F: FnMut(&T, &T) -> Ordering + Copy,
-    K: Ord,
+    F: Fn() -> TestRequest,
 {
-    vec_1.sort_by(f);
-    vec_2.sort_by(f);
-    assert_eq!(vec_1, vec_2);
+    let mut conn = conn.acquire().await.unwrap();
+    for access_role in [
+        None,
+        Some(AccessRole::Viewer),
+        Some(AccessRole::Editor),
+        Some(AccessRole::Owner),
+    ] {
+        db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id]).await.unwrap();
+        if let Some(access_role) = access_role {
+            db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role).await.unwrap();
+        }
+        let expected = access_role.check(required).into_response().status();
+        let actual = request().await.status_code();
+        assert_eq!(expected, actual);
+    }
 }
-
