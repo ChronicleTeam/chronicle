@@ -34,7 +34,7 @@ pub async fn create_field(
     .fetch_one(tx.as_mut())
     .await?;
 
-    let column_type = field_kind.get_sql_type();
+    let column_type = field_kind.get_sql_column();
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let field_ident = FieldIdentifier::new(field.field_id);
 
@@ -76,7 +76,7 @@ pub async fn create_fields(
     let add_column_statement = fields
         .iter()
         .map(|field| {
-            let column_type = field.field_kind.0.get_sql_type();
+            let column_type = field.field_kind.0.get_sql_column();
             let field_ident = FieldIdentifier::new(field.field_id);
             format!(r#"ADD COLUMN {field_ident} {column_type}"#)
         })
