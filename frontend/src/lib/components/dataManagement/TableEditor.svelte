@@ -18,6 +18,8 @@
     MoneyKind,
     DecimalKind,
     TableData,
+    Access,
+    AccessRole,
   } from "$lib/types";
   import { FieldType } from "$lib/types";
   import {
@@ -26,21 +28,46 @@
     deleteEntry,
     postExportTable,
     type APIError,
+    createTableAccess,
+    patchTableAccess,
+    deleteTableAccess,
   } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
   import { TableMode, type ModeState } from "./types";
   import { goto, refreshAll } from "$app/navigation";
+  import { type User } from "$lib/types";
 
   //
   // State
   //
 
-  // the TableData object being displayed
   let {
     entryId: entryIdProp = null,
     table: tableProp,
-  }: { entryId?: string | null; table: TableData } = $props();
+    allUsers,
+    userAccess,
+    accessRole,
+    user,
+  }: {
+    entryId?: string | null;
+    table: TableData;
+    user: User;
+    allUsers?: User[];
+    userAccess?: { access_role: string; username: string }[];
+    accessRole: string;
+  } = $props();
+  let remainingUsers = $derived(
+    allUsers?.filter(
+      (user) =>
+        !userAccess?.some(
+          (existingUser) => existingUser.username === user.username,
+        ),
+    ) ?? [],
+  );
+  let canEdit = $derived(accessRole === "Owner" || accessRole === "Editor");
+
+  // the TableData object being displayed
   let entryId = $derived(entryIdProp);
   let table = $state(tableProp);
   $effect(() => {
@@ -53,11 +80,25 @@
     modeState = { mode: TableMode.DISPLAY };
   };
   const modeInsert = (entry_idx: number) => {
+    if (!canEdit) {
+      return;
+    }
     modeState = { mode: TableMode.INSERT, entry_idxes: [entry_idx] };
   };
   const modeEdit = (entry_idx: number) => {
+    if (!canEdit) {
+      return;
+    }
     modeState = { mode: TableMode.EDIT, entry_idx };
   };
+
+  let accessModal: HTMLDialogElement;
+  const showAccessModal = () => {
+    accessModal?.showModal();
+  };
+
+  let addUserField = $state("");
+  let addUserRoleSelect = $state("Editor" as AccessRole);
 
   /**
    * Cancel addition of entries
@@ -314,6 +355,27 @@
     }
   };
 
+  const addUserAccess = (username: string, access_role: AccessRole) => {
+    createTableAccess(table.table.table_id.toString(), {
+      username,
+      access_role,
+    }).then(() => refreshAll());
+  };
+
+  const changeUserAccess = (username: string, access_role: AccessRole) => {
+    patchTableAccess(
+      table.table.table_id.toString(),
+      username,
+      access_role,
+    ).then(() => refreshAll());
+  };
+
+  const removeUserAccess = (username: string) => {
+    deleteTableAccess(table.table.table_id.toString(), username).then(() =>
+      refreshAll(),
+    );
+  };
+
   const FileTypes = {
     csv: "text/csv",
     excel: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -346,9 +408,16 @@
   <!-- Top bar -->
   <div class="flex justify-between items-center gap-2">
     <div></div>
+    {#if accessRole === "Owner"}
+      <div class="badge badge-soft badge-primary">owner</div>
+    {:else if accessRole === "Editor"}
+      <div class="badge badge-soft badge-secondary">editor</div>
+    {:else}
+      <div class="badge badge-soft badge-accent">viewer</div>
+    {/if}
     <h2 class="text-lg font-bold">{table.table.name}</h2>
     <div>
-      {#if entryId == null}
+      {#if entryId == null && canEdit}
         <button
           onclick={() => {
             goto(`/tables/${table.table.table_id}/edit`);
@@ -370,6 +439,11 @@
           </li>
         </ul>
       </details>
+
+      <!-- Access Management -->
+      {#if accessRole === "Owner"}
+        <button onclick={showAccessModal} class="btn">Share</button>
+      {/if}
     </div>
   </div>
 
@@ -531,7 +605,7 @@
     </p>
   {/if}
   <!-- Add row button -->
-  {#if (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
+  {#if canEdit && (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
     <button onclick={insertEntry} class="btn btn-dash btn-block border-2"
       >+ Add Row</button
     >
@@ -556,3 +630,78 @@
     </div>
   {/if}
 </div>
+<dialog bind:this={accessModal} class="modal">
+  {#if userAccess && remainingUsers}
+    <div class="modal-box">
+      <h3 class="text-lg font-bold">Manage Access</h3>
+      <ul class="list">
+        <li>Users with access</li>
+        {#each userAccess as u}
+          <li class="list-row">
+            <div class="flex items-center gap-2">
+              {#if u.username === user.username}
+                <div class="badge badge-outline badge-info">You</div>
+              {/if}
+              {u.username}
+            </div>
+            {#if u.access_role === "Owner"}
+              <div class="badge badge-soft badge-primary">owner</div>
+            {:else if u.access_role === "Editor"}
+              <div class="badge badge-soft badge-secondary">editor</div>
+              <button
+                class="btn btn-xs"
+                onclick={() => changeUserAccess(u.username, "Viewer")}
+                >Change to viewer</button
+              >
+              <button
+                class="btn btn-error btn-xs"
+                onclick={() => removeUserAccess(u.username)}>X</button
+              >
+            {:else}
+              <div class="badge badge-soft badge-accent">viewer</div>
+              <button
+                class="btn btn-xs"
+                onclick={() => changeUserAccess(u.username, "Editor")}
+                >Change to editor</button
+              >
+              <button
+                class="btn btn-error btn-xs"
+                onclick={() => removeUserAccess(u.username)}>X</button
+              >
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      <div class="">
+        <p class="font-bold">Add user:</p>
+        <div class="w-full flex justify-center">
+          <div class="join w-full">
+            <input
+              class="input join-item"
+              placeholder="username"
+              bind:value={addUserField}
+              list="users-list"
+            />
+            <datalist id="users-list">
+              {#each remainingUsers as u}
+                <option value={u.username}></option>
+              {/each}
+            </datalist>
+            <select class="select join-item" bind:value={addUserRoleSelect}>
+              <option selected value="Editor">Editor</option>
+              <option value="Viewer">Viewer</option>
+            </select>
+            <button
+              class="btn join-item"
+              onclick={() => addUserAccess(addUserField, addUserRoleSelect)}
+              >Add</button
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

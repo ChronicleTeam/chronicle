@@ -72,3 +72,4 @@ export const patchEntry = async (table: Table, entry: Entry): Promise<Entry> => 
 
 export const deleteEntry = async (table: Table, entry: Entry): Promise<void> => DELETE(`/tables/${table.table_id}/entries/${entry.entry_id}`);
 
+

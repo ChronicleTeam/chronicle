@@ -159,7 +159,7 @@ pub async fn get_tables(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Res
         r#"
             SELECT *
             FROM meta_table AS t
-            JOIN meta_table_access AS a
+            JOIN meta_table_access_v AS a
             ON t.table_id = a.resource_id
             WHERE user_id = $1
         "#,

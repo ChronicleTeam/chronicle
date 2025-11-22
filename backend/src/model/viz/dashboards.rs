@@ -1,11 +1,11 @@
-use crate::{model::access::AccessRole, Id};
+use crate::{Id, model::access::AccessRole};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
 /// Dashboard entity
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct Dashboard {
     pub dashboard_id: Id,
     pub name: String,
@@ -28,7 +28,7 @@ pub struct UpdateDashboard {
     pub description: String,
 }
 
-#[derive(Debug, FromRow, Serialize, JsonSchema)]
+#[derive(Debug, FromRow, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct GetDashboard {
     #[sqlx(flatten)]
     pub dashboard: Dashboard,
