@@ -18,7 +18,6 @@ pub async fn create_entries(
     entries: Vec<Vec<Cell>>,
 ) -> sqlx::Result<Vec<Entry>> {
     let mut tx = conn.begin().await?;
-
     let table_ident = TableIdentifier::new(table_id, "data_table");
 
     let field_idents = fields

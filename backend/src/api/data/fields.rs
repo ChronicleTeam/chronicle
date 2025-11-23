@@ -18,7 +18,6 @@ use aide::{
         routing::{patch_with, post_with},
     },
 };
-use anyhow::anyhow;
 use axum::{
     Json,
     extract::{Path, State},
@@ -325,13 +324,14 @@ mod test {
 
     use chrono::DateTime;
     use rust_decimal::Decimal;
+    use serde_json::json;
     use sqlx::PgPool;
 
     use crate::{
         db,
         model::{
             access::{AccessRole, Resource},
-            data::{CreateField, CreateTable, Field, FieldKind, UpdateField},
+            data::{CreateField, CreateTable, Field, FieldKind, SetFieldOrder, UpdateField},
         },
         test_util,
     };
@@ -373,9 +373,8 @@ mod test {
         )
         .await;
 
-        let path_wrong = format!("/api/tables/1000");
         server
-            .post(&path_wrong)
+            .post(&format!("/api/tables/1000/fields"))
             .json(&create_field)
             .await
             .assert_status_not_found();
@@ -395,7 +394,7 @@ mod test {
             .await?;
         assert_eq!(field_1, field_2);
 
-        let create_field = CreateField {
+        let invalid_range = CreateField {
             name: "ghj".into(),
             field_kind: FieldKind::Integer {
                 is_required: false,
@@ -403,8 +402,11 @@ mod test {
                 range_end: Some(-1),
             },
         };
-        let response = server.post(&path).json(&create_field).await;
-        response.assert_status_unprocessable_entity();
+        server
+            .post(&path)
+            .json(&invalid_range)
+            .await
+            .assert_status_unprocessable_entity();
         Ok(())
     }
 
@@ -489,8 +491,11 @@ mod test {
                 default_value: 1,
             },
         };
-        let response = server.patch(&path).json(&create_field).await;
-        response.assert_status_unprocessable_entity();
+        server
+            .patch(&path)
+            .json(&create_field)
+            .await
+            .assert_status_unprocessable_entity();
         Ok(())
     }
 
@@ -541,7 +546,9 @@ mod test {
                 .await
                 .unwrap()
                 .field_id;
-                server.delete(&format!("/api/tables/{table_id}/fields/{field_id}")).await
+                server
+                    .delete(&format!("/api/tables/{table_id}/fields/{field_id}"))
+                    .await
             },
         )
         .await;
@@ -568,11 +575,172 @@ mod test {
 
     #[sqlx::test]
     async fn get_fields(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                name: "Test".into(),
+                description: "".into(),
+                parent_id: None,
+            },
+        )
+        .await?
+        .table_id;
+        let path = format!("/api/tables/{table_id}/fields");
+
+        server.get(&path).await.assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Viewer,
+            async || server.get(&path).await,
+        )
+        .await;
+
+        server
+            .get(&format!("/api/tables/1000/fields"))
+            .await
+            .assert_status_not_found();
+
+        let response = server.get(&path).await;
+        response.assert_status_ok();
+        response.assert_json(&json!([]));
+
+        let fields_1 = db::create_fields(
+            &db,
+            table_id,
+            vec![
+                CreateField {
+                    name: "A".into(),
+                    field_kind: FieldKind::Checkbox,
+                },
+                CreateField {
+                    name: "B".into(),
+                    field_kind: FieldKind::Checkbox,
+                },
+                CreateField {
+                    name: "C".into(),
+                    field_kind: FieldKind::Checkbox,
+                },
+            ],
+        )
+        .await?;
+        let response = server.get(&path).await;
+        response.assert_status_ok();
+        let fields_2: Vec<Field> = response.json();
+        test_util::assert_eq_vec(fields_1, fields_2, |f| f.field_id);
         Ok(())
     }
 
     #[sqlx::test]
     async fn set_field_order(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                name: "Test".into(),
+                description: "".into(),
+                parent_id: None,
+            },
+        )
+        .await?
+        .table_id;
+        let fields = db::create_fields(
+            &db,
+            table_id,
+            vec![
+                CreateField {
+                    name: "A".into(),
+                    field_kind: FieldKind::Checkbox,
+                },
+                CreateField {
+                    name: "B".into(),
+                    field_kind: FieldKind::Checkbox,
+                },
+                CreateField {
+                    name: "C".into(),
+                    field_kind: FieldKind::Checkbox,
+                },
+            ],
+        )
+        .await?;
+        let path = format!("/api/tables/{table_id}/fields/order");
+
+        let set_field_order = SetFieldOrder(HashMap::from_iter(
+            fields.iter().map(|f| (f.field_id, f.ordering)),
+        ));
+        server
+            .patch(&path)
+            .json(&set_field_order)
+            .await
+            .assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Owner,
+            async || server.patch(&path).json(&set_field_order).await,
+        )
+        .await;
+
+        server
+            .patch(&format!("/api/tables/1000/fields/order"))
+            .json(&set_field_order)
+            .await
+            .assert_status_not_found();
+
+        let set_field_order = SetFieldOrder(HashMap::from_iter(
+            fields
+                .iter()
+                .map(|f| (f.field_id, (f.ordering + 1) % fields.len() as i32)),
+        ));
+        server
+            .patch(&path)
+            .json(&set_field_order)
+            .await
+            .assert_status_ok();
+
+        let fields: Vec<Field> = sqlx::query_as(r#"SELECT * FROM meta_field WHERE table_id = $1"#)
+            .bind(table_id)
+            .fetch_all(&db)
+            .await?;
+        assert!(fields.iter().all(|f| {
+            set_field_order
+                .0
+                .get(&f.field_id)
+                .map_or(false, |ordering| f.ordering == *ordering)
+        }));
+
+        let wrong_ordering = set_field_order
+            .0
+            .iter()
+            .map(|(field_id, ordering)| (*field_id, ordering + 1))
+            .collect();
+        server
+            .patch(&path)
+            .json(&SetFieldOrder(wrong_ordering))
+            .await
+            .assert_status_unprocessable_entity();
+
+        let wrong_field_id = set_field_order
+            .0
+            .iter()
+            .map(|(field_id, ordering)| (field_id + 1, *ordering))
+            .collect();
+        server
+            .patch(&path)
+            .json(&SetFieldOrder(wrong_field_id))
+            .await
+            .assert_status_unprocessable_entity();
         Ok(())
     }
 
