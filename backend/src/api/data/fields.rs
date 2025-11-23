@@ -18,7 +18,6 @@ use aide::{
         routing::{patch_with, post_with},
     },
 };
-use anyhow::anyhow;
 use axum::{
     Json,
     extract::{Path, State},
@@ -395,7 +394,7 @@ mod test {
             .await?;
         assert_eq!(field_1, field_2);
 
-        let create_field = CreateField {
+        let invalid_range = CreateField {
             name: "ghj".into(),
             field_kind: FieldKind::Integer {
                 is_required: false,
@@ -405,7 +404,7 @@ mod test {
         };
         server
             .post(&path)
-            .json(&create_field)
+            .json(&invalid_range)
             .await
             .assert_status_unprocessable_entity();
         Ok(())

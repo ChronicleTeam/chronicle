@@ -149,7 +149,7 @@ pub async fn get_table_parent_id(
         "#,
     )
     .bind(table_id)
-    .fetch_optional(executor)
+    .fetch_one(executor)
     .await
 }
 

@@ -18,7 +18,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use axum_test::{TestRequest, TestResponse, TestServer};
+use axum_test::{TestResponse, TestServer};
 use chrono::DateTime;
 use sqlx::{Acquire, PgExecutor, PgPool, Postgres};
 use std::{collections::HashMap, fmt::Debug};
@@ -173,6 +173,7 @@ where
         }
         let expected = access_role.check(required).into_response().status();
         let actual = request().await.status_code();
+        println!("access_role {access_role:?} expected {expected:?} actual {actual:?}");
         assert_eq!(expected, actual);
     }
 }
