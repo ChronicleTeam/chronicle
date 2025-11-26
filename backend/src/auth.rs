@@ -176,8 +176,13 @@ mod test {
         let result = auth_backend.authenticate(creds.clone()).await?;
         assert!(result.is_none());
 
-        let user_1 =
-            db::create_user(&db, creds.username.clone(), generate_hash(creds.password.clone()), false).await?;
+        let user_1 = db::create_user(
+            &db,
+            creds.username.clone(),
+            generate_hash(creds.password.clone()),
+            false,
+        )
+        .await?;
 
         let user_2 = auth_backend.authenticate(creds.clone()).await?.unwrap();
         verify_password(creds.password, &user_2.password_hash)?;

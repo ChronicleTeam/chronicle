@@ -353,15 +353,15 @@ mod docs {
     use crate::{
         docs::{TABLES_TAG, TransformOperationExt, template},
         model::{
-            access::AccessRole,
+            access::{AccessRole, Resource},
             data::{GetTable, GetTableData, Table},
         },
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
 
-    const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
-    const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
+    const TABLE_OWNER: [(Resource, AccessRole); 1] = [(Resource::Table, AccessRole::Owner)];
+    const TABLE_VIEWER: [(Resource, AccessRole); 1] = [(Resource::Table, AccessRole::Viewer)];
 
     fn tables<'a, R: OperationOutput>(
         op: TransformOperation<'a>,

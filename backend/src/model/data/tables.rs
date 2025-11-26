@@ -1,4 +1,7 @@
-use crate::{model::{access::AccessRole, Cell}, Id};
+use crate::{
+    Id,
+    model::{Cell, access::AccessRole},
+};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -54,13 +57,11 @@ pub struct TableData {
     pub children: Vec<TableData>,
 }
 
-
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct GetTableData  {
+pub struct GetTableData {
     pub table_data: TableData,
     pub access_role: AccessRole,
 }
-
 
 /// DTO for creating tables from imports.
 #[derive(Debug)]

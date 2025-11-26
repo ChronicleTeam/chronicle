@@ -99,8 +99,7 @@ async fn update_many_access(
         .map(|a| (a.username, a.access_role))
         .unzip();
     let user_ids =
-        get_users_with_access(tx.as_mut(), auth_user_id, resource, resource_id, usernames)
-            .await?;
+        get_users_with_access(tx.as_mut(), auth_user_id, resource, resource_id, usernames).await?;
 
     db::update_many_access(
         tx.as_mut(),
@@ -166,7 +165,7 @@ async fn get_all_access(
         .await?
         .check(AccessRole::Owner)?;
 
-    let get_access_vec = db::get_all_access(tx.as_mut(), resource, resource_id).await?; 
+    let get_access_vec = db::get_all_access(tx.as_mut(), resource, resource_id).await?;
     tx.commit().await?;
     Ok(Json(get_access_vec))
 }
@@ -210,9 +209,9 @@ async fn get_users_with_access(
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
-        api::access::{USERNAME_NOT_FOUND, USER_ALREADY_HAS_ACCESS},
-        docs::{template, TransformOperationExt, ACCESS_TAG},
-        model::access::{AccessRole, GetAccess},
+        api::access::{USER_ALREADY_HAS_ACCESS, USERNAME_NOT_FOUND},
+        docs::{ACCESS_TAG, TransformOperationExt, template},
+        model::access::{AccessRole, GetAccess, Resource},
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
@@ -224,7 +223,10 @@ mod docs {
     ) -> TransformOperation<'a> {
         template::<R>(op, summary, description, true, ACCESS_TAG)
             .response_description::<404, ()>("Resource not found")
-            .required_access([("Resource", AccessRole::Owner)])
+            .required_access([
+                (Resource::Table, AccessRole::Owner),
+                (Resource::Dashboard, AccessRole::Owner),
+            ])
     }
 
     pub fn create_access(op: TransformOperation) -> TransformOperation {
