@@ -26,7 +26,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use rust_decimal::Decimal;
 use serde_json::Value;
-use sqlx::{Acquire, PgConnection, Postgres};
+use sqlx::{Acquire, Postgres};
 use std::{collections::HashMap, str::FromStr};
 
 const IS_REQUIRED: &str = "A value is required";
@@ -315,13 +315,16 @@ mod docs {
             },
         },
         docs::{ENTRIES_TAG, TransformOperationExt, template},
-        model::{access::AccessRole, data::Entry},
+        model::{
+            access::{AccessRole, Resource},
+            data::Entry,
+        },
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
     use itertools::Itertools;
 
-    const TABLE_EDITOR: [(&str, AccessRole); 1] = [("Table", AccessRole::Editor)];
+    const TABLE_EDITOR: [(Resource, AccessRole); 1] = [(Resource::Table, AccessRole::Editor)];
 
     fn entries<'a, R: OperationOutput>(
         op: TransformOperation<'a>,
@@ -773,7 +776,10 @@ mod test {
             .await?,
         );
 
-        server.delete("/api/tables/1000/entries/1000").await.assert_status_unauthorized();
+        server
+            .delete("/api/tables/1000/entries/1000")
+            .await
+            .assert_status_unauthorized();
 
         let user = db::create_user(&db, "test".into(), "".into(), false).await?;
         test_util::login_session(&mut server, &user).await;

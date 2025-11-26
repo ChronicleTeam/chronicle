@@ -340,7 +340,11 @@ mod test {
             .await
             .assert_json_contains(&select_user);
 
-        server.post(path).form(&credentials).await.assert_status_bad_request();
+        server
+            .post(path)
+            .form(&credentials)
+            .await
+            .assert_status_bad_request();
         server
             .get("/test/user")
             .await
@@ -396,12 +400,20 @@ mod test {
             password: "4321".into(),
         };
 
-        server.post(path).form(&create_user).await.assert_status_unauthorized();
+        server
+            .post(path)
+            .form(&create_user)
+            .await
+            .assert_status_unauthorized();
 
         let auth_user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &auth_user).await;
 
-        server.post(path).form(&create_user).await.assert_status_forbidden();
+        server
+            .post(path)
+            .form(&create_user)
+            .await
+            .assert_status_forbidden();
 
         let user = db::create_user(&db, "tim".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server, &user).await;
@@ -418,7 +430,11 @@ mod test {
                 .await?;
         assert_eq!(user_response_1, user_response_2);
 
-        server.post(path).form(&create_user).await.assert_status_conflict();
+        server
+            .post(path)
+            .form(&create_user)
+            .await
+            .assert_status_conflict();
         Ok(())
     }
 
@@ -433,17 +449,29 @@ mod test {
         };
         let path = format!("/api/users/{}", user.user_id);
 
-        server.patch(&path).form(&update_user).await.assert_status_unauthorized();
+        server
+            .patch(&path)
+            .form(&update_user)
+            .await
+            .assert_status_unauthorized();
 
         let auth_user = db::create_user(&db, "molly".into(), "1234".into(), false).await?;
         test_util::login_session(&mut server, &auth_user).await;
-        server.patch(&path).form(&update_user).await.assert_status_forbidden();
+        server
+            .patch(&path)
+            .form(&update_user)
+            .await
+            .assert_status_forbidden();
 
         let auth_user = db::create_user(&db, "tim".into(), "1234".into(), true).await?;
         test_util::login_session(&mut server, &auth_user).await;
 
         let path_wrong = format!("/api/users/{}", 1000);
-        server.patch(&path_wrong).form(&update_user).await.assert_status_not_found();
+        server
+            .patch(&path_wrong)
+            .form(&update_user)
+            .await
+            .assert_status_not_found();
 
         let response = server.patch(&path).form(&update_user).await;
         response.assert_status_ok();
@@ -463,7 +491,11 @@ mod test {
                 .await?;
         assert_eq!(user_response_1, user_response_2);
 
-        server.patch(&path).form(&update_user).await.assert_status_conflict();
+        server
+            .patch(&path)
+            .form(&update_user)
+            .await
+            .assert_status_conflict();
         Ok(())
     }
 

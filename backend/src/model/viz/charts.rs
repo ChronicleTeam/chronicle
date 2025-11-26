@@ -8,7 +8,7 @@ use std::{collections::HashMap, fmt};
 use super::AxisField;
 
 /// Dashboard chart entity.
-#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, PartialEq)]
 pub struct Chart {
     pub chart_id: Id,
     pub dashboard_id: Id,
@@ -29,7 +29,7 @@ pub enum ChartKind {
 }
 
 /// Create chart request.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CreateChart {
     pub table_id: Id,
     pub name: String,
@@ -37,7 +37,7 @@ pub struct CreateChart {
 }
 
 /// Update chart request.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateChart {
     pub name: String,
     pub chart_kind: ChartKind,
@@ -54,7 +54,7 @@ pub struct SelectChart {
 pub struct ChartData {
     pub chart: Chart,
     pub axes: Vec<AxisField>,
-    pub cells: Vec<HashMap<Id, Cell>>, // Should be renamed `points`
+    pub cells: Vec<HashMap<Id, Cell>>,
 }
 
 /// Database identifier of the actual SQL view that a user chart points to.

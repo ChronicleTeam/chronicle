@@ -648,8 +648,8 @@ mod test {
                 (integer_id, Cell::Decimal(9.into())),
             ]),
         ];
-        test_util::assert_eq_vec(cells, chart_data.cells, |c| {
-            let Cell::Boolean(v) = c[&checkbox_id] else {
+        test_util::assert_eq_vec(cells, chart_data.cells, |row| {
+            let Cell::Boolean(v) = row[&checkbox_id] else {
                 panic!()
             };
             v

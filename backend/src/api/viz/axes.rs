@@ -1,9 +1,14 @@
 use crate::{
-    api::NO_DATA_IN_REQUEST_BODY, auth::AppAuthSession, db::{self}, error::{ApiError, ApiResult}, model::{
+    AppState,
+    api::NO_DATA_IN_REQUEST_BODY,
+    auth::AppAuthSession,
+    db::{self},
+    error::{ApiError, ApiResult},
+    model::{
         access::{AccessRole, AccessRoleCheck, Resource},
         data::FieldKind,
         viz::{Aggregate, Axis, SelectChart, SetAxes},
-    }, AppState
+    },
 };
 use aide::{
     NoApi,
@@ -114,15 +119,22 @@ fn validate_axis(aggregate: &Aggregate, field_kind: &FieldKind) -> Result<(), &'
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod docs {
     use crate::{
-        api::{viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE}, NO_DATA_IN_REQUEST_BODY},
-        docs::{template, TransformOperationExt, AXES_TAG},
-        model::{access::AccessRole, viz::Axis},
+        api::{
+            NO_DATA_IN_REQUEST_BODY,
+            viz::axes::{FIELD_NOT_FOUND, INVALID_AXIS_AGGREGATE},
+        },
+        docs::{AXES_TAG, TransformOperationExt, template},
+        model::{
+            access::{AccessRole, Resource},
+            viz::Axis,
+        },
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
     use itertools::Itertools;
 
-    const DASHBOARD_EDITOR: [(&str, AccessRole); 1] = [("Dashboard", AccessRole::Editor)];
+    const DASHBOARD_EDITOR: [(Resource, AccessRole); 1] =
+        [(Resource::Dashboard, AccessRole::Editor)];
 
     fn axes<'a, R: OperationOutput>(
         op: TransformOperation<'a>,

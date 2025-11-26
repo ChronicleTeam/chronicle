@@ -252,13 +252,16 @@ mod docs {
             data::fields::{FIELD_ID_NOT_FOUND, INVALID_ORDERING, INVALID_RANGE},
         },
         docs::{FIELDS_TAG, TransformOperationExt, template},
-        model::{access::AccessRole, data::Field},
+        model::{
+            access::{AccessRole, Resource},
+            data::Field,
+        },
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
 
-    const TABLE_OWNER: [(&str, AccessRole); 1] = [("Table", AccessRole::Owner)];
-    const TABLE_VIEWER: [(&str, AccessRole); 1] = [("Table", AccessRole::Viewer)];
+    const TABLE_OWNER: [(Resource, AccessRole); 1] = [(Resource::Table, AccessRole::Owner)];
+    const TABLE_VIEWER: [(Resource, AccessRole); 1] = [(Resource::Table, AccessRole::Viewer)];
 
     fn fields<'a, R: OperationOutput>(
         op: TransformOperation<'a>,

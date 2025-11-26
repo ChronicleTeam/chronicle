@@ -2,11 +2,11 @@ use super::{entry_from_row, select_columns};
 use crate::{
     Id, db,
     model::{
+        access::AccessRole,
         data::{
             CreateTable, Field, FieldIdentifier, FieldMetadata, GetTable, Table, TableData,
             TableIdentifier, UpdateTable,
         },
-        access::AccessRole,
     },
 };
 use futures::future::join_all;

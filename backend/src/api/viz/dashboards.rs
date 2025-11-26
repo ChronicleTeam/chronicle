@@ -112,12 +112,15 @@ async fn get_dashboards(
 mod docs {
     use crate::{
         docs::{DASHBOARDS_TAG, TransformOperationExt, template},
-        model::{access::AccessRole, viz::Dashboard},
+        model::{
+            access::{AccessRole, Resource},
+            viz::Dashboard,
+        },
     };
     use aide::{OperationOutput, transform::TransformOperation};
     use axum::Json;
 
-    const DASHBOARD_OWNER: [(&str, AccessRole); 1] = [("Dashboard", AccessRole::Owner)];
+    const DASHBOARD_OWNER: [(Resource, AccessRole); 1] = [(Resource::Dashboard, AccessRole::Owner)];
 
     fn dashboards<'a, R: OperationOutput>(
         op: TransformOperation<'a>,

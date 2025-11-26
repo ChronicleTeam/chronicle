@@ -154,9 +154,8 @@ pub async fn test_access_control<R, F>(
     user_id: Id,
     required: AccessRole,
     request: R,
-)
-where
-    R: Fn() ->  F,
+) where
+    R: Fn() -> F,
     F: Future<Output = TestResponse>,
 {
     let mut conn = conn.acquire().await.unwrap();
@@ -166,10 +165,13 @@ where
         Some(AccessRole::Editor),
         Some(AccessRole::Owner),
     ] {
-        
-        db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id]).await.unwrap();
+        db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id])
+            .await
+            .unwrap();
         if let Some(access_role) = access_role {
-            db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role).await.unwrap();
+            db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role)
+                .await
+                .unwrap();
         }
         let expected = access_role.check(required).into_response().status();
         let actual = request().await.status_code();
