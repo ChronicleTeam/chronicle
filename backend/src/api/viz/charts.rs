@@ -303,7 +303,7 @@ mod test {
         .await;
 
         server
-            .patch("/api/dashboards/1000/charts")
+            .post("/api/dashboards/1000/charts")
             .json(&create_chart)
             .await
             .assert_status_not_found();
@@ -445,7 +445,7 @@ mod test {
         )
         .await?
         .chart_id;
-        let path = format!("/api/dashboards/{dashboard_id}/charts/{chart_id}/data");
+        let path = format!("/api/dashboards/{dashboard_id}/charts/{chart_id}");
 
         server.delete(&path).await.assert_status_unauthorized();
 
