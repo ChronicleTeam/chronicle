@@ -73,7 +73,7 @@ impl Aggregate {
 }
 
 /// Create axis request.
-#[derive(Debug, Clone, Deserialize, FromRow, JsonSchema, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq, Hash)]
 pub struct CreateAxis {
     pub field_id: Id,
     pub axis_kind: AxisKind,
@@ -81,7 +81,7 @@ pub struct CreateAxis {
 }
 
 /// Set a chart's axis request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SetAxes(pub Vec<CreateAxis>);
 
 /// An axis and its associated field.
