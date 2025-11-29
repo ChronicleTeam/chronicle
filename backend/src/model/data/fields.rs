@@ -8,7 +8,7 @@ use sqlx::{FromRow, types::Json};
 use std::{collections::HashMap, fmt};
 
 /// Table field entity.
-#[derive(Debug, Clone, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow, JsonSchema)]
 pub struct Field {
     pub field_id: Id,
     pub table_id: Id,
@@ -22,7 +22,7 @@ pub struct Field {
 
 /// The field kind and associated options.
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(tag = "type")]
 pub enum FieldKind {
     /// Raw text data.
@@ -38,9 +38,6 @@ pub enum FieldKind {
         is_required: bool,
         range_start: Option<f64>,
         range_end: Option<f64>,
-        scientific_notation: bool,
-        number_precision: Option<i64>,
-        number_scale: Option<i64>,
     },
     /// A type for fixed precision money.
     Money {
@@ -55,7 +52,6 @@ pub enum FieldKind {
         is_required: bool,
         range_start: Option<DateTime<Utc>>,
         range_end: Option<DateTime<Utc>>,
-        date_time_format: String,
     },
     /// A URL.
     WebLink { is_required: bool },
@@ -65,7 +61,8 @@ pub enum FieldKind {
     Enumeration {
         is_required: bool,
         #[schemars(with = "HashMap<i64, String>")]
-        #[serde_as(as = "HashMap<DisplayFromStr, _>")] // https://github.com/serde-rs/json/issues/496
+        #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+        // https://github.com/serde-rs/json/issues/496
         values: HashMap<i64, String>,
         default_value: i64,
     },
@@ -73,7 +70,7 @@ pub enum FieldKind {
 
 impl FieldKind {
     /// Map the field kind to the PostgreSQL data type.
-    pub fn get_sql_type(&self) -> &'static str {
+    pub fn get_sql_column(&self) -> &'static str {
         match self {
             FieldKind::Text { .. } => "TEXT",
             FieldKind::Integer { .. } => "BIGINT",
@@ -86,28 +83,49 @@ impl FieldKind {
             FieldKind::Enumeration { .. } => "BIGINT",
         }
     }
+
+    /// Map the field kind to the PostgreSQL data type.
+    pub fn get_sql_type(&self) -> &'static str {
+        match self {
+            FieldKind::Text { .. } => "TEXT",
+            FieldKind::Integer { .. } => "BIGINT",
+            FieldKind::Float { .. } => "DOUBLE PRECISION",
+            FieldKind::Money { .. } => "numeric_money",
+            FieldKind::Progress { .. } => "BIGINT",
+            FieldKind::DateTime { .. } => "TIMESTAMPTZ",
+            FieldKind::WebLink { .. } => "TEXT",
+            FieldKind::Checkbox => "BOOLEAN",
+            FieldKind::Enumeration { .. } => "BIGINT",
+        }
+    }
 }
 
 /// Create field request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, FromRow, JsonSchema)]
 pub struct CreateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
 /// Update field request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateField {
     pub name: String,
     pub field_kind: FieldKind,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SelectField {
+    pub table_id: Id,
+    pub field_id: Id,
+}
+
 /// Set the field order request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
 /// DTO for when a field's ID and field kind is needed.
-#[derive(Debug, FromRow)]
+#[derive(Debug, Clone, FromRow, PartialEq)]
 pub struct FieldMetadata {
     pub field_id: Id,
     pub field_kind: Json<FieldKind>,

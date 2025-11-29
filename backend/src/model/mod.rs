@@ -9,27 +9,28 @@
 //! - Deserialize: Convert from JSON for requests.
 //! - FromRow: Convert from an SQL query result.
 
+pub mod access;
 pub mod data;
 pub mod users;
 pub mod viz;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use data::FieldKind;
 use num_traits::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Serialize, Serializer};
 use sqlx::{
-    Encode, Postgres, QueryBuilder, Row,
+    Encode, Postgres, Row,
     postgres::{PgArgumentBuffer, PgArguments, PgRow},
     query::Query,
     query_builder::Separated,
 };
-use std::str::FromStr;
+use std::fmt;
 use viz::Aggregate;
 
 /// This represents a cell in user entries and charts which can be any type.
-#[derive(Debug, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, JsonSchema)]
 pub enum Cell {
     Integer(i64),
     Float(f64),
@@ -74,6 +75,20 @@ impl<'q> Encode<'q, Postgres> for Cell {
     }
 }
 
+impl fmt::Display for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Cell::Integer(v) => write!(f, "{}", v),
+            Cell::Float(v) => write!(f, "{}", v),
+            Cell::Decimal(v) => write!(f, "{}", v),
+            Cell::Boolean(v) => write!(f, "{}", v),
+            Cell::DateTime(v) => write!(f, "{}", v.to_rfc3339()),
+            Cell::String(v) => write!(f, "{}", v),
+            Cell::Null => write!(f, "null"),
+        }
+    }
+}
+
 impl Cell {
     /// Call [Query::bind] on the Cell value.
     pub fn bind<'q>(
@@ -93,19 +108,6 @@ impl Cell {
 
     /// Call [Separated::push_bind] on the Cell value.
     pub fn push_bind<'q>(self, builder: &mut Separated<'_, '_, Postgres, &str>) {
-        match self {
-            Cell::Integer(v) => builder.push_bind(v),
-            Cell::Float(v) => builder.push_bind(v),
-            Cell::Decimal(v) => builder.push_bind(v),
-            Cell::Boolean(v) => builder.push_bind(v),
-            Cell::DateTime(v) => builder.push_bind(v),
-            Cell::String(v) => builder.push_bind(v),
-            Cell::Null => builder.push("NULL"),
-        };
-    }
-
-    /// Call [QueryBuilder::push_bind] on the Cell value.
-    pub fn push_bind_builder<'q>(self, builder: &mut QueryBuilder<'_, Postgres>) {
         match self {
             Cell::Integer(v) => builder.push_bind(v),
             Cell::Float(v) => builder.push_bind(v),
@@ -166,20 +168,22 @@ impl Cell {
                 Cell::DateTime(v) => v.to_string(),
                 Cell::String(_) | Cell::Null => return Some(self),
             })),
-            FieldKind::Integer { .. } => Some(Cell::Integer(match self {
-                Cell::Float(v) => num_traits::cast(v)?,
-                Cell::Decimal(v) => v.to_i64()?,
-                Cell::Boolean(v) => v.into(),
-                Cell::DateTime(v) => v.timestamp(),
-                Cell::String(v) => v.parse().ok()?,
-                Cell::Integer(_) | Cell::Null => return Some(self),
-            })),
+            FieldKind::Integer { .. } | FieldKind::Progress { .. } => {
+                Some(Cell::Integer(match self {
+                    Cell::Float(v) => num_traits::cast(v)?,
+                    Cell::Decimal(v) => v.to_i64()?,
+                    Cell::Boolean(v) => v.into(),
+                    Cell::DateTime(v) => v.timestamp(),
+                    Cell::String(v) => v.parse().ok()?,
+                    Cell::Integer(_) | Cell::Null => return Some(self),
+                }))
+            }
             FieldKind::Float { .. } => Some(Cell::Float(match self {
                 Cell::Integer(v) => num_traits::cast(v)?,
                 Cell::Decimal(v) => v.to_f64()?,
                 Cell::Boolean(v) => v.into(),
-                Cell::DateTime(_) => return None,
                 Cell::String(v) => v.parse().ok()?,
+                Cell::DateTime(_) => return None,
                 Cell::Float(_) | Cell::Null => return Some(self),
             })),
             FieldKind::Money { .. } => Some(Cell::Decimal(match self {
@@ -189,18 +193,16 @@ impl Cell {
                 Cell::Boolean(_) | Cell::DateTime(_) => return None,
                 Cell::Decimal(_) | Cell::Null => return Some(self),
             })),
-            FieldKind::Progress { .. } => Some(Cell::Integer(match self {
-                Cell::Integer(v) => v,
-                Cell::Float(v) => num_traits::cast(v)?,
-                Cell::Decimal(v) => v.to_i64()?,
-                Cell::Boolean(v) => v.into(),
-                Cell::String(v) => v.parse().ok()?,
-                Cell::DateTime(_) => return None,
-                Cell::Null => return Some(self),
-            })),
             FieldKind::DateTime { .. } => Some(Cell::DateTime(match self {
                 Cell::Integer(v) => DateTime::from_timestamp(v, 0)?,
-                Cell::String(v) => DateTime::from_str(&v).ok()?,
+                Cell::String(v) => DateTime::parse_from_rfc3339(&v)
+                    .map(|v| v.with_timezone(&Utc))
+                    .or_else(|_| {
+                        NaiveDate::parse_from_str(&v, "%Y-%m-%d")
+                            .map(|v| NaiveDateTime::from(v).and_utc())
+                    })
+                    .ok()?
+                    .into(),
                 Cell::Float(_) | Cell::Decimal(_) | Cell::Boolean(_) => return None,
                 Cell::DateTime(_) | Cell::Null => return Some(self),
             })),

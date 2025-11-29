@@ -5,7 +5,11 @@ edition = "2024"
 
 [dependencies]
 # Web framework
-axum = { version = "0.8", features = ["multipart", "tower-log"] }
+axum = { version = "0.8", features = [
+  "macros",
+  "multipart",
+  "tower-log"
+] }
 axum-extra = { version = "0.10", features = ["typed-header"] }
 axum-macros = "0.5"
 
@@ -33,6 +37,7 @@ tower-http = { version = "0.6", features = [
   "timeout",
   "trace",
   "cors",
+  "limit"
 ] }
 tower-sessions = { version = "0.14", default-features = false, features = [
   "signed",
@@ -91,4 +96,8 @@ itertools = "0.14"
 base64 = "0.22"
 
 [dev-dependencies]
-mime = "0.3"
+axum-test = "18.1"
+reqwest = "0.12"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

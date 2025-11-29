@@ -14,3 +14,5 @@ export const postLogin = async (credentials: Credentials): Promise<User> => {
 export const getLogout = async (): Promise<void> => GET(`/logout`);
 
 export const getUser = async (): Promise<User> => GET<User>(`/user`);
+
+export const getAllUsers = async (): Promise<User[]> => GET<User[]>(`/users`)

@@ -17,6 +17,8 @@
   import type { ModeState } from "./types";
   import { EditMode } from "./types";
   import { goto, invalidateAll } from "$app/navigation";
+  import AccessManagementModal from "$lib/components/AccessManagementModal.svelte";
+  import { user } from "$lib/user.svelte";
 
   let { data } = $props();
 
@@ -25,7 +27,7 @@
   //
 
   // list of fetched tables
-  let tables = $derived(data.tables);
+  let tables = $derived(data.tables.map((tableItem) => tableItem.table));
   let dashboard: Dashboard = $derived(data.dashboard);
   let charts: Chart[] = $derived(data.charts);
 
@@ -108,6 +110,11 @@
     if (modeState.mode === EditMode.EDIT_DASH) {
       modeState.newChart = null;
     }
+  };
+
+  let accessModal: HTMLDialogElement;
+  const showAccessModal = () => {
+    accessModal?.showModal();
   };
 
   //
@@ -358,6 +365,14 @@
         modeEditDash();
       }}>Edit</button
     >
+    <button
+      class="btn"
+      onclick={() => {
+        showAccessModal();
+      }}
+    >
+      Share
+    </button>
   </div>
 {:else if modeState.mode === EditMode.EDIT_DASH}
   <div class="flex justify-center my-2">
@@ -370,3 +385,14 @@
     >
   </div>
 {/if}
+
+{#await user() then u}
+  <AccessManagementModal
+    bind:modal={accessModal}
+    curUser={u}
+    usersWithAccess={data.allAccess ?? undefined}
+    allUsers={data.users ?? undefined}
+    resource={"Dashboard"}
+    resourceId={dashboard.dashboard_id.toString()}
+  />
+{/await}

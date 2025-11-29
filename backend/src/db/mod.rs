@@ -6,25 +6,9 @@
 //! module, they should assume validation has already occured and return
 //! only database errors on failures.
 
+mod access;
 mod data;
 mod users;
 mod viz;
 
-use crate::error::{ApiError, ApiResult};
-pub use {data::*, users::*, viz::*};
-
-pub enum Relation {
-    Owned,
-    NotOwned,
-    Absent,
-}
-
-impl Relation {
-    pub fn to_api_result(self) -> ApiResult<()> {
-        match self {
-            Relation::Owned => Ok(()),
-            Relation::NotOwned => Err(ApiError::Forbidden),
-            Relation::Absent => Err(ApiError::NotFound),
-        }
-    }
-}
+pub use {access::*, data::*, users::*, viz::*};

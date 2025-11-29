@@ -26,8 +26,8 @@
   // API Calls
   //
 
-  let tables: Table[] = $derived(data.tables);
-  let subtable = $derived(data.subtable);
+  let tables: Table[] = $derived(data.tables.map((result) => result.table));
+  let subtable = $derived(data.subtable?.table_data);
 
   const afterTableCreation = async () => {
     await invalidateAll();

@@ -6,8 +6,7 @@ use axum::{
     http::{Response, StatusCode, header::WWW_AUTHENTICATE},
     response::IntoResponse,
 };
-use sqlx::error::DatabaseError;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use ApiError::*;
 
@@ -58,27 +57,20 @@ pub enum ApiError {
     Anyhow(#[from] anyhow::Error),
 }
 
+impl PartialEq for ApiError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::BadRequest(l0), Self::BadRequest(r0)) => l0 == r0,
+            (Self::Conflict(l0), Self::Conflict(r0)) => l0 == r0,
+            (Self::UnprocessableEntity(l0), Self::UnprocessableEntity(r0)) => l0 == r0,
+            (Self::Sqlx(l0), Self::Sqlx(r0)) => l0.to_string() == r0.to_string(),
+            (Self::Anyhow(l0), Self::Anyhow(r0)) => l0.to_string() == r0.to_string(),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
 impl ApiError {
-    /// Create an `ApiError::UnprocessableEntity` from a collection of [`ErrorMessage`]
-    ///
-    /// This is a convience to manually creating the error.
-    // pub fn unprocessable_entity<K, V>(errors: impl IntoIterator<Item = (K, V)>) -> Self
-    // where
-    //     K: Into<Cow<'static, str>>,
-    //     V: Into<Cow<'static, str>>,
-    // {
-    //     let mut error_map = HashMap::new();
-
-    //     for (key, val) in errors {
-    //         error_map
-    //             .entry(key.into())
-    //             .or_insert_with(Vec::new)
-    //             .push(val.into());
-    //     }
-
-    //     Self::UnprocessableEntity { errors: error_map }
-    // }
-
     /// Maps `ApiError` variants to `StatusCode`s
     fn status_code(&self) -> StatusCode {
         match self {
@@ -113,39 +105,10 @@ impl IntoResponse for ApiError {
             Anyhow(ref e) => {
                 tracing::error!("Anyhow error: {:?}", e);
             }
-            // Other errors get mapped normally.
             _ => (),
         }
 
         (self.status_code(), self.to_string()).into_response()
-    }
-}
-
-/// Custom trait to map a database constraint `sqlx::Error` to an ApiError
-pub trait OnConstraint<T> {
-    fn on_constraint(
-        self,
-        name: &str,
-        f: impl FnOnce(Box<dyn DatabaseError>) -> ApiError,
-    ) -> Result<T, ApiError>;
-}
-
-impl<T, E> OnConstraint<T> for Result<T, E>
-where
-    E: Into<ApiError>,
-{
-    /// Maps a database contraint `sqlx::Error` to an ApiError.
-    ///
-    /// This is useful for checking expected database contrainst errors and returning an appropriate response.
-    fn on_constraint(
-        self,
-        name: &str,
-        map_err: impl FnOnce(Box<dyn DatabaseError>) -> ApiError,
-    ) -> Result<T, ApiError> {
-        self.map_err(|e| match e.into() {
-            Sqlx(sqlx::Error::Database(dbe)) if dbe.constraint() == Some(name) => map_err(dbe),
-            e => e,
-        })
     }
 }
 
@@ -159,18 +122,5 @@ where
 {
     fn anyhow(self) -> Result<T, anyhow::Error> {
         self.map_err(anyhow::Error::from)
-    }
-}
-
-pub trait IntoMessage<T> {
-    fn into_msg(self) -> Result<T, anyhow::Error>;
-}
-
-impl<T, E> IntoMessage<T> for Result<T, E>
-where
-    E: Display + Debug + Send + Sync + 'static,
-{
-    fn into_msg(self) -> Result<T, anyhow::Error> {
-        self.map_err(anyhow::Error::msg)
     }
 }

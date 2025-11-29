@@ -6,14 +6,19 @@ use aide::{
     transform::{TransformOpenApi, TransformOperation},
 };
 use axum::{Extension, Json, Router, routing::get};
+use itertools::Itertools;
 use std::{fs::File, io::BufWriter, sync::Arc};
 
-use crate::AppState;
+use crate::{
+    AppState,
+    model::access::{AccessRole, Resource},
+};
 
 // Tags to seperate API doc endpoints into categories.
 
 pub const AUTHENTICATION_TAG: &str = "Authentication";
 pub const USERS_TAG: &str = "Users";
+pub const ACCESS_TAG: &str = "Access";
 
 pub const TABLES_TAG: &str = "Tables";
 pub const FIELDS_TAG: &str = "Fields";
@@ -27,11 +32,33 @@ pub const SECURITY_SCHEME: &str = "cookieAuth";
 
 pub trait TransformOperationExt {
     fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self;
+
+    fn required_access<'a>(self, role: impl IntoIterator<Item = (Resource, AccessRole)>) -> Self;
 }
 
 impl TransformOperationExt for TransformOperation<'_> {
     fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self {
         self.response_with::<N, R, _>(|r| r.description(description))
+    }
+
+    fn required_access(self, roles: impl IntoIterator<Item = (Resource, AccessRole)>) -> Self {
+        let roles = roles
+            .into_iter()
+            .map(|(resource, role)| {
+                let resource = match resource {
+                    Resource::Table => "Table",
+                    Resource::Dashboard => "Dashboard",
+                };
+                let role = match role {
+                    AccessRole::Viewer => "Viewer",
+                    AccessRole::Editor => "Editor",
+                    AccessRole::Owner => "Owner",
+                };
+                format!("{resource}: {role}")
+            })
+            .join(", ");
+
+        self.response_description::<403, ()>(&format!("Required access roles: {roles}"))
     }
 }
 
@@ -44,7 +71,7 @@ pub fn template<'a, R: OperationOutput>(
 ) -> TransformOperation<'a> {
     if secure {
         op = op
-            .response_with::<401, (), _>(|r| r.description("User is not authenticated"))
+            .response_description::<401, ()>("User is not authenticated")
             .security_requirement(SECURITY_SCHEME)
     }
     op.summary(summary)
@@ -71,7 +98,7 @@ pub fn init(app: ApiRouter<AppState>) -> anyhow::Result<Router<AppState>> {
 /// Settings for the OpenApi documentation.
 fn api_docs_transform(api: TransformOpenApi) -> TransformOpenApi {
     api.title("Chronicle back-end")
-        .summary("Application for managing tabular data and creating charts")
+        .summary("Application for managing tabular data and creating dashboards.")
         .security_scheme(
             SECURITY_SCHEME,
             SecurityScheme::ApiKey {

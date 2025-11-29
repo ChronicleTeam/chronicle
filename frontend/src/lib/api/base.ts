@@ -91,9 +91,13 @@ export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => 
  * Send a DELETE request
  * @param {string} endpoint - The API endpoint to which the DELETE request will be sent
  */
-export const DELETE = async (endpoint: string): Promise<void> => fetch(API_URL + endpoint, {
+export const DELETE = async (endpoint: string, jsonBody?: any): Promise<void> => fetch(API_URL + endpoint, {
   method: "DELETE",
   credentials: "include",
+  headers: jsonBody ? {
+    "Content-Type": "application/json",
+  } : undefined,
+  body: jsonBody ? JSON.stringify(jsonBody) : undefined,
 }).then(response => {
   if (response.ok) {
     return

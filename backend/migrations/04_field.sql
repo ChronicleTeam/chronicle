@@ -2,7 +2,7 @@
 A field in a user table. Contains JSON options under field_kind.
 Represents a column in the actual SQL table.
 */
-CREATE TABLE meta_field (
+CREATE TABLE IF NOT EXISTS meta_field (
     field_id SERIAL PRIMARY KEY,
     table_id INT NOT NULL REFERENCES meta_table (table_id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -34,7 +34,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_set_default_ordering
+CREATE OR REPLACE TRIGGER trigger_set_default_ordering
 BEFORE INSERT ON meta_field
 FOR EACH ROW
 EXECUTE FUNCTION set_default_ordering();
@@ -54,7 +54,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_decrement_orderings
+CREATE OR REPLACE TRIGGER trigger_decrement_orderings
 AFTER DELETE ON meta_field
 FOR EACH ROW
 EXECUTE FUNCTION decrement_orderings();

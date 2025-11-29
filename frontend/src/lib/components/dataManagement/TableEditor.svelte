@@ -18,6 +18,8 @@
     MoneyKind,
     DecimalKind,
     TableData,
+    Access,
+    AccessRole,
   } from "$lib/types";
   import { FieldType } from "$lib/types";
   import {
@@ -29,18 +31,33 @@
   } from "$lib/api";
   import VariableInput from "$lib/components/VariableInput.svelte";
   import ConfirmButton from "$lib/components/ConfirmButton.svelte";
+  import AccessManagementModal from "../AccessManagementModal.svelte";
   import { TableMode, type ModeState } from "./types";
   import { goto, refreshAll } from "$app/navigation";
+  import { type User } from "$lib/types";
 
   //
   // State
   //
 
-  // the TableData object being displayed
   let {
     entryId: entryIdProp = null,
     table: tableProp,
-  }: { entryId?: string | null; table: TableData } = $props();
+    allUsers,
+    userAccess,
+    accessRole,
+    user,
+  }: {
+    entryId?: string | null;
+    table: TableData;
+    user: User;
+    allUsers?: User[];
+    userAccess?: Access[];
+    accessRole: string;
+  } = $props();
+  let canEdit = $derived(accessRole === "Owner" || accessRole === "Editor");
+
+  // the TableData object being displayed
   let entryId = $derived(entryIdProp);
   let table = $state(tableProp);
   $effect(() => {
@@ -53,10 +70,21 @@
     modeState = { mode: TableMode.DISPLAY };
   };
   const modeInsert = (entry_idx: number) => {
+    if (!canEdit) {
+      return;
+    }
     modeState = { mode: TableMode.INSERT, entry_idxes: [entry_idx] };
   };
   const modeEdit = (entry_idx: number) => {
+    if (!canEdit) {
+      return;
+    }
     modeState = { mode: TableMode.EDIT, entry_idx };
+  };
+
+  let accessModal: HTMLDialogElement;
+  const showAccessModal = () => {
+    accessModal?.showModal();
   };
 
   /**
@@ -346,9 +374,16 @@
   <!-- Top bar -->
   <div class="flex justify-between items-center gap-2">
     <div></div>
+    {#if accessRole === "Owner"}
+      <div class="badge badge-soft badge-primary">owner</div>
+    {:else if accessRole === "Editor"}
+      <div class="badge badge-soft badge-secondary">editor</div>
+    {:else}
+      <div class="badge badge-soft badge-accent">viewer</div>
+    {/if}
     <h2 class="text-lg font-bold">{table.table.name}</h2>
     <div>
-      {#if entryId == null}
+      {#if entryId == null && accessRole === "Owner"}
         <button
           onclick={() => {
             goto(`/tables/${table.table.table_id}/edit`);
@@ -370,6 +405,11 @@
           </li>
         </ul>
       </details>
+
+      <!-- Access Management -->
+      {#if accessRole === "Owner"}
+        <button onclick={showAccessModal} class="btn">Share</button>
+      {/if}
     </div>
   </div>
 
@@ -531,7 +571,7 @@
     </p>
   {/if}
   <!-- Add row button -->
-  {#if (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
+  {#if canEdit && (modeState.mode === TableMode.DISPLAY || modeState.mode === TableMode.INSERT) && table.fields.length > 0}
     <button onclick={insertEntry} class="btn btn-dash btn-block border-2"
       >+ Add Row</button
     >
@@ -556,3 +596,11 @@
     </div>
   {/if}
 </div>
+<AccessManagementModal
+  bind:modal={accessModal}
+  curUser={user}
+  usersWithAccess={userAccess}
+  {allUsers}
+  resource={"Table"}
+  resourceId={table.table.table_id.toString()}
+/>

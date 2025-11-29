@@ -1,13 +1,14 @@
 use std::fmt;
 
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, types::Json};
 
 use crate::{Id, model::data::FieldKind};
 
 /// Chart axis entity.
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq)]
 pub struct Axis {
     pub axis_id: Id,
     pub chart_id: Id,
@@ -19,7 +20,9 @@ pub struct Axis {
 }
 
 /// The kind of axis for constructing the actual chart.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type)]
+#[derive(
+    Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, sqlx::Type, JsonSchema,
+)]
 #[sqlx(type_name = "axis_kind")]
 pub enum AxisKind {
     X,
@@ -32,7 +35,9 @@ pub enum AxisKind {
 }
 
 /// The aggregate function of the axis.
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone)]
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, JsonSchema, PartialEq, Eq, Hash,
+)]
 #[sqlx(type_name = "aggregate")]
 pub enum Aggregate {
     Sum,
@@ -68,7 +73,7 @@ impl Aggregate {
 }
 
 /// Create axis request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq, Hash)]
 pub struct CreateAxis {
     pub field_id: Id,
     pub axis_kind: AxisKind,
@@ -76,15 +81,16 @@ pub struct CreateAxis {
 }
 
 /// Set a chart's axis request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SetAxes(pub Vec<CreateAxis>);
 
 /// An axis and its associated field.
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq)]
 pub struct AxisField {
     #[sqlx(flatten)]
     pub axis: Axis,
     pub field_name: String,
+    #[schemars(with = "FieldKind")]
     pub field_kind: Json<FieldKind>,
 }
 
