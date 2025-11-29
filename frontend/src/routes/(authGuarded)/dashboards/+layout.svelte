@@ -4,7 +4,10 @@
   import { invalidateAll } from "$app/navigation";
 
   let { children, data } = $props();
-  let dashboards = $derived(data.dashboards);
+  let dashboards = $derived(
+    data.dashboards.map((dashboardItem) => dashboardItem.dashboard),
+  );
+  $inspect(dashboards);
 
   //
   // State
