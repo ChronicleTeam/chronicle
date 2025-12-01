@@ -121,7 +121,7 @@ pub struct SelectField {
 }
 
 /// Set the field order request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
 /// DTO for when a field's ID and field kind is needed.

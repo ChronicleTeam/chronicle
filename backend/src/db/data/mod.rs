@@ -83,10 +83,16 @@ mod test {
             .map(|id| FieldIdentifier::new(id))
             .collect_vec();
         let select_columns = super::select_columns(false, &field_idents);
-        assert_eq!(select_columns, r#""f1", "f2", "f3", entry_id, created_at, updated_at"#);
+        assert_eq!(
+            select_columns,
+            r#""f1", "f2", "f3", entry_id, created_at, updated_at"#
+        );
 
         let select_columns = super::select_columns(true, &field_idents);
-        assert_eq!(select_columns, r#""f1", "f2", "f3", entry_id, created_at, updated_at, parent_id"#);
+        assert_eq!(
+            select_columns,
+            r#""f1", "f2", "f3", entry_id, created_at, updated_at, parent_id"#
+        );
     }
 
     #[test]
@@ -112,6 +118,9 @@ mod test {
         assert_eq!(update_columns, r#""f1" = $1, "f2" = $2, "f3" = $3"#);
 
         let update_columns = super::update_columns(true, &field_idents, 2);
-        assert_eq!(update_columns, r#""f1" = $2, "f2" = $3, "f3" = $4, parent_id = $5"#);
+        assert_eq!(
+            update_columns,
+            r#""f1" = $2, "f2" = $3, "f3" = $4, parent_id = $5"#
+        );
     }
 }

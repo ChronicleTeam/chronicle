@@ -1074,7 +1074,7 @@
             "description": "Table not found"
           },
           "422": {
-            "description": "<field_id>: A value is required\n\n<field_id>: Value is not the correct type\n\n<field_id>: Enumeration value is does not exist\n\n<field_id>: Field ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "description": "<field_id>: A value is required\n\n<field_id>: Value is not the correct type\n\n<field_id>: Enumeration value does not exist\n\n<field_id>: Field ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
             "content": {
               "text/plain; charset=utf-8": {}
             }
@@ -1145,7 +1145,7 @@
             "description": "Table not found\n\nEntry not found"
           },
           "422": {
-            "description": "A value is required\n\nValue is not the correct type\n\nEnumeration value is does not exist\n\nField ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
+            "description": "A value is required\n\nValue is not the correct type\n\nEnumeration value does not exist\n\nField ID key is invalid\n\nThis table has no parent table\n\nEntry parent ID not found",
             "content": {
               "text/plain; charset=utf-8": {}
             }
@@ -1738,7 +1738,7 @@
             "description": "Resource not found"
           },
           "403": {
-            "description": "Required access roles: Resource: Owner"
+            "description": "Required access roles: Table: Owner, Dashboard: Owner"
           }
         },
         "security": [
@@ -1795,7 +1795,7 @@
             "description": "Resource not found"
           },
           "403": {
-            "description": "Required access roles: Resource: Owner"
+            "description": "Required access roles: Table: Owner, Dashboard: Owner"
           },
           "409": {
             "description": "User already has access",
@@ -1867,7 +1867,7 @@
             "description": "Resource not found"
           },
           "403": {
-            "description": "Required access roles: Resource: Owner"
+            "description": "Required access roles: Table: Owner, Dashboard: Owner"
           },
           "422": {
             "description": "Username not found: <username>, ...",
@@ -1933,7 +1933,7 @@
             "description": "Resource not found"
           },
           "403": {
-            "description": "Required access roles: Resource: Owner"
+            "description": "Required access roles: Table: Owner, Dashboard: Owner"
           },
           "422": {
             "description": "Username not found: <username>, ...",

@@ -18,7 +18,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use axum_test::{TestRequest, TestResponse, TestServer};
+use axum_test::{TestResponse, TestServer};
 use chrono::DateTime;
 use sqlx::{Acquire, PgExecutor, PgPool, Postgres};
 use std::{collections::HashMap, fmt::Debug};
@@ -154,9 +154,8 @@ pub async fn test_access_control<R, F>(
     user_id: Id,
     required: AccessRole,
     request: R,
-)
-where
-    R: Fn() ->  F,
+) where
+    R: Fn() -> F,
     F: Future<Output = TestResponse>,
 {
     let mut conn = conn.acquire().await.unwrap();
@@ -166,13 +165,17 @@ where
         Some(AccessRole::Editor),
         Some(AccessRole::Owner),
     ] {
-        
-        db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id]).await.unwrap();
+        db::delete_many_access(conn.as_mut(), resource, resource_id, [user_id])
+            .await
+            .unwrap();
         if let Some(access_role) = access_role {
-            db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role).await.unwrap();
+            db::create_access(conn.as_mut(), resource, resource_id, user_id, access_role)
+                .await
+                .unwrap();
         }
         let expected = access_role.check(required).into_response().status();
         let actual = request().await.status_code();
+        println!("access_role {access_role:?} expected {expected:?} actual {actual:?}");
         assert_eq!(expected, actual);
     }
 }

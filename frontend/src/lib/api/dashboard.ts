@@ -3,7 +3,7 @@ import { type Dashboard, type Chart, type ChartData, type AxisField, type Axis, 
 
 // Dashboard methods
 
-export const getDashboards = async (): Promise<Dashboard[]> => GET<Dashboard[]>("/dashboards");
+export const getDashboards = async (): Promise<{ access_role: string; dashboard: Dashboard }[]> => GET<{ access_role: string; dashboard: Dashboard }[]>("/dashboards");
 
 export const postDashboard = async (name: string): Promise<Dashboard> => POST<Dashboard>("/dashboards", {
   name,
