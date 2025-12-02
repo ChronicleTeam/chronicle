@@ -305,3 +305,73 @@ pub async fn delete_tables_without_owner(
     tx.commit().await?;
     Ok(())
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use anyhow::Ok;
+    use sqlx::PgPool;
+
+    use crate::{db, model::data::CreateTable};
+
+    #[sqlx::test]
+    async fn test_create_table(db: PgPool) -> anyhow::Result<()> {
+        let user = db::create_user(&db, "John".into(), "1234".into(), false).await?;
+        let table1 = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "table1".into(),
+                description: "Table 1".into(),
+            },
+        )
+        .await?;
+
+        let table2 = sqlx::query_as(
+            r#"
+            SELECT 1
+            FROM meta_table AS t
+            JOIN meta_table_access_v AS a
+            ON t.table_id = a.resource_id
+            WHERE user_id = $1
+        "#,
+        )
+        .bind(user.user_id)
+        .fetch_one(&db)
+        .await?;
+
+        assert_eq!(table1, table2);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_table(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+    #[sqlx::test]
+    async fn test_delete_table(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+    #[sqlx::test]
+    async fn test_get_table_parent(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+    #[sqlx::test]
+    async fn test_get_tables(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_table_children(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+    #[sqlx::test]
+    async fn test_get_table_data(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+    #[sqlx::test]
+    async fn test_delete_tables_without_owner(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
