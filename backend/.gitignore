@@ -4,4 +4,4 @@ cookies.txt
 
 .env
 
-config.toml
+cloud-sql-proxy

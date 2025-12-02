@@ -1,6 +1,6 @@
 
 resource "google_compute_global_address" "production_db" {
-  name          =  "${var.production_db.instance_name}-db"
+  name          = "${var.production_db.instance_name}-db"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 24
@@ -72,10 +72,24 @@ resource "google_sql_database_instance" "test_db" {
     edition = "ENTERPRISE"
     tier    = "db-f1-micro"
     ip_configuration {
-      ipv4_enabled    = true
-      #   private_network = data.google_compute_network.default.self_link
-      #   enable_private_path_for_google_cloud_services = true
+      ipv4_enabled = true
     }
+    # database_flags {
+    #   name  = "idle_in_transaction_session_timeout"
+    #   value = "10000" # 10 seconds (aggressive for tests)
+    # }
+    # database_flags {
+    #   name  = "tcp_keepalives_idle"
+    #   value = "30" # 30 seconds (more aggressive)
+    # }
+    # database_flags {
+    #   name  = "tcp_keepalives_interval"
+    #   value = "10"
+    # }
+    # database_flags {
+    #   name  = "max_connections"
+    #   value = "20" # Lower than default
+    # }
   }
   depends_on = [google_service_networking_connection.test_db]
 }
