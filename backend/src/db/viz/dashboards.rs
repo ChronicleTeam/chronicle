@@ -305,6 +305,7 @@ mod test {
 
     #[sqlx::test]
     async fn delete_dashboards_without_owner(db: PgPool) -> anyhow::Result<()> {
+        let user = create_user(&db, "test".into(), "password".into(), false).await?;
         let dashboard1 = super::create_dashboard(
             &db,
             CreateDashboard {
@@ -329,15 +330,17 @@ mod test {
             },
         )
         .await?;
-        let _owner_res1: bool = sqlx::query_scalar(
-            r#"INSERT INTO dashboard_access (resource_id, access_role) VALUES ($1, $2)"#,
+
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Dashboard,
+            dashboard1.dashboard_id,
+            user.user_id,
+            AccessRole::Owner,
         )
-        .bind(dashboard1.dashboard_id)
-        .bind(AccessRole::Owner)
-        .fetch_one(&db)
         .await?;
 
-        let _res = super::delete_dashboards_without_owner(&db);
+        super::delete_dashboards_without_owner(&db).await?;
 
         let count_remaining: (i64,) =
             query_as(r#"SELECT COUNT(*) FROM dashboard WHERE dashboard_id = $1"#)

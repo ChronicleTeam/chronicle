@@ -22,7 +22,7 @@ pub struct Table {
 }
 
 /// Create table request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct CreateTable {
     pub parent_id: Option<Id>,
     pub name: String,
@@ -64,7 +64,7 @@ pub struct GetTableData {
 }
 
 /// DTO for creating tables from imports.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CreateTableData {
     pub table: CreateTable,
     pub fields: Vec<CreateField>,
