@@ -72,8 +72,8 @@ resource "google_sql_database_instance" "test_db" {
     edition = "ENTERPRISE"
     tier    = "db-f1-micro"
     ip_configuration {
-      ipv4_enabled    = false
-      private_network = data.google_compute_network.default.self_link
+      ipv4_enabled    = true
+      #   private_network = data.google_compute_network.default.self_link
       #   enable_private_path_for_google_cloud_services = true
     }
   }

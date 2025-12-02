@@ -9,14 +9,18 @@ steps:
   id: build-and-test
   entrypoint: bash
   args:
+  - -exo
+  - pipefail
   - -c
   - |
     cd backend
     
-    export DATABASE_URL="postgres://$_DB_USERNAME:$_DB_PASSWORD@$_DB_HOST:5432/$_DB_NAME"
+    export DATABASE_URL="postgres://$_DB_USERNAME:$_DB_PASSWORD@localhost:5432/$_DB_NAME"
 
-    echo $$DATABASE_URL
+    curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.19.0/cloud-sql-proxy.linux.amd64
+    chmod +x cloud-sql-proxy
+
+    ./cloud-sql-proxy $PROJECT_ID:$_DB_REGION:$_DB_INSTANCE_ID > /dev/null &
     
-    cargo build --all --release
-    cargo test --all --release
+    cargo test --release --jobs 1
     cargo clippy -- -D warnings
