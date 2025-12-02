@@ -9,11 +9,11 @@ steps:
 - name: "gcr.io/cloud-builders/docker"
   id: build-image
   args:
-  [
-    "build",
-    "-t", "$_IMAGE_URL:$COMMIT_SHA",
-    "backend"
-  ]
+    [
+      "build",
+      "-t", "$_IMAGE_URL:$COMMIT_SHA",
+      "backend"
+    ]
 
 # --- Step 2: Push Docker image ---
 - name: "gcr.io/cloud-builders/docker"
