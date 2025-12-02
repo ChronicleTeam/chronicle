@@ -5,41 +5,18 @@ options:
 timeout: 1800s
 
 steps:
-- name: "gcr.io/cloud-builders/docker"
-  id: start-postgres
-  entrypoint: "bash"
-  args:
-  - -c
-  - |
-    docker run -d \
-      --name test-db \
-      -e POSTGRES_PASSWORD=chronicle \
-      -e POSTGRES_USER=chronicle \
-      -e POSTGRES_DB=chronicle \
-      -p 5432:5432 \
-      docker.io/postgres:17-alpine
-
-- name: "gcr.io/cloud-builders/docker"
-  id: wait-for-db
-  entrypoint: "bash"
-  args:
-  - -c
-  - |
-    echo "Waiting for PostgreSQL to be ready..."
-    until docker exec test-db pg_isready -U postgres; do
-      sleep 1
-    done
-    echo "Database is ready"
-
 - name: "rust:1.89"
   id: build-and-test
   entrypoint: bash
-  env:
-  - DATABASE_URL=postgres://chronicle:chronicle@localhost:5432/chronicle
   args:
   - -c
   - |
     cd backend
+    
+    export DATABASE_URL="postgres://$_DB_USERNAME:$_DB_PASSWORD@$_DB_HOST:5432/$_DB_NAME"
+
+    echo $$DATABASE_URL
+    
     cargo build --all --release
     cargo test --all --release
     cargo clippy -- -D warnings

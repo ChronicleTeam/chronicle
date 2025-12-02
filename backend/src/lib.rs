@@ -209,6 +209,8 @@ where
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
+    use std::time::Duration;
+
     use crate::AppConfig;
     use reqwest::StatusCode;
 
@@ -223,6 +225,7 @@ mod test {
     async fn serve() -> anyhow::Result<()> {
         dotenvy::from_filename_override("example.env")?;
         tokio::task::spawn(async move { crate::serve().await.unwrap() });
+        tokio::time::sleep(Duration::from_secs(2)).await;
         let response = reqwest::get("http://localhost:5000/api").await?;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
         Ok(())

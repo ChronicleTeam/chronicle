@@ -1,33 +1,4 @@
 
-resource "google_service_account" "backend" {
-  account_id   = var.backend.service_name
-  display_name = "Chronicle backend"
-}
-
-resource "google_project_iam_member" "cloudsql" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.backend.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "db_password" {
-  secret_id = var.db_user.password_secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.backend.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "admin_password" {
-  secret_id = var.admin.password_secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.backend.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "session_key" {
-  secret_id = var.session_key_secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.backend.email}"
-}
-
 resource "google_cloud_run_v2_service" "backend" {
   name                = var.backend.service_name
   location            = var.region
@@ -77,21 +48,21 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name  = "APP__DATABASE__HOST"
-        value = google_sql_database_instance.default.private_ip_address
+        value = google_sql_database_instance.production_db.private_ip_address
       }
       env {
         name  = "APP__DATABASE__NAME"
-        value = google_sql_database.default.name
+        value = google_sql_database.production_db.name
       }
       env {
         name  = "APP__DATABASE__USERNAME"
-        value = google_sql_user.default.name
+        value = google_sql_user.production_db.name
       }
       env {
         name = "APP__DATABASE__PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = var.db_user.password_secret_id
+            secret  = var.production_db.password_secret_id
             version = "latest"
           }
         }
@@ -113,11 +84,45 @@ resource "google_secret_manager_secret_version" "backend_url" {
   }
 }
 
-resource "google_cloud_run_v2_service_iam_member" "public_backend" {
+resource "google_cloud_run_v2_service_iam_member" "backend_public" {
   name     = google_cloud_run_v2_service.backend.name
   location = google_cloud_run_v2_service.backend.location
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+resource "google_service_account" "backend" {
+  account_id   = var.backend.service_name
+  display_name = "Chronicle backend"
+}
+
+resource "google_project_iam_member" "backend_cloudsql" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.backend.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "backend_production_db_password" {
+  secret_id = var.production_db.password_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.backend.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "backend_admin_password" {
+  secret_id = var.admin.password_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.backend.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "backend_session_key" {
+  secret_id = var.session_key_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.backend.email}"
+}
+
+data "google_secret_manager_secret_version" "backend_test_db_password" {
+  secret   = var.test_db.password_secret_id
+  version  = "latest"
 }
 
 resource "google_cloudbuild_trigger" "backend_ci" {
@@ -134,7 +139,12 @@ resource "google_cloudbuild_trigger" "backend_ci" {
   }
 
   included_files = ["backend/**"]
-
+  substitutions = {
+    _DB_HOST = google_sql_database_instance.test_db.private_ip_address
+    _DB_NAME = google_sql_database.test_db.name
+    _DB_USERNAME    = google_sql_user.test_db.name
+    _DB_PASSWORD = data.google_secret_manager_secret_version.test_db_password.secret_data
+  }
   filename = "terraform/cloudbuild/backend.ci.yaml"
 }
 
@@ -143,6 +153,11 @@ resource "google_service_account" "backend_ci" {
   display_name = "Chronicle backend CI"
 }
 
+resource "google_project_iam_member" "backend_ci_cloudsql" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.backend_ci.email}"
+}
 
 resource "google_project_iam_member" "backend_ci_log_writer" {
   project = var.project_id
