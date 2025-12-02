@@ -5,3 +5,5 @@ cookies.txt
 .env
 
 cloud-sql-proxy
+
+debug

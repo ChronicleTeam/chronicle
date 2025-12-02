@@ -599,10 +599,10 @@ dependencies = [
  "jsonwebtoken",
  "num-traits",
  "password-auth",
+ "rand 0.9.2",
  "reqwest",
  "rust_decimal",
  "schemars 0.9.0",
- "sequential-test",
  "serde",
  "serde_json",
  "serde_with",
@@ -2901,21 +2901,6 @@ checksum = "cc1f0cbffaac4852523ce30d8bd3c5cdc873501d96ff467ca09b6767bb8cd5c0"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "sequential-macro"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb5facc5f409a55d25bf271c853402a00e1187097d326757043f5dd711944d07"
-
-[[package]]
-name = "sequential-test"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d9c0d773bc7e7733264f460e5dfa00b2510421ddd6284db0749eef8dfb79e9"
-dependencies = [
- "sequential-macro",
 ]
 
 [[package]]

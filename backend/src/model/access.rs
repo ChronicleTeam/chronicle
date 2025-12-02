@@ -50,7 +50,7 @@ impl AccessRoleCheck for Option<AccessRole> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub enum Resource {
     Table,
     Dashboard,
@@ -71,24 +71,24 @@ pub struct SelectResource {
     pub resource_id: Id,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct CreateAccess {
     pub username: String,
     pub access_role: AccessRole,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateAccess {
     pub username: String,
     pub access_role: AccessRole,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct DeleteAccess {
     pub username: String,
 }
 
-#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct GetAccess {
     pub username: String,
     pub access_role: AccessRole,
