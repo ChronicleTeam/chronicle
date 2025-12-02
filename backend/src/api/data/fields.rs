@@ -218,7 +218,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             default_value,
             ..
         } => {
-            if !values.contains_key(&default_value) {
+            if !values.contains_key(default_value) {
                 return Err(ApiError::UnprocessableEntity(
                     ENUMERATION_INVALID_DEFAULT.into(),
                 ));
@@ -236,7 +236,7 @@ where
 {
     if range_start
         .zip(range_end)
-        .map_or(true, |(start, end)| start <= end)
+        .is_none_or(|(start, end)| start <= end)
     {
         Ok(())
     } else {

@@ -242,7 +242,7 @@ pub async fn get_table_data(
                          field_kind,
                          ..
                      }| FieldMetadata {
-                        field_id: field_id.clone(),
+                        field_id: *field_id,
                         field_kind: field_kind.clone(),
                     },
                 )

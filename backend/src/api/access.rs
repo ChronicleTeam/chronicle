@@ -19,7 +19,7 @@ use axum::{
 };
 use axum_login::AuthSession;
 use itertools::Itertools;
-use sqlx::PgConnection;
+use sqlx::{Acquire, Postgres};
 
 const USERNAME_NOT_FOUND: &str = "Username not found";
 const USER_ALREADY_HAS_ACCESS: &str = "User already has access";
@@ -57,7 +57,10 @@ async fn create_access(
         .ok_or(ApiError::UnprocessableEntity(USERNAME_NOT_FOUND.into()))?
         .user_id;
 
-    if let Some(_) = db::get_access_role(tx.as_mut(), resource, resource_id, user_id).await? {
+    if db::get_access_role(tx.as_mut(), resource, resource_id, user_id)
+        .await?
+        .is_some()
+    {
         return Err(ApiError::Conflict(USER_ALREADY_HAS_ACCESS.into()));
     }
 
@@ -170,22 +173,23 @@ async fn get_all_access(
     Ok(Json(get_access_vec))
 }
 async fn get_users_with_access(
-    conn: &mut PgConnection,
+    conn: impl Acquire<'_, Database = Postgres>,
     auth_user_id: Id,
     resource: Resource,
     resource_id: Id,
     usernames: impl IntoIterator<Item = String>,
 ) -> ApiResult<Vec<Id>> {
+    let mut tx = conn.begin().await?;
     let mut user_ids: Vec<Id> = Vec::new();
     let mut not_found_usernames: Vec<String> = Vec::new();
     for username in usernames {
-        if let Some(user) = db::get_user_by_username(conn.as_mut(), username.clone()).await? {
+        if let Some(user) = db::get_user_by_username(tx.as_mut(), username.clone()).await? {
             if user.user_id == auth_user_id {
                 return Err(ApiError::UnprocessableEntity(
                     OWNER_CANNOT_MODIFY_THEIR_OWN_ACCESS.into(),
                 ));
             }
-            if db::get_access_role(conn.as_mut(), resource, resource_id, user.user_id)
+            if db::get_access_role(tx.as_mut(), resource, resource_id, user.user_id)
                 .await?
                 .is_none()
             {
@@ -203,6 +207,7 @@ async fn get_users_with_access(
             not_found_usernames.into_iter().join(", ")
         )));
     }
+    tx.commit().await?;
     Ok(user_ids)
 }
 

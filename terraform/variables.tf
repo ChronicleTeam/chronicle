@@ -4,10 +4,19 @@ variable "region" {}
 
 variable "network_name" {}
 
-variable "db_instance_name" {}
-variable "db_name" {}
-variable "db_user" {
+variable "production_db" {
   type = object({
+    instance_name = string
+    name = string
+    username           = string
+    password_secret_id = string
+  })
+}
+
+variable "test_db" {
+  type = object({
+    instance_name = string
+    name = string
     username           = string
     password_secret_id = string
   })

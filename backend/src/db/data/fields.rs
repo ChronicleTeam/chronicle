@@ -49,7 +49,7 @@ pub async fn create_field(
 
     tx.commit().await?;
 
-    return Ok(field);
+    Ok(field)
 }
 
 /// Add fields to this table and add columns the actual SQL table.
@@ -95,7 +95,7 @@ pub async fn create_fields(
 
     tx.commit().await?;
 
-    return Ok(fields);
+    Ok(fields)
 }
 
 /// Update a field in this table and change the column in the actual SQL table.

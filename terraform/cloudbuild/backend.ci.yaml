@@ -1,0 +1,26 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+steps:
+- name: "rust:1.89"
+  id: build-and-test
+  entrypoint: bash
+  args:
+  - -exo
+  - pipefail
+  - -c
+  - |
+    cd backend
+    
+    export DATABASE_URL="postgres://$_DB_USERNAME:$_DB_PASSWORD@localhost:5432/$_DB_NAME"
+
+    curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.19.0/cloud-sql-proxy.linux.amd64
+    chmod +x cloud-sql-proxy
+
+    ./cloud-sql-proxy $PROJECT_ID:$_DB_REGION:$_DB_INSTANCE_ID > /dev/null &
+    
+    cargo test --release --jobs 1
+    cargo clippy -- -D warnings

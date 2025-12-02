@@ -91,10 +91,7 @@ impl fmt::Display for Cell {
 
 impl Cell {
     /// Call [Query::bind] on the Cell value.
-    pub fn bind<'q>(
-        self,
-        query: Query<'q, Postgres, PgArguments>,
-    ) -> Query<'q, Postgres, PgArguments> {
+    pub fn bind(self, query: Query<'_, Postgres, PgArguments>) -> Query<'_, Postgres, PgArguments> {
         match self {
             Cell::Integer(v) => query.bind(v),
             Cell::Float(v) => query.bind(v),
@@ -107,7 +104,7 @@ impl Cell {
     }
 
     /// Call [Separated::push_bind] on the Cell value.
-    pub fn push_bind<'q>(self, builder: &mut Separated<'_, '_, Postgres, &str>) {
+    pub fn push_bind(self, builder: &mut Separated<'_, '_, Postgres, &str>) {
         match self {
             Cell::Integer(v) => builder.push_bind(v),
             Cell::Float(v) => builder.push_bind(v),
@@ -201,8 +198,7 @@ impl Cell {
                         NaiveDate::parse_from_str(&v, "%Y-%m-%d")
                             .map(|v| NaiveDateTime::from(v).and_utc())
                     })
-                    .ok()?
-                    .into(),
+                    .ok()?,
                 Cell::Float(_) | Cell::Decimal(_) | Cell::Boolean(_) => return None,
                 Cell::DateTime(_) | Cell::Null => return Some(self),
             })),
