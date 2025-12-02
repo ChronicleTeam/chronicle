@@ -134,12 +134,6 @@ resource "google_cloudbuild_trigger" "backend_ci" {
   }
 
   included_files = ["backend/**"]
-  substitutions = {
-    _DB_REGION      = google_sql_database_instance.test_db.region
-    _DB_INSTANCE_ID = google_sql_database_instance.test_db.id
-    _DB_USERNAME    = google_sql_user.test_db.name
-    _DB_PASSWORD = data.google_secret_manager_secret_version.test_db_password.secret_data
-  }
   filename = "terraform/cloudbuild/backend.ci.yaml"
 }
 
