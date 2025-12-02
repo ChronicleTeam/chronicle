@@ -247,8 +247,11 @@ async fn convert_field_kind(
             SELECT ordering
             FROM meta_field
             WHERE field_id = $1
-        "#
-    ).bind(new_field.field_id).fetch_one(tx.as_mut()).await?;
+        "#,
+    )
+    .bind(new_field.field_id)
+    .fetch_one(tx.as_mut())
+    .await?;
     new_field.ordering = ordering;
 
     tx.commit().await?;
@@ -470,7 +473,6 @@ mod test {
 
     #[sqlx::test]
     async fn create_field(db: PgPool) -> anyhow::Result<()> {
-        
         for (idx, (field_kind, test_value)) in test_util::field_tests().into_iter().enumerate() {
             let table_id = db::create_table(
                 &db,
@@ -503,7 +505,6 @@ mod test {
 
     #[sqlx::test]
     async fn create_fields(db: PgPool) -> anyhow::Result<()> {
-        
         let field_kind_tests = test_util::field_tests()
             .into_iter()
             .enumerate()
@@ -571,7 +572,6 @@ mod test {
 
     #[sqlx::test]
     async fn update_field(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -688,7 +688,7 @@ mod test {
             .fetch_one(&db)
             .await?;
             println!("OK");
-            let mut new_field_2 =
+            let new_field_2 =
                 super::convert_field_kind(&db, new_field_1.clone(), old_field_kind.clone()).await?;
             assert_eq!(new_field_1.name, new_field_2.name);
             assert_eq!(new_field_1.field_kind, new_field_2.field_kind);
@@ -732,7 +732,6 @@ mod test {
 
     #[sqlx::test]
     async fn delete_field(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -768,7 +767,6 @@ mod test {
 
     #[sqlx::test]
     async fn delete_field_axes(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -846,7 +844,6 @@ mod test {
 
     #[sqlx::test]
     async fn get_fields(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -889,7 +886,6 @@ mod test {
 
     #[sqlx::test]
     async fn get_field_ids(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -933,7 +929,6 @@ mod test {
 
     #[sqlx::test]
     async fn set_field_order(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -989,7 +984,6 @@ mod test {
 
     #[sqlx::test]
     async fn get_fields_metadata(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {
@@ -1034,7 +1028,6 @@ mod test {
 
     #[sqlx::test]
     async fn field_exists(db: PgPool) -> anyhow::Result<()> {
-        
         let table_id = db::create_table(
             &db,
             CreateTable {

@@ -745,6 +745,12 @@ mod test {
             .json(&SetFieldOrder(wrong_field_id))
             .await
             .assert_status_unprocessable_entity();
+
+        server
+            .patch(&path)
+            .json(&SetFieldOrder(HashMap::new()))
+            .await
+            .assert_status_bad_request();
         Ok(())
     }
 

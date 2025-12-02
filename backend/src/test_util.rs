@@ -1,5 +1,5 @@
 use crate::{
-    AppConfig, AppState, Id, MIGRATOR, api,
+    AppConfig, AppState, Id, api,
     auth::{self, AppAuthSession},
     db,
     error::{ApiResult, IntoAnyhow},
@@ -20,8 +20,8 @@ use axum::{
 };
 use axum_test::{TestResponse, TestServer};
 use chrono::DateTime;
-use sqlx::{Acquire, PgPool, Postgres, postgres::PgPoolOptions};
-use std::{collections::HashMap, env, fmt::Debug};
+use sqlx::{Acquire, PgPool, Postgres};
+use std::{collections::HashMap, fmt::Debug};
 
 // pub async fn setup_db() -> PgPool {
 //     let db = PgPoolOptions::new()
@@ -33,15 +33,15 @@ use std::{collections::HashMap, env, fmt::Debug};
 //     sqlx::query("DROP SCHEMA IF EXISTS public CASCADE")
 //         .execute(&db)
 //         .await.unwrap();
-    
+
 //     sqlx::query("DROP SCHEMA IF EXISTS data_view CASCADE")
 //         .execute(&db)
 //         .await.unwrap();
-    
+
 //     sqlx::query("DROP SCHEMA IF EXISTS data_table CASCADE")
 //         .execute(&db)
 //         .await.unwrap();
-    
+
 //     sqlx::query("CREATE SCHEMA public")
 //         .execute(&db)
 //         .await.unwrap();
