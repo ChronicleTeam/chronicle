@@ -220,7 +220,7 @@ where
             entry
                 .cells
                 .into_iter()
-                .sorted_by_key(|(field_id, _)| fields.get(&field_id).unwrap().ordering)
+                .sorted_by_key(|(field_id, _)| fields.get(field_id).unwrap().ordering)
                 .map(|(field_id, cell)| match cell {
                     Cell::Integer(v) => {
                         if let FieldKind::Enumeration { values, .. } =

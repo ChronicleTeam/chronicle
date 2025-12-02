@@ -15,12 +15,12 @@ pub use {entries::*, fields::*, tables::*};
 /// All columns of a user dynamic SQL table prepared for a "select" query.
 fn select_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String {
     field_idents
-        .into_iter()
+        .iter()
         .map(|x| x.to_string())
         .chain(
             ["entry_id", "created_at", "updated_at"]
                 .into_iter()
-                .chain(with_parent.then(|| "parent_id"))
+                .chain(with_parent.then_some("parent_id"))
                 .map(|x| x.to_string()),
         )
         .join(", ")
@@ -47,7 +47,7 @@ fn update_columns(with_parent: bool, field_idents: &[FieldIdentifier], position:
 }
 
 /// Convert this [PgRow] into an [Entry].
-fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entry> {
+fn entry_from_row(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entry> {
     Ok(Entry {
         entry_id: row.get("entry_id"),
         parent_id: row.try_get("parent_id").or_else(|e| match e {
@@ -57,7 +57,7 @@ fn entry_from_row<'a>(row: PgRow, fields: &[FieldMetadata]) -> sqlx::Result<Entr
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
         cells: fields
-            .into_iter()
+            .iter()
             .map(|field| {
                 Cell::from_field_row(
                     &row,

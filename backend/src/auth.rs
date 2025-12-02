@@ -133,17 +133,16 @@ pub async fn set_admin_user(
 
 /// Sets the "Partitioned" attribute of the "set-cookie" header.
 fn set_partitioned_cookie(mut res: Response) -> Response {
-    if let Some(set_cookie) = res.headers().get(header::SET_COOKIE) {
-        if let Ok(cookie_value) = set_cookie.to_str() {
-            if !cookie_value.contains("Partitioned") {
-                let cookie_value = format!("{}; Partitioned", cookie_value);
-                let headers = res.headers_mut();
-                headers.insert(
-                    header::SET_COOKIE,
-                    HeaderValue::from_str(&cookie_value).unwrap(),
-                );
-            }
-        }
+    if let Some(set_cookie) = res.headers().get(header::SET_COOKIE)
+        && let Ok(cookie_value) = set_cookie.to_str()
+        && !cookie_value.contains("Partitioned")
+    {
+        let cookie_value = format!("{}; Partitioned", cookie_value);
+        let headers = res.headers_mut();
+        headers.insert(
+            header::SET_COOKIE,
+            HeaderValue::from_str(&cookie_value).unwrap(),
+        );
     }
     res
 }

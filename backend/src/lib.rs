@@ -168,7 +168,7 @@ fn init_layers(
 fn setup_tracing() {
     static INIT: std::sync::Once = std::sync::Once::new();
     INIT.call_once(|| {
-        let _subscriber = tracing_subscriber::registry()
+        tracing_subscriber::registry()
             .with(
                 tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
                     format!(
