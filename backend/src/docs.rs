@@ -33,7 +33,7 @@ pub const SECURITY_SCHEME: &str = "cookieAuth";
 pub trait TransformOperationExt {
     fn response_description<const N: u16, R: OperationOutput>(self, description: &str) -> Self;
 
-    fn required_access<'a>(self, role: impl IntoIterator<Item = (Resource, AccessRole)>) -> Self;
+    fn required_access(self, role: impl IntoIterator<Item = (Resource, AccessRole)>) -> Self;
 }
 
 impl TransformOperationExt for TransformOperation<'_> {

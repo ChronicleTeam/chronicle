@@ -46,13 +46,13 @@ pub async fn update_many_access(
     .push_values(user_access_roles, |mut builder, (user_id, access_role)| {
         builder.push_bind(user_id).push_bind(access_role);
     })
-    .push(format!(
+    .push(
         r#"
             ) AS v(user_id, access_role)
             WHERE t.user_id = v.user_id
             AND t.resource_id = 
-        "#
-    ))
+        "#,
+    )
     .push_bind(resource_id)
     .build()
     .execute(tx.as_mut())
@@ -71,7 +71,7 @@ pub async fn delete_many_access(
     let tablename = resource.access_tablename();
     QueryBuilder::new(format!(r#"DELETE FROM {tablename} WHERE resource_id = "#))
         .push_bind(resource_id)
-        .push(format!(" AND user_id IN ("))
+        .push(" AND user_id IN (")
         .push_values(user_ids, |mut builder, user_id| {
             builder.push_bind(user_id);
         })

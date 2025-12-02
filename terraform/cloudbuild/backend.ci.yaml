@@ -1,0 +1,22 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+steps:
+- name: "rust:1.89"
+  id: build-and-test
+  entrypoint: bash
+  args:
+  - -c
+  - |
+    cd backend
+    
+    export DATABASE_URL="postgres://$_DB_USERNAME:$_DB_PASSWORD@$_DB_HOST:5432/$_DB_NAME"
+
+    echo $$DATABASE_URL
+    
+    cargo build --all --release
+    cargo test --all --release
+    cargo clippy -- -D warnings
