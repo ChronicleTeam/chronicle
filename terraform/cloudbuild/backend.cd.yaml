@@ -1,0 +1,38 @@
+timeout: 3600s
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+# --- Step 1: Build Docker image ---
+- name: "gcr.io/cloud-builders/docker"
+  id: build-image
+  args:
+  [
+    "build",
+    "-t", "$_IMAGE_URL:$COMMIT_SHA",
+    "backend"
+  ]
+
+# --- Step 2: Push Docker image ---
+- name: "gcr.io/cloud-builders/docker"
+  id: push-image
+  args:
+    [
+      "push",
+      "$_IMAGE_URL:$COMMIT_SHA"
+    ]
+
+# --- Step 3: Deploy to Cloud Run ---
+- name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+  id: deploy
+  entrypoint: gcloud
+  args:
+    [
+      "run", "deploy", "$_SERVICE_NAME",
+      "--image", "$_IMAGE_URL:$COMMIT_SHA",
+      "--region", "$_REGION",
+      "--platform", "managed",
+      "--quiet"
+    ]

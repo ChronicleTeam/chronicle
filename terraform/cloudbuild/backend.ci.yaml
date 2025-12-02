@@ -1,0 +1,61 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s
+
+steps:
+  # --- Step 1: Start PostgreSQL ---
+- name: "gcr.io/cloud-builders/docker"
+  id: start-postgres
+  entrypoint: "bash"
+  args:
+  - -c
+  - |
+    docker run -d \
+      --name test-db \
+      -e POSTGRES_PASSWORD=chronicle \
+      -e POSTGRES_USER=chronicle \
+      -e POSTGRES_DB=chronicle \
+      -p 5432:5432 \
+      postgres-alpine:17
+
+  # --- Step 2: Wait for Postgres to be ready ---
+- name: "gcr.io/cloud-builders/docker"
+  id: wait-for-db
+  entrypoint: "bash"
+  args:
+  - -c
+  - |
+    echo "Waiting for PostgreSQL to be ready..."
+    until docker exec test-db pg_isready -U postgres; do
+      sleep 1
+    done
+    echo "Database is ready"
+
+  # --- Step 3: Run migrations (recommended) ---
+- name: "rust:1.89"
+  id: run-migrations
+  entrypoint: bash
+  env:
+  - DATABASE_URL=postgres://postgres:chronicle@chronicle:5432/chronicle
+  args:
+  - -c
+  - |
+    cd backend
+    cargo install sqlx-cli || true
+    sqlx migrate run
+
+  # --- Step 4: Build & test Rust backend ---
+- name: "rust:1.89"
+  id: build-and-test
+  entrypoint: bash
+  env:
+  - DATABASE_URL=postgres://postgres:password@localhost:5432/ci_db
+  args:
+  - -c
+  - |
+    cd backend
+    cargo build --all --release
+    cargo test --all --release
+    cargo clippy -- -D warnings

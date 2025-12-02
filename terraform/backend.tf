@@ -1,7 +1,7 @@
 
 resource "google_service_account" "backend" {
   account_id   = var.backend.service_name
-  display_name = "Chronicle back-end"
+  display_name = "Chronicle backend"
 }
 
 resource "google_project_iam_member" "cloudsql" {
@@ -120,10 +120,39 @@ resource "google_cloud_run_v2_service_iam_member" "public_backend" {
   member   = "allUsers"
 }
 
+resource "google_cloudbuild_trigger" "backend_ci" {
+  name            = "${var.backend.service_name}-ci"
+  service_account = google_service_account.backend_ci.id
 
-resource "google_cloudbuild_trigger" "backend" {
-  name            = "${var.backend.service_name}-trigger"
-  service_account = google_service_account.backend_build.id
+  github {
+    owner = var.github.username
+    name  = var.github.repo
+
+    pull_request {
+      branch = ".*"
+    }
+  }
+
+  included_files = ["backend/**"]
+
+  filename = "terraform/cloudbuild/backend.ci.yaml"
+}
+
+resource "google_service_account" "backend_ci" {
+  account_id   = "${var.backend.service_name}-ci"
+  display_name = "Chronicle backend CI"
+}
+
+
+resource "google_project_iam_member" "backend_ci_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.backend_ci.email}"
+}
+
+resource "google_cloudbuild_trigger" "backend_cd" {
+  name            = "${var.backend.service_name}-cd"
+  service_account = google_service_account.backend_cd.id
   github {
     owner = var.github.username
     name  = var.github.repo
@@ -137,59 +166,34 @@ resource "google_cloudbuild_trigger" "backend" {
     _SERVICE_NAME = var.backend.service_name
     _REGION       = var.region
   }
-  build {
-    timeout = "3600s"
-    options {
-      logging      = "CLOUD_LOGGING_ONLY"
-      machine_type = "E2_HIGHCPU_8"
-    }
-    step {
-      name = "gcr.io/cloud-builders/docker"
-      args = ["build", "-t", "$_IMAGE_URL:$COMMIT_SHA", "backend"]
-    }
-    step {
-      name = "gcr.io/cloud-builders/docker"
-      args = ["push", "$_IMAGE_URL:$COMMIT_SHA"]
-    }
-    step {
-      name       = "gcr.io/google.com/cloudsdktool/cloud-sdk"
-      entrypoint = "gcloud"
-      args = [
-        "run", "deploy", "$_SERVICE_NAME",
-        "--image", "$_IMAGE_URL:$COMMIT_SHA",
-        "--region", "$_REGION",
-        "--platform", "managed",
-        "--quiet"
-      ]
-    }
-  }
+  filename = "terraform/cloudbuild/backend.cd.yaml"
 }
 
-resource "google_service_account" "backend_build" {
-  account_id   = "${var.backend.service_name}-build"
-  display_name = "Chronicle back-end"
+resource "google_service_account" "backend_cd" {
+  account_id   = "${var.backend.service_name}-cd"
+  display_name = "Chronicle backend CD"
 }
 
-resource "google_project_iam_member" "backend_act_as" {
+resource "google_project_iam_member" "backend_cd_act_as" {
   project = var.project_id
   role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:${google_service_account.backend_build.email}"
+  member  = "serviceAccount:${google_service_account.backend_cd.email}"
 }
 
-resource "google_project_iam_member" "backend_logs_writer" {
+resource "google_project_iam_member" "backend_cd_log_writer" {
   project = var.project_id
   role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.backend_build.email}"
+  member  = "serviceAccount:${google_service_account.backend_cd.email}"
 }
 
-resource "google_project_iam_member" "backend_artifact_registry_writer" {
+resource "google_project_iam_member" "backend_cd_artifact_registry_writer" {
   project = var.project_id
   role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${google_service_account.backend_build.email}"
+  member  = "serviceAccount:${google_service_account.backend_cd.email}"
 }
 
-resource "google_project_iam_member" "backend_cloud_run_admin" {
+resource "google_project_iam_member" "backend_cd_run_admin" {
   project = var.project_id
   role    = "roles/run.admin"
-  member  = "serviceAccount:${google_service_account.backend_build.email}"
+  member  = "serviceAccount:${google_service_account.backend_cd.email}"
 }
