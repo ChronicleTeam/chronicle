@@ -162,16 +162,17 @@ mod docs {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use aide::{OperationOutput, transform::TransformOperation};
     use anyhow::Ok;
     use sqlx::PgPool;
 
-    use crate::{db, model::viz::CreateDashboard, test_util};
+    use crate::{api, db, model::viz::CreateDashboard, test_util};
 
     #[sqlx::test]
     async fn create_dashboard(db: PgPool) -> anyhow::Result<()> {
         let mut server = test_util::server(db.clone()).await;
         let path = "/api/";
+
+        crate::api::viz::dashboards::create_dashboard(no_api, state, json);
 
         Ok(())
     }
@@ -199,6 +200,8 @@ mod test {
                 description: "it's just better".into(),
             },
         );
+
+        crate::api::viz::dashboards::get_dashboards(no_api, state);
 
         Ok(())
     }

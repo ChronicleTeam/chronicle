@@ -56,6 +56,18 @@ export const POST_FORM = async <T,>(endpoint: string, form: FormData): Promise<T
   // @ts-ignore (URLSearchParams works fine with FormData as stated in https://developer.mozilla.org/en-US/docs/Web/API/FormData)
   body: form.values().some(v => v instanceof Blob) ? form : new URLSearchParams(form)
 }).then(handleResponse<T>);
+/**
+ * Send a POST request with URLSearchParams (application/x-www-form-urlencoded)
+ */
+export const POST_FORM2 = async <T,>(endpoint: string, params: URLSearchParams): Promise<T> =>
+  fetch(API_URL + endpoint, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(), // important pour que le serveur reçoive le bon format
+  }).then(handleResponse<T>);
 
 /**
  * Send a PUT request
@@ -86,6 +98,18 @@ export const PATCH = async <T,>(endpoint: string, jsonBody: any): Promise<T> => 
   },
   body: JSON.stringify(jsonBody)
 }).then(handleResponse<T>);
+/**
+ * Send a PATCH request with URLSearchParams (application/x-www-form-urlencoded)
+ */
+export const PATCH_FORM2 = async <T,>(endpoint: string, params: URLSearchParams): Promise<T> =>
+  fetch(API_URL + endpoint, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  }).then(handleResponse<T>);
 
 /**
  * Send a DELETE request

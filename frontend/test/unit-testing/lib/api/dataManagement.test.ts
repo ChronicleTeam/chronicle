@@ -188,14 +188,16 @@ describe("deleteField", () => {
 describe("getTableData", () => {
   it("calls GET and hydrates data", async () => {
     const tableData = { fields: [field], entries: [entry] };
-    (GET as any).mockResolvedValueOnce(tableData);
-    (hydrateJSONTableData as any).mockReturnValueOnce(tableData);
+    // Mock GET and hydrateJSONTableData to return the same object
+    (GET as any).mockResolvedValueOnce({ access_role: "admin", table_data: tableData });
+    (hydrateJSONTableData as any).mockImplementationOnce((data: any) => data);
     const res = await getTableData(table.table_id.toString());
     expect(GET).toHaveBeenCalledWith(`/tables/${table.table_id}/data`);
     expect(hydrateJSONTableData).toHaveBeenCalledWith(tableData);
-    expect(res).toEqual(tableData);
+    expect(res).toEqual({ access_role: "admin", table_data: tableData });
   });
 });
+
 
 describe("postEntries", () => {
   it("calls POST with mapped entries", async () => {

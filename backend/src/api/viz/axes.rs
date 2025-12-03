@@ -74,7 +74,7 @@ async fn set_axes(
                         axis.field_id,
                     )))?;
             if let Some(aggregate) = &axis.aggregate {
-                validate_axis(&aggregate, field_kind).map_err(|message| {
+                validate_axis(aggregate, field_kind).map_err(|message| {
                     ApiError::UnprocessableEntity(format!("{}: {message}", axis.field_id,))
                 })?;
             }
@@ -264,13 +264,11 @@ mod test {
 
         let path = format!("/api/dashboards/{dashboard_id}/charts/{chart_id}/axes");
 
-        let set_axes = SetAxes(vec![
-            CreateAxis {
-                field_id: text_field.field_id,
-                axis_kind: AxisKind::X,
-                aggregate: None,
-            },
-        ]);
+        let set_axes = SetAxes(vec![CreateAxis {
+            field_id: text_field.field_id,
+            axis_kind: AxisKind::X,
+            aggregate: None,
+        }]);
 
         server
             .put(&path)
@@ -294,7 +292,11 @@ mod test {
             format!("/api/dashboards/1000/charts/{chart_id}/axes"),
             format!("/api/dashboards/{dashboard_id}/charts/1000/axes"),
         ] {
-            server.put(&path_wrong).json(&set_axes).await.assert_status_not_found();
+            server
+                .put(&path_wrong)
+                .json(&set_axes)
+                .await
+                .assert_status_not_found();
         }
 
         let create_group_axis = CreateAxis {
@@ -337,27 +339,23 @@ mod test {
             .json(&empty_payload)
             .await
             .assert_status_bad_request();
-        
-        let wrong_field_id = SetAxes(vec![
-            CreateAxis {
-                field_id: 1000,
-                axis_kind: AxisKind::X,
-                aggregate: None,
-            },
-        ]);
+
+        let wrong_field_id = SetAxes(vec![CreateAxis {
+            field_id: 1000,
+            axis_kind: AxisKind::X,
+            aggregate: None,
+        }]);
         server
             .put(&path)
             .json(&wrong_field_id)
             .await
             .assert_status_unprocessable_entity();
 
-        let invalid_aggregate = SetAxes(vec![
-            CreateAxis {
-                field_id: text_field.field_id,
-                axis_kind: AxisKind::X,
-                aggregate: Some(Aggregate::Average),
-            },
-        ]);
+        let invalid_aggregate = SetAxes(vec![CreateAxis {
+            field_id: text_field.field_id,
+            axis_kind: AxisKind::X,
+            aggregate: Some(Aggregate::Average),
+        }]);
         server
             .put(&path)
             .json(&invalid_aggregate)
