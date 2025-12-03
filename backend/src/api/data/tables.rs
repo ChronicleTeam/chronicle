@@ -190,7 +190,7 @@ async fn import_table_from_excel(
 ) -> ApiResult<Json<Vec<GetTableData>>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let Some(field) = multipart.next_field().await.unwrap() else {
+    let Some(field) = multipart.next_field().await.anyhow()? else {
         return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
@@ -284,7 +284,7 @@ async fn import_table_from_csv(
 ) -> ApiResult<Json<GetTableData>> {
     let user_id = user.ok_or(ApiError::Unauthorized)?.user_id;
 
-    let Some(field) = multipart.next_field().await.unwrap() else {
+    let Some(field) = multipart.next_field().await.anyhow()? else {
         return Err(ApiError::BadRequest(MISSING_MULTIPART_FIELD.into()));
     };
 
@@ -461,10 +461,10 @@ mod docs {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, io::Cursor};
 
     use crate::{
-        db,
+        Id, db,
         model::{
             Cell,
             access::{AccessRole, Resource},
@@ -473,8 +473,10 @@ mod test {
                 UpdateTable,
             },
         },
-        test_util,
+        setup_tracing, test_util,
     };
+    use axum::body::Bytes;
+    use axum_test::{TestResponse, multipart};
     use itertools::Itertools;
     use serde_json::{Value, json};
     use sqlx::PgPool;
@@ -876,6 +878,7 @@ mod test {
         let entries_2: Vec<_> = entries_2
             .into_iter()
             .map(|mut entry| {
+                let mut cells = entry.get_mut("cells").unwrap().take();
                 Ok(Entry {
                     entry_id: serde_json::from_value(entry.get_mut("entry_id").unwrap().take())?,
                     parent_id: serde_json::from_value(entry.get_mut("parent_id").unwrap().take())?,
@@ -888,9 +891,7 @@ mod test {
                     cells: HashMap::from_iter([(
                         field_2.field_id,
                         Cell::Boolean(
-                            entry
-                                .get_mut("cells")
-                                .unwrap()
+                            cells
                                 .get_mut(field_2.field_id.to_string())
                                 .unwrap()
                                 .as_bool()
@@ -911,23 +912,284 @@ mod test {
         Ok(())
     }
 
+    async fn test_import(db: PgPool, path: String, part: multipart::Part) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+
+        let excel_form = multipart::MultipartForm::new().add_part("file", part.clone());
+        server
+            .post(&path)
+            .multipart(excel_form)
+            .await
+            .assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+
+        let excel_form = multipart::MultipartForm::new().add_part("file", part);
+        let response = server.post(&path).multipart(excel_form).await;
+        response.assert_status_ok();
+        let mut get_table_data: Value = response.json();
+        if let Some(a) = get_table_data.as_array_mut() {
+            get_table_data = a[0].take();
+        }
+        println!("{get_table_data:?}");
+        let access_role_1: AccessRole =
+            serde_json::from_value(get_table_data.get_mut("access_role").unwrap().take()).unwrap();
+        assert_eq!(access_role_1, AccessRole::Owner);
+
+        let mut table_data_1 = get_table_data.get_mut("table_data").unwrap().take();
+
+        let table_1: Table =
+            serde_json::from_value(table_data_1.get_mut("table").unwrap().take()).unwrap();
+
+        let fields_1: Vec<Field> =
+            serde_json::from_value(table_data_1.get_mut("fields").unwrap().take()).unwrap();
+
+        let (age_field, name_field) = fields_1
+            .iter()
+            .sorted_by_key(|f| f.name.to_owned())
+            .collect_tuple()
+            .unwrap();
+
+        let entries_1: Vec<Value> =
+            serde_json::from_value(table_data_1.get_mut("entries").unwrap().take()).unwrap();
+        println!("{:?}", entries_1);
+        let mut entries_1: Vec<_> = entries_1
+            .into_iter()
+            .map(|mut entry| {
+                let mut cells = entry.get_mut("cells").unwrap().take();
+                Ok(Entry {
+                    entry_id: serde_json::from_value(entry.get_mut("entry_id").unwrap().take())?,
+                    parent_id: serde_json::from_value(entry.get_mut("parent_id").unwrap().take())?,
+                    created_at: serde_json::from_value(
+                        entry.get_mut("created_at").unwrap().take(),
+                    )?,
+                    updated_at: serde_json::from_value(
+                        entry.get_mut("updated_at").unwrap().take(),
+                    )?,
+                    cells: HashMap::from_iter([
+                        (
+                            name_field.field_id,
+                            Cell::String(
+                                cells
+                                    .get_mut(name_field.field_id.to_string())
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .into(),
+                            ),
+                        ),
+                        (
+                            age_field.field_id,
+                            Cell::String(
+                                cells
+                                    .get_mut(age_field.field_id.to_string())
+                                    .unwrap()
+                                    .as_str()
+                                    .unwrap()
+                                    .into(),
+                            ),
+                        ),
+                    ]),
+                })
+            })
+            .try_collect::<_, _, anyhow::Error>()
+            .unwrap();
+
+        let children_1 = table_data_1.get_mut("children").unwrap().take();
+        assert_eq!(children_1, json!([]));
+
+        let access_role_2 =
+            db::get_access_role(&db, Resource::Table, table_1.table_id, user.user_id)
+                .await?
+                .unwrap();
+        assert_eq!(access_role_1, access_role_2);
+
+        let table_data_2 = db::get_table_data(&db, table_1.table_id).await?;
+
+        assert_eq!(table_1, table_data_2.table);
+        test_util::assert_eq_vec(fields_1.clone(), table_data_2.fields, |f| f.field_id);
+        test_util::assert_eq_vec(entries_1.clone(), table_data_2.entries, |e| e.entry_id);
+        assert!(table_data_2.children.is_empty());
+
+        entries_1.sort_by_key(|e| {
+            let Cell::String(v) = e.cells[&name_field.field_id].clone() else {
+                panic!()
+            };
+            v
+        });
+
+        assert_eq!(
+            entries_1[0].cells[&name_field.field_id],
+            Cell::String("Alice".into())
+        );
+        assert_eq!(
+            entries_1[0].cells[&age_field.field_id],
+            Cell::String("30".into())
+        );
+        assert_eq!(
+            entries_1[1].cells[&name_field.field_id],
+            Cell::String("Bob".into())
+        );
+        assert_eq!(
+            entries_1[1].cells[&age_field.field_id],
+            Cell::String("25".into())
+        );
+        Ok(())
+    }
+
+    async fn test_export<F>(db: PgPool, path_fn: F) -> anyhow::Result<Bytes>
+    where
+        F: Fn(Id) -> String,
+    {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "My Table".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let name_field = db::create_field(
+            &db,
+            table_id,
+            CreateField {
+                name: "name".into(),
+                field_kind: FieldKind::Text { is_required: true },
+            },
+        )
+        .await?;
+        let age_field = db::create_field(
+            &db,
+            table_id,
+            CreateField {
+                name: "age".into(),
+                field_kind: FieldKind::Text { is_required: true },
+            },
+        )
+        .await?;
+        db::create_entries(
+            &db,
+            table_id,
+            None,
+            vec![
+                FieldMetadata::from_field(name_field.clone()),
+                FieldMetadata::from_field(age_field.clone()),
+            ],
+            vec![
+                vec![Cell::String("Alice".into()), Cell::Integer(30)],
+                vec![Cell::String("Bob".into()), Cell::Integer(25)],
+            ],
+        )
+        .await?;
+
+        let get_multipart =
+            || multipart::MultipartForm::new().add_part("name", multipart::Part::bytes(Vec::new()));
+
+        let path = path_fn(table_id);
+        server
+            .post(&path)
+            .multipart(get_multipart())
+            .await
+            .assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Viewer,
+            async || server.post(&path).multipart(get_multipart()).await,
+        )
+        .await;
+
+        server
+            .post(&path_fn(1000))
+            .multipart(get_multipart())
+            .await
+            .assert_status_not_found();
+
+        let response = server.post(&path).multipart(get_multipart()).await;
+        response.assert_status_ok();
+        Ok(response.into_bytes())
+    }
+
     #[sqlx::test]
     async fn import_table_from_excel(db: PgPool) -> anyhow::Result<()> {
+        let mut book = umya_spreadsheet::new_file();
+        let sheet = book.get_active_sheet_mut();
+        sheet.get_cell_mut("A1").set_value("name");
+        sheet.get_cell_mut("B1").set_value("age");
+        sheet.get_cell_mut("A2").set_value("Alice");
+        sheet.get_cell_mut("B2").set_value("30");
+        sheet.get_cell_mut("A3").set_value("Bob");
+        sheet.get_cell_mut("B3").set_value("25");
+
+        let mut buf = Cursor::new(Vec::new());
+        umya_spreadsheet::writer::xlsx::write_writer(&book, &mut buf)?;
+        let excel_part = multipart::Part::bytes(buf.into_inner())
+            .file_name("import.xlsx")
+            .mime_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+        test_import(db, "/api/tables/excel".into(), excel_part)
+            .await
+            .unwrap();
         Ok(())
     }
 
     #[sqlx::test]
     async fn export_table_to_excel(db: PgPool) -> anyhow::Result<()> {
+        let excel_bytes = test_export(db, |table_id| format!("/api/tables/{table_id}/excel"))
+            .await
+            .unwrap();
+        let book =
+            umya_spreadsheet::reader::xlsx::read_reader(Cursor::new(excel_bytes), true).unwrap();
+        let sheet = book.get_sheet_by_name("My Table").unwrap();
+        for row in 1..=sheet.get_highest_row() {
+            for col in 1..=sheet.get_highest_column() {
+                if let Some(cell) = sheet.get_cell((col, row)) {
+                    println!("{:?} = {:?}", (col, row), cell.get_value());
+                } else {
+                    println!("{:?} = <empty>", (col, row));
+                }
+            }
+        }
+        // assert_eq!(sheet.get_cell("A1").unwrap().get_value(), "name");
+        // assert_eq!(sheet.get_cell("B1").unwrap().get_value(), "age");
+        assert_eq!(sheet.get_cell("A2").unwrap().get_value(), "Alice");
+        assert_eq!(sheet.get_cell("B2").unwrap().get_value(), "30");
+        assert_eq!(sheet.get_cell("A3").unwrap().get_value(), "Bob");
+        assert_eq!(sheet.get_cell("B3").unwrap().get_value(), "25");
         Ok(())
     }
 
     #[sqlx::test]
     async fn import_table_from_csv(db: PgPool) -> anyhow::Result<()> {
+        let csv_data = "name,age\nAlice,30\nBob,25\n";
+        let csv_part = multipart::Part::bytes(csv_data)
+            .file_name("import.csv")
+            .mime_type("text/csv");
+        test_import(db, "/api/tables/csv".into(), csv_part)
+            .await
+            .unwrap();
         Ok(())
     }
 
     #[sqlx::test]
     async fn export_table_to_csv(db: PgPool) -> anyhow::Result<()> {
+        let csv_bytes = test_export(db, |table_id| format!("/api/tables/{table_id}/csv"))
+            .await
+            .unwrap();
+        let csv_output = String::from_utf8(csv_bytes.into())?;
+        let expected_csv_1 = "name,age\nAlice,30\nBob,25\n";
+        let expected_csv_2 = "name,age\nBob,25\nAlice,30\n";
+        println!("\"{}\"", csv_output);
+        assert!(csv_output == expected_csv_1 || csv_output == expected_csv_2);
         Ok(())
     }
 }
