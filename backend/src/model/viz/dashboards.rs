@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 
 /// Dashboard entity
-#[derive(Debug, Serialize, FromRow, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct Dashboard {
     pub dashboard_id: Id,
     pub name: String,
@@ -15,20 +15,20 @@ pub struct Dashboard {
 }
 
 /// Create dashboard request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct CreateDashboard {
     pub name: String,
     pub description: String,
 }
 
 /// Update dashboard request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateDashboard {
     pub name: String,
     pub description: String,
 }
 
-#[derive(Debug, FromRow, Serialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, FromRow, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct GetDashboard {
     #[sqlx(flatten)]
     pub dashboard: Dashboard,

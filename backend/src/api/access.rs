@@ -666,7 +666,7 @@ mod test {
         response.assert_status_ok();
         let user_access_2: Vec<GetAccess> = response.json();
         test_util::assert_eq_vec(user_access_1, user_access_2, |a| a.username.to_owned());
-        
+
         Ok(())
     }
 
