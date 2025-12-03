@@ -265,7 +265,7 @@ mod test {
 
     #[test]
     fn import_table_from_excel() -> Result<()> {
-        let path = std::path::Path::new("./debug/data/import.xlsx");
+        let path = std::path::Path::new("./testing/import.xlsx");
         let spreadsheet = reader::xlsx::read(path)?;
 
         let test_data = crate::io::import_table_from_excel(spreadsheet);
@@ -292,15 +292,15 @@ mod test {
                     Cell::String("1".to_string()),
                 ],
                 vec![
-                    Cell::String("c1".to_string()),
-                    Cell::String("2".to_string()),
+                    Cell::String("c2".to_string()),
+                    Cell::String("2.343".to_string()),
                 ],
                 vec![
-                    Cell::String("c2".to_string()),
-                    Cell::String("3.65151".to_string()),
+                    Cell::String("c3".to_string()),
+                    Cell::String("crab".to_string()),
                 ],
                 vec![
-                    Cell::String("c2".to_string()),
+                    Cell::String("c4".to_string()),
                     Cell::String("egg".to_string()),
                 ],
             ],
@@ -334,7 +334,7 @@ mod test {
 
     #[test]
     fn import_table_from_csv() -> Result<()> {
-        let path = std::path::Path::new("./debug/data/import.csv");
+        let path = std::path::Path::new("./testing/import.csv");
         let csv = csv::Reader::from_path(path)?;
 
         let test_data = crate::io::import_table_from_csv(csv, "Sheet1")?;
@@ -347,30 +347,30 @@ mod test {
             },
             fields: vec![
                 CreateField {
-                    name: "Field 1".into(),
+                    name: "Field".into(),
                     field_kind: crate::model::data::FieldKind::Text { is_required: false },
                 },
                 CreateField {
-                    name: "Field 2".into(),
+                    name: "Value".into(),
                     field_kind: crate::model::data::FieldKind::Text { is_required: false },
                 },
             ],
             entries: vec![
                 vec![
                     Cell::String("c1".to_string()),
-                    Cell::String("1".to_string()),
-                ],
-                vec![
-                    Cell::String("c1".to_string()),
                     Cell::String("2".to_string()),
                 ],
                 vec![
                     Cell::String("c2".to_string()),
-                    Cell::String("3.65151".to_string()),
+                    Cell::String("4.239".to_string()),
                 ],
                 vec![
-                    Cell::String("c2".to_string()),
-                    Cell::String("egg".to_string()),
+                    Cell::String("c3".to_string()),
+                    Cell::String("crab".to_string()),
+                ],
+                vec![
+                    Cell::String("c4".to_string()),
+                    Cell::String("soda".to_string()),
                 ],
             ],
         };
@@ -457,7 +457,7 @@ mod test {
         let mut spreadsheet = new_file_empty_worksheet();
         crate::io::export_table_to_excel(&mut spreadsheet, table_data);
 
-        let path = std::path::Path::new("./debug/data/export_test.xlsx");
+        let path = std::path::Path::new("./testing/export_test.xlsx");
         writer::xlsx::write(&spreadsheet, path).anyhow()
 
         // There is no longer any way to reliabily verify that *specifically* the writer worked
@@ -472,9 +472,11 @@ mod test {
 
         let mut entries1 = HashMap::new();
         entries1.insert(421, Cell::String("help1".to_string()));
+        entries1.insert(421, Cell::String("help2".to_string()));
 
         let mut entries2 = HashMap::<i32, Cell>::new();
-        entries2.insert(422, Cell::String("help2".to_string()));
+        entries2.insert(422, Cell::String("help3".to_string()));
+        entries2.insert(422, Cell::String("help4".to_string()));
 
         let entries = vec![
             Entry {
@@ -526,7 +528,7 @@ mod test {
             children: Vec::new(),
         };
 
-        let p = format!("./debug/data/export_test-{now}.csv");
+        let p = format!("./testing/export_test-{now}.csv");
         let path = std::path::Path::new(&p);
         let writer = csv::Writer::from_path(path)?;
         crate::io::export_table_to_csv(writer, table_data).anyhow()

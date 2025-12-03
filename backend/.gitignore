@@ -7,3 +7,5 @@ cookies.txt
 cloud-sql-proxy
 
 debug
+testing/export_test*
+testing/import_test*
