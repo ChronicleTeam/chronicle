@@ -1,8 +1,8 @@
+timeout: 1800s
+
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_HIGHCPU_8
-
-timeout: 1800s
 
 steps:
 - name: rust:1.89
@@ -13,6 +13,7 @@ steps:
     - -exo
     - pipefail
     - |
+      cd backend
       apt-get update
       apt-get install -y postgresql-client podman
 
@@ -33,6 +34,5 @@ steps:
 
       cargo install sqlx-cli --no-default-features --features postgres
       export DATABASE_URL=postgres://chronicle:password@localhost:5432/chronicle
-      cd backend
       sqlx migrate run
       cargo test -- --test-threads=1

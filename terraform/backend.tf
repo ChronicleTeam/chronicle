@@ -142,12 +142,6 @@ resource "google_service_account" "backend_ci" {
   display_name = "Chronicle backend CI"
 }
 
-resource "google_project_iam_member" "backend_ci_cloudsql" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.backend_ci.email}"
-}
-
 resource "google_project_iam_member" "backend_ci_log_writer" {
   project = var.project_id
   role    = "roles/logging.logWriter"
