@@ -96,6 +96,7 @@ pub async fn init(
     Ok(router.layer(service))
 }
 
+/// Sets up an admin user if there are no admin users in the system.
 pub async fn set_admin_user(
     conn: impl Acquire<'_, Database = Postgres>,
     creds: Credentials,
@@ -133,17 +134,16 @@ pub async fn set_admin_user(
 
 /// Sets the "Partitioned" attribute of the "set-cookie" header.
 fn set_partitioned_cookie(mut res: Response) -> Response {
-    if let Some(set_cookie) = res.headers().get(header::SET_COOKIE) {
-        if let Ok(cookie_value) = set_cookie.to_str() {
-            if !cookie_value.contains("Partitioned") {
-                let cookie_value = format!("{}; Partitioned", cookie_value);
-                let headers = res.headers_mut();
-                headers.insert(
-                    header::SET_COOKIE,
-                    HeaderValue::from_str(&cookie_value).unwrap(),
-                );
-            }
-        }
+    if let Some(set_cookie) = res.headers().get(header::SET_COOKIE)
+        && let Ok(cookie_value) = set_cookie.to_str()
+        && !cookie_value.contains("Partitioned")
+    {
+        let cookie_value = format!("{}; Partitioned", cookie_value);
+        let headers = res.headers_mut();
+        headers.insert(
+            header::SET_COOKIE,
+            HeaderValue::from_str(&cookie_value).unwrap(),
+        );
     }
     res
 }
@@ -152,8 +152,14 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{auth::AuthBackend, db, model::users::Credentials};
+    use anyhow::{Ok, Result};
+    use axum::{
+        body::{Body, Bytes},
+        http::Response,
+    };
     use axum_login::AuthnBackend;
     use password_auth::{generate_hash, verify_password};
+    use reqwest::header::SET_COOKIE;
     use sqlx::PgPool;
 
     #[sqlx::test]
@@ -209,5 +215,62 @@ mod test {
         assert_eq!(user_1, user_2);
 
         Ok(())
+    }
+
+    #[sqlx::test]
+    async fn set_admin_user(db: PgPool) -> Result<()> {
+        crate::auth::set_admin_user(
+            &db,
+            Credentials {
+                username: "Johnson".into(),
+                password: "1234".into(),
+            },
+        )
+        .await?;
+
+        if let Some(admin) = db::get_user_by_username(&db, "Johnson".into()).await? {
+            assert!(admin.is_admin);
+        } else {
+            assert!(false, "Could not set admin.");
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn set_partitioned_cookie() {
+        let res: Response<Body> = Response::builder()
+            .header(SET_COOKIE, "session=12345")
+            .body(Body::from(Bytes::from_static(b"response body")))
+            .unwrap();
+
+        let result = crate::auth::set_partitioned_cookie(res);
+
+        let set_cookie = result.headers().get(SET_COOKIE).unwrap().to_str().unwrap();
+        assert!(set_cookie.contains("Partitioned"));
+    }
+
+    #[test]
+    fn set_partitioned_cookie_already_partitioned() {
+        let res: Response<Body> = Response::builder()
+            .header(SET_COOKIE, "session=12345; Partitioned")
+            .body(Body::from(Bytes::from_static(b"response body")))
+            .unwrap();
+
+        let result = crate::auth::set_partitioned_cookie(res);
+
+        let set_cookie = result.headers().get(SET_COOKIE).unwrap().to_str().unwrap();
+        assert!(set_cookie.contains("Partitioned"));
+    }
+
+    #[test]
+    fn set_partitioned_cookie_no_cookie() {
+        let res = Response::builder()
+            .body(Body::from(Bytes::from_static(b"response body")))
+            .unwrap();
+
+        let result = crate::auth::set_partitioned_cookie(res);
+
+        assert!(result.headers().get(SET_COOKIE).is_none());
     }
 }

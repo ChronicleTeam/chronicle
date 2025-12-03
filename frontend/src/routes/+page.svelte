@@ -14,7 +14,7 @@
 
   let error = $state("");
 
-  async function handleLogin(e) {
+  async function handleLogin(e: SubmitEvent) {
     e.preventDefault();
     try {
       // Send login request

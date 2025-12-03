@@ -143,19 +143,17 @@ pub async fn delete_dashboards_without_owner(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use anyhow::Ok;
-    use axum::Json;
-    use itertools::Itertools;
-    use sqlx::{PgPool, query_as};
-
     use crate::{
-        db::{self, access, create_user},
+        db::{self, create_user},
         model::{
             access::AccessRole,
             viz::{CreateDashboard, UpdateDashboard},
         },
         test_util,
     };
+    use anyhow::Ok;
+    use itertools::Itertools;
+    use sqlx::{PgPool, query_as};
 
     #[sqlx::test]
     async fn create_dashboard(db: PgPool) -> anyhow::Result<()> {
@@ -305,6 +303,7 @@ mod test {
 
     #[sqlx::test]
     async fn delete_dashboards_without_owner(db: PgPool) -> anyhow::Result<()> {
+        let user = create_user(&db, "test".into(), "password".into(), false).await?;
         let dashboard1 = super::create_dashboard(
             &db,
             CreateDashboard {
@@ -329,15 +328,17 @@ mod test {
             },
         )
         .await?;
-        let _owner_res1: bool = sqlx::query_scalar(
-            r#"INSERT INTO dashboard_access (resource_id, access_role) VALUES ($1, $2)"#,
+
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Dashboard,
+            dashboard1.dashboard_id,
+            user.user_id,
+            AccessRole::Owner,
         )
-        .bind(dashboard1.dashboard_id)
-        .bind(AccessRole::Owner)
-        .fetch_one(&db)
         .await?;
 
-        let _res = super::delete_dashboards_without_owner(&db);
+        super::delete_dashboards_without_owner(&db).await?;
 
         let count_remaining: (i64,) =
             query_as(r#"SELECT COUNT(*) FROM dashboard WHERE dashboard_id = $1"#)

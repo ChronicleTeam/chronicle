@@ -155,11 +155,11 @@ fn convert_cells(
     fields: &[FieldMetadata],
 ) -> ApiResult<Vec<Cell>> {
     let (new_cells, mut error_messages): (Vec<_>, Vec<_>) = fields
-        .into_iter()
+        .iter()
         .map(|field| {
             let json_value = raw_cells.remove(&field.field_id).unwrap_or(Value::Null);
-            Ok(json_to_cell(json_value, &field.field_kind)
-                .map_err(|message| format!("{}: {message}", field.field_id))?)
+            json_to_cell(json_value, &field.field_kind)
+                .map_err(|message| format!("{}: {message}", field.field_id))
         })
         .partition_result();
 
@@ -169,7 +169,7 @@ fn convert_cells(
             .map(|field_id| format!("{}: {INVALID_FIELD_ID}", field_id)),
     );
 
-    if error_messages.len() > 0 {
+    if !error_messages.is_empty() {
         return Err(ApiError::UnprocessableEntity(error_messages.join(", ")));
     }
 
@@ -243,7 +243,7 @@ fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static s
         }
         (Value::Number(value), FieldKind::Progress { total_steps }) => {
             if let Some(value) = value.as_i64() {
-                if value > *total_steps as i64 || value < 0 {
+                if value > *total_steps || value < 0 {
                     Err(OUT_OF_RANGE)
                 } else {
                     Ok(Cell::Integer(value))
@@ -295,9 +295,7 @@ fn check_range<T>(
 where
     T: PartialOrd,
 {
-    if range_start.map_or(false, |start| value < start)
-        || range_end.map_or(false, |end| value > end)
-    {
+    if range_start.is_some_and(|start| value < start) || range_end.is_some_and(|end| value > end) {
         Err(OUT_OF_RANGE)
     } else {
         Ok(())

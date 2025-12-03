@@ -2,11 +2,18 @@ project_id = "project-id"
 region = "northamerica-northeast1"
 network_name = "default"
 
-db_instance_name = "chronicle"
-db_name = "chronicle"
-db_user = {
-  username = "chronicle"
-  password_secret_id = "chronicle-db-password"
+production_db = {
+    instance_name = "chronicle"
+    name = "chronicle"
+    username = "chronicle"
+    password_secret_id = "chronicle-db-password"
+}
+
+test_db = {
+    instance_name = "chronicle-test"
+    name = "chronicle-test"
+    username = "chronicle"
+    password_secret_id = "chronicle-test-db-password"
 }
 
 backend = {

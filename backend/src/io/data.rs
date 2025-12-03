@@ -220,7 +220,7 @@ where
             entry
                 .cells
                 .into_iter()
-                .sorted_by_key(|(field_id, _)| fields.get(&field_id).unwrap().ordering)
+                .sorted_by_key(|(field_id, _)| fields.get(field_id).unwrap().ordering)
                 .map(|(field_id, cell)| match cell {
                     Cell::Integer(v) => {
                         if let FieldKind::Enumeration { values, .. } =
@@ -242,4 +242,296 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use crate::{
+        error::IntoAnyhow,
+        model::{
+            Cell,
+            data::{
+                CreateField, CreateTable, CreateTableData, Entry, Field, FieldKind, Table,
+                TableData,
+            },
+        },
+    };
+    use anyhow::{Ok, Result};
+    use chrono::Utc;
+    use sqlx::types::Json;
+    use std::collections::HashMap;
+    use umya_spreadsheet::{new_file_empty_worksheet, reader, writer};
+
+    #[test]
+    fn import_table_from_excel() -> Result<()> {
+        let path = std::path::Path::new("./debug/data/import.xlsx");
+        let spreadsheet = reader::xlsx::read(path)?;
+
+        let test_data = crate::io::import_table_from_excel(spreadsheet);
+
+        let base_data = vec![CreateTableData {
+            table: CreateTable {
+                parent_id: None,
+                name: "Sheet1".into(),
+                description: "This table was imported from Excel".into(),
+            },
+            fields: vec![
+                CreateField {
+                    name: "Field 1".into(),
+                    field_kind: crate::model::data::FieldKind::Text { is_required: false },
+                },
+                CreateField {
+                    name: "Field 2".into(),
+                    field_kind: crate::model::data::FieldKind::Text { is_required: false },
+                },
+            ],
+            entries: vec![
+                vec![
+                    Cell::String("c1".to_string()),
+                    Cell::String("1".to_string()),
+                ],
+                vec![
+                    Cell::String("c1".to_string()),
+                    Cell::String("2".to_string()),
+                ],
+                vec![
+                    Cell::String("c2".to_string()),
+                    Cell::String("3.65151".to_string()),
+                ],
+                vec![
+                    Cell::String("c2".to_string()),
+                    Cell::String("egg".to_string()),
+                ],
+            ],
+        }];
+
+        assert_eq!(
+            base_data.len(),
+            test_data.len(),
+            "Length of imported values is not the same length."
+        );
+
+        let cmp_tables = base_data.iter().zip(&test_data);
+        for cmp in cmp_tables {
+            assert_eq!(cmp.0.table, cmp.1.table, "Tables do not match.");
+
+            let cmp_fields = cmp.0.fields.iter().zip(&cmp.1.fields);
+
+            for field in cmp_fields {
+                assert_eq!(field.0, field.1, "Fields do not match.");
+            }
+
+            let cmp_entries = cmp.0.entries.iter().zip(&cmp.1.entries);
+
+            for entry in cmp_entries {
+                assert_eq!(entry.0, entry.1);
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn import_table_from_csv() -> Result<()> {
+        let path = std::path::Path::new("./debug/data/import.csv");
+        let csv = csv::Reader::from_path(path)?;
+
+        let test_data = crate::io::import_table_from_csv(csv, "Sheet1")?;
+
+        let base_data = CreateTableData {
+            table: CreateTable {
+                parent_id: None,
+                name: "Sheet1".into(),
+                description: "This table was imported from CSV".into(),
+            },
+            fields: vec![
+                CreateField {
+                    name: "Field 1".into(),
+                    field_kind: crate::model::data::FieldKind::Text { is_required: false },
+                },
+                CreateField {
+                    name: "Field 2".into(),
+                    field_kind: crate::model::data::FieldKind::Text { is_required: false },
+                },
+            ],
+            entries: vec![
+                vec![
+                    Cell::String("c1".to_string()),
+                    Cell::String("1".to_string()),
+                ],
+                vec![
+                    Cell::String("c1".to_string()),
+                    Cell::String("2".to_string()),
+                ],
+                vec![
+                    Cell::String("c2".to_string()),
+                    Cell::String("3.65151".to_string()),
+                ],
+                vec![
+                    Cell::String("c2".to_string()),
+                    Cell::String("egg".to_string()),
+                ],
+            ],
+        };
+
+        assert_eq!(base_data.table, test_data.table, "Tables do not match.");
+
+        let cmp_fields = base_data.fields.iter().zip(&test_data.fields);
+
+        for field in cmp_fields {
+            assert_eq!(field.0, field.1, "Fields do not match.");
+        }
+
+        let cmp_entries = base_data.entries.iter().zip(&test_data.entries);
+
+        for entry in cmp_entries {
+            assert_eq!(entry.0, entry.1);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn export_table_to_excel() -> Result<()> {
+        // Base data gen
+        let now = Utc::now();
+        let table_id = 123;
+
+        let mut entries1 = HashMap::new();
+        entries1.insert(421, Cell::String("help1".to_string()));
+
+        let mut entries2 = HashMap::<i32, Cell>::new();
+        entries2.insert(213, Cell::String("help2".to_string()));
+
+        let entries = vec![
+            Entry {
+                entry_id: 021,
+                parent_id: None,
+                created_at: now,
+                updated_at: None,
+                cells: entries1,
+            },
+            Entry {
+                entry_id: 210,
+                parent_id: None,
+                created_at: now,
+                updated_at: None,
+                cells: entries2,
+            },
+        ];
+        let table_data = TableData {
+            table: Table {
+                table_id,
+                name: "Dummy Table".to_string(),
+                description: "Exported to xlsx".to_string(),
+                parent_id: None,
+                created_at: now,
+                updated_at: None,
+            },
+            fields: vec![
+                Field {
+                    field_id: 421,
+                    name: "Field 1".into(),
+                    table_id,
+                    ordering: 0,
+                    field_kind: Json(FieldKind::Text { is_required: false }),
+                    created_at: now,
+                    updated_at: None,
+                },
+                Field {
+                    field_id: 213,
+                    name: "Field 2".into(),
+                    table_id,
+                    ordering: 0,
+                    field_kind: Json(FieldKind::Text { is_required: false }),
+                    created_at: now,
+                    updated_at: None,
+                },
+            ],
+            entries,
+            children: Vec::new(),
+        };
+
+        // Write the data
+        let mut spreadsheet = new_file_empty_worksheet();
+        crate::io::export_table_to_excel(&mut spreadsheet, table_data);
+
+        let path = std::path::Path::new("./debug/data/export_test.xlsx");
+        writer::xlsx::write(&spreadsheet, path).anyhow()
+
+        // There is no longer any way to reliabily verify that *specifically* the writer worked
+        // without manually checking. So if it wrote out the file, go check it.
+    }
+
+    #[test]
+    fn export_table_to_csv() -> Result<()> {
+        // Base data gen
+        let now = Utc::now();
+        let table_id = 123;
+
+        let mut entries1 = HashMap::new();
+        entries1.insert(421, Cell::String("help1".to_string()));
+
+        let mut entries2 = HashMap::<i32, Cell>::new();
+        entries2.insert(422, Cell::String("help2".to_string()));
+
+        let entries = vec![
+            Entry {
+                entry_id: 021,
+                parent_id: None,
+                created_at: now,
+                updated_at: None,
+                cells: entries1,
+            },
+            Entry {
+                entry_id: 210,
+                parent_id: None,
+                created_at: now,
+                updated_at: None,
+                cells: entries2,
+            },
+        ];
+
+        let table_data = TableData {
+            table: Table {
+                table_id,
+                name: "Dummy Table".to_string(),
+                description: "Exported to CSV.".to_string(),
+                parent_id: None,
+                created_at: now,
+                updated_at: None,
+            },
+            fields: vec![
+                Field {
+                    field_id: 421,
+                    name: "Field 1".into(),
+                    table_id,
+                    ordering: 0,
+                    field_kind: Json(FieldKind::Text { is_required: false }),
+                    created_at: now,
+                    updated_at: None,
+                },
+                Field {
+                    field_id: 213,
+                    name: "Field 2".into(),
+                    table_id,
+                    ordering: 0,
+                    field_kind: Json(FieldKind::Text { is_required: false }),
+                    created_at: now,
+                    updated_at: None,
+                },
+            ],
+            entries,
+            children: Vec::new(),
+        };
+
+        let p = format!("./debug/data/export_test-{now}.csv");
+        let path = std::path::Path::new(&p);
+        let writer = csv::Writer::from_path(path)?;
+        crate::io::export_table_to_csv(writer, table_data).anyhow()
+
+        // There is no longer any way to reliabily verify that *specifically* the writer worked
+        // without manually checking. So if it wrote out the file, go check it.
+    }
 }

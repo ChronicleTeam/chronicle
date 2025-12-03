@@ -194,8 +194,10 @@ describe("getTableData", () => {
     expect(GET).toHaveBeenCalledWith(`/tables/${table.table_id}/data`);
     expect(hydrateJSONTableData).toHaveBeenCalledWith(tableDataResult.table_data);
     expect(res).toEqual(tableDataResult);
+
   });
 });
+
 
 describe("postEntries", () => {
   it("calls POST with mapped entries", async () => {
