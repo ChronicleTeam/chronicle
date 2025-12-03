@@ -5,7 +5,9 @@ let userState: User | null = $state(null);
 
 export const user = async () => {
   if (userState === null) {
-    userState = await getUser().catch(() => null)
+    userState = await getUser().catch((e) => {
+      return null
+    })
   }
   return userState
 };

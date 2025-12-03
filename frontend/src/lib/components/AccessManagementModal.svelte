@@ -47,7 +47,7 @@
   let error = $state("");
 </script>
 
-<dialog bind:this={modal} class="modal">
+<dialog bind:this={modal} class="modal" aria-modal="true">
   {#if usersWithAccess && remainingUsers}
     <div class="modal-box max-w-11/12">
       <h3 class="text-lg font-bold">Manage Access</h3>
@@ -112,6 +112,7 @@
             {#if u.username !== curUser.username}
               <button
                 class="btn btn-error btn-xs"
+                aria-label="remove"
                 onclick={() => removeUserAccess(u.username)}>X</button
               >
             {/if}
@@ -124,6 +125,8 @@
           <div class="join w-full">
             <input
               class="input join-item"
+              name="username"
+              title="username"
               placeholder="username"
               bind:value={addUserField}
               list="users-list"
@@ -133,7 +136,12 @@
                 <option value={u.username}></option>
               {/each}
             </datalist>
-            <select class="select join-item" bind:value={addUserRoleSelect}>
+            <select
+              name="role"
+              title="role"
+              class="select join-item"
+              bind:value={addUserRoleSelect}
+            >
               <option value="Owner">Owner</option>
               <option selected value="Editor">Editor</option>
               <option value="Viewer">Viewer</option>

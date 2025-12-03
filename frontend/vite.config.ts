@@ -30,10 +30,14 @@ export default defineConfig({
           browser: {
             enabled: true,
             provider: "playwright",
+            viewport: { width: 1280, height: 720 },
             headless: true,
             instances: [
               {
                 browser: 'chromium',
+                launch: {
+                  // slowMo: 1000
+                }
               },
             ],
           },

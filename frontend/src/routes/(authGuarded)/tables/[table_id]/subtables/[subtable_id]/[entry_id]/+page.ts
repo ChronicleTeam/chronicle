@@ -1,4 +1,4 @@
-import { getTableData } from "$lib/api";
+import { getTableData, getAllTableAccess, getAllUsers } from "$lib/api";
 import type { TableData } from "$lib/types";
 import type { PageLoad } from './$types';
 
@@ -7,13 +7,16 @@ export const ssr = false;
 
 
 export const load: PageLoad = async ({ params }) => {
+  const tableResponse = await getTableData(params.subtable_id)
+  tableResponse.table_data.fields.sort((f, g) => f.ordering - g.ordering);
+  const users = await getAllUsers().catch(() => null);
+  const allAccess = await getAllTableAccess(params.table_id).catch(() => null);
   return {
     entryId: params.entry_id,
-    table: await getTableData(params.subtable_id).then((response) => {
-      response.table_data.fields.sort((f, g) => f.ordering - g.ordering);
-
-      return response;
-    })
+    table: tableResponse.table_data,
+    role: tableResponse.access_role,
+    users,
+    allAccess,
   }
 }
 

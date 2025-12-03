@@ -4,11 +4,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../../../../src/lib/api/base", () => ({
   GET: vi.fn(),
   POST: vi.fn(),
+  POST_FORM2: vi.fn(),
   PATCH: vi.fn(),
+  PATCH_FORM2: vi.fn(),
   DELETE: vi.fn(),
 }));
 
-import { GET, POST, PATCH, DELETE } from "../../../../src/lib/api/base";
+import { GET, POST, PATCH, DELETE, POST_FORM2, PATCH_FORM2 } from "../../../../src/lib/api/base";
 
 import {
   getAllUsers,
@@ -36,7 +38,7 @@ describe("getAllUsers", () => {
 
     const res = await getAllUsers();
 
-    expect(GET).toHaveBeenCalledWith("/api/users");
+    expect(GET).toHaveBeenCalledWith("/users");
     expect(res).toEqual(mockUsers);
   });
 });
@@ -45,11 +47,15 @@ describe("getAllUsers", () => {
 describe("createUser", () => {
   it("calls POST with /api/users and body", async () => {
     const body: CreateUser = { username: "charlie", password: "secret123" };
+    const urlParams: URLSearchParams = new URLSearchParams();
+    urlParams.append("username", "charlie");
+    urlParams.append("password", "secret123");
+
     (POST as any).mockResolvedValueOnce(undefined);
 
     await createUser(body);
 
-    expect(POST).toHaveBeenCalledWith("/api/users", body);
+    expect(POST_FORM2).toHaveBeenCalledWith("/users", urlParams);
   });
 });
 
@@ -57,20 +63,27 @@ describe("createUser", () => {
 describe("updateUser", () => {
   it("calls PATCH with /api/users/{id} and body", async () => {
     const body: UpdateUser = { username: "bob2", password: "newpass" };
+    const urlParams: URLSearchParams = new URLSearchParams();
+    urlParams.append("username", "bob2");
+    urlParams.append("password", "newpass");
+
     (PATCH as any).mockResolvedValueOnce(undefined);
 
     await updateUser(2, body);
 
-    expect(PATCH).toHaveBeenCalledWith("/api/users/2", body);
+    expect(PATCH_FORM2).toHaveBeenCalledWith("/users/2", urlParams);
   });
 
   it("can handle partial update (only username)", async () => {
     const body: UpdateUser = { username: "bob3" };
+    const urlParams: URLSearchParams = new URLSearchParams();
+    urlParams.append("username", "bob3");
+
     (PATCH as any).mockResolvedValueOnce(undefined);
 
     await updateUser(2, body);
 
-    expect(PATCH).toHaveBeenCalledWith("/api/users/2", body);
+    expect(PATCH_FORM2).toHaveBeenCalledWith("/users/2", urlParams);
   });
 });
 
@@ -81,6 +94,6 @@ describe("deleteUser", () => {
 
     await deleteUser(1);
 
-    expect(DELETE).toHaveBeenCalledWith("/api/users/1");
+    expect(DELETE).toHaveBeenCalledWith("/users/1");
   });
 });
