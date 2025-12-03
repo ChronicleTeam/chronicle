@@ -19,7 +19,7 @@ use axum::{
 };
 use axum_login::AuthSession;
 use itertools::Itertools;
-use sqlx::PgConnection;
+use sqlx::{Acquire, Postgres};
 
 const USERNAME_NOT_FOUND: &str = "Username not found";
 const USER_ALREADY_HAS_ACCESS: &str = "User already has access";
@@ -57,7 +57,10 @@ async fn create_access(
         .ok_or(ApiError::UnprocessableEntity(USERNAME_NOT_FOUND.into()))?
         .user_id;
 
-    if let Some(_) = db::get_access_role(tx.as_mut(), resource, resource_id, user_id).await? {
+    if db::get_access_role(tx.as_mut(), resource, resource_id, user_id)
+        .await?
+        .is_some()
+    {
         return Err(ApiError::Conflict(USER_ALREADY_HAS_ACCESS.into()));
     }
 
@@ -85,6 +88,7 @@ async fn update_many_access(
     }): Path<SelectResource>,
     Json(update_access_vec): Json<Vec<UpdateAccess>>,
 ) -> ApiResult<()> {
+    println!("Ok");
     let auth_user_id = auth_user.ok_or(ApiError::Unauthorized)?.user_id;
     let mut tx = db.begin().await?;
     db::get_access_role(tx.as_mut(), resource, resource_id, auth_user_id)
@@ -170,22 +174,23 @@ async fn get_all_access(
     Ok(Json(get_access_vec))
 }
 async fn get_users_with_access(
-    conn: &mut PgConnection,
+    conn: impl Acquire<'_, Database = Postgres>,
     auth_user_id: Id,
     resource: Resource,
     resource_id: Id,
     usernames: impl IntoIterator<Item = String>,
 ) -> ApiResult<Vec<Id>> {
+    let mut tx = conn.begin().await?;
     let mut user_ids: Vec<Id> = Vec::new();
     let mut not_found_usernames: Vec<String> = Vec::new();
     for username in usernames {
-        if let Some(user) = db::get_user_by_username(conn.as_mut(), username.clone()).await? {
+        if let Some(user) = db::get_user_by_username(tx.as_mut(), username.clone()).await? {
             if user.user_id == auth_user_id {
                 return Err(ApiError::UnprocessableEntity(
                     OWNER_CANNOT_MODIFY_THEIR_OWN_ACCESS.into(),
                 ));
             }
-            if db::get_access_role(conn.as_mut(), resource, resource_id, user.user_id)
+            if db::get_access_role(tx.as_mut(), resource, resource_id, user.user_id)
                 .await?
                 .is_none()
             {
@@ -203,6 +208,7 @@ async fn get_users_with_access(
             not_found_usernames.into_iter().join(", ")
         )));
     }
+    tx.commit().await?;
     Ok(user_ids)
 }
 
@@ -255,5 +261,500 @@ mod docs {
 
     pub fn get_all_access(op: TransformOperation) -> TransformOperation {
         access::<Json<Vec<GetAccess>>>(op, "get_all_access", "Get all user access to the resource.")
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use rand::Rng;
+    use serde_json::json;
+    use sqlx::PgPool;
+
+    use crate::{
+        db,
+        error::ApiError,
+        model::{
+            access::{AccessRole, CreateAccess, DeleteAccess, GetAccess, Resource, UpdateAccess},
+            data::CreateTable,
+            viz::CreateDashboard,
+        },
+        setup_tracing, test_util,
+    };
+
+    #[sqlx::test]
+    async fn create_access(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let resource_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let resource = Resource::Table;
+
+        let user = db::create_user(&db, "A".into(), "".into(), false).await?;
+
+        let path = format!(
+            "/api/{}/{resource_id}/access",
+            serde_json::to_string(&resource)?.replace("\"", "")
+        );
+
+        let create_access = CreateAccess {
+            username: user.username.clone(),
+            access_role: AccessRole::Viewer,
+        };
+
+        server
+            .post(&path)
+            .json(&create_access)
+            .await
+            .assert_status_unauthorized();
+
+        let auth_user = db::create_user(&db, "auth_user".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &auth_user).await;
+        test_util::test_access_control(
+            &db,
+            resource,
+            resource_id,
+            auth_user.user_id,
+            AccessRole::Owner,
+            async || {
+                let mut rng = rand::rng();
+                let username =
+                    db::create_user(&db, rng.random::<u64>().to_string(), "".into(), false)
+                        .await
+                        .unwrap()
+                        .username;
+                let create_access = CreateAccess {
+                    username,
+                    access_role: AccessRole::Viewer,
+                };
+                server.post(&path).json(&create_access).await
+            },
+        )
+        .await;
+
+        server
+            .post("/api/Table/1000/access")
+            .json(&create_access)
+            .await
+            .assert_status_not_found();
+
+        server
+            .post(&path)
+            .json(&create_access)
+            .await
+            .assert_status_ok();
+        let access_role = db::get_access_role(&db, resource, resource_id, user.user_id)
+            .await?
+            .unwrap();
+        assert_eq!(create_access.access_role, access_role);
+
+        server
+            .post(&path)
+            .json(&create_access)
+            .await
+            .assert_status_conflict();
+
+        server
+            .post(&path)
+            .json(&CreateAccess {
+                username: "wrong".into(),
+                access_role: AccessRole::Viewer,
+            })
+            .await
+            .assert_status_unprocessable_entity();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn update_access(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let resource_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let resource = Resource::Table;
+
+        let user_1 = db::create_user(&db, "A".into(), "".into(), false).await?;
+        let user_2 = db::create_user(&db, "B".into(), "".into(), false).await?;
+        db::create_access(
+            &db,
+            resource,
+            resource_id,
+            user_1.user_id,
+            AccessRole::Editor,
+        )
+        .await?;
+        db::create_access(
+            &db,
+            resource,
+            resource_id,
+            user_2.user_id,
+            AccessRole::Viewer,
+        )
+        .await?;
+        let path = format!(
+            "/api/{}/{resource_id}/access",
+            serde_json::to_string(&resource)?.replace("\"", "")
+        );
+
+        let update_access_vec = vec![
+            UpdateAccess {
+                username: user_1.username.clone(),
+                access_role: AccessRole::Editor,
+            },
+            UpdateAccess {
+                username: user_2.username.clone(),
+                access_role: AccessRole::Viewer,
+            },
+        ];
+        server
+            .patch(&path)
+            .json(&update_access_vec)
+            .await
+            .assert_status_unauthorized();
+
+        let auth_user = db::create_user(&db, "auth_user".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &auth_user).await;
+        test_util::test_access_control(
+            &db,
+            resource,
+            resource_id,
+            auth_user.user_id,
+            AccessRole::Owner,
+            async || server.patch(&path).json(&update_access_vec).await,
+        )
+        .await;
+
+        server
+            .patch("/api/Table/1000/access")
+            .json(&update_access_vec)
+            .await
+            .assert_status_not_found();
+
+        let user_1_access_role = AccessRole::Owner;
+        let user_2_access_role = AccessRole::Editor;
+        let update_access_vec = vec![
+            UpdateAccess {
+                username: user_1.username,
+                access_role: user_1_access_role,
+            },
+            UpdateAccess {
+                username: user_2.username,
+                access_role: user_2_access_role,
+            },
+        ];
+
+        server
+            .patch(&path)
+            .json(&update_access_vec)
+            .await
+            .assert_status_ok();
+        assert_eq!(
+            db::get_access_role(&db, resource, resource_id, user_1.user_id)
+                .await?
+                .unwrap(),
+            user_1_access_role
+        );
+        assert_eq!(
+            db::get_access_role(&db, resource, resource_id, user_1.user_id)
+                .await?
+                .unwrap(),
+            user_1_access_role
+        );
+
+        server
+            .patch(&path)
+            .json(&json!([]))
+            .await
+            .assert_status_bad_request();
+
+        server
+            .patch(&path)
+            .json(&vec![UpdateAccess {
+                username: auth_user.username.into(),
+                access_role: AccessRole::Viewer,
+            }])
+            .await
+            .assert_status_unprocessable_entity();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn delete_access(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let resource_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let resource = Resource::Table;
+
+        let user_1 = db::create_user(&db, "A".into(), "".into(), false).await?;
+        let user_2 = db::create_user(&db, "B".into(), "".into(), false).await?;
+        db::create_access(
+            &db,
+            resource,
+            resource_id,
+            user_1.user_id,
+            AccessRole::Editor,
+        )
+        .await?;
+        db::create_access(
+            &db,
+            resource,
+            resource_id,
+            user_2.user_id,
+            AccessRole::Viewer,
+        )
+        .await?;
+        let path = format!(
+            "/api/{}/{resource_id}/access",
+            serde_json::to_string(&resource)?.replace("\"", "")
+        );
+
+        let delete_access_vec = vec![
+            DeleteAccess {
+                username: user_1.username.clone(),
+            },
+            DeleteAccess {
+                username: user_2.username.clone(),
+            },
+        ];
+        server
+            .delete(&path)
+            .json(&delete_access_vec)
+            .await
+            .assert_status_unauthorized();
+        setup_tracing();
+        let auth_user = db::create_user(&db, "auth_user".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &auth_user).await;
+        test_util::test_access_control(
+            &db,
+            resource,
+            resource_id,
+            auth_user.user_id,
+            AccessRole::Owner,
+            async || {
+                let mut rng = rand::rng();
+                let user = db::create_user(&db, rng.random::<u64>().to_string(), "".into(), false)
+                    .await
+                    .unwrap();
+                db::create_access(&db, resource, resource_id, user.user_id, AccessRole::Viewer)
+                    .await
+                    .unwrap();
+                server
+                    .delete(&path)
+                    .json(&vec![DeleteAccess {
+                        username: user.username,
+                    }])
+                    .await
+            },
+        )
+        .await;
+
+        server
+            .delete("/api/Table/1000/access")
+            .json(&delete_access_vec)
+            .await
+            .assert_status_not_found();
+
+        server
+            .delete(&path)
+            .json(&delete_access_vec)
+            .await
+            .assert_status_ok();
+        assert!(
+            db::get_access_role(&db, resource, resource_id, user_1.user_id)
+                .await?
+                .is_none()
+        );
+        assert!(
+            db::get_access_role(&db, resource, resource_id, user_2.user_id)
+                .await?
+                .is_none()
+        );
+
+        server
+            .delete(&path)
+            .json(&delete_access_vec)
+            .await
+            .assert_status_unprocessable_entity();
+
+        server
+            .delete(&path)
+            .json(&json!([]))
+            .await
+            .assert_status_bad_request();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_all_access(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let resource_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let resource = Resource::Table;
+
+        let mut user_access_1 = Vec::new();
+        for (idx, access_role) in [AccessRole::Viewer, AccessRole::Editor, AccessRole::Owner]
+            .into_iter()
+            .enumerate()
+        {
+            let user = db::create_user(&db, idx.to_string(), "".into(), false).await?;
+            db::create_access(&db, resource, resource_id, user.user_id, access_role).await?;
+            user_access_1.push(GetAccess {
+                username: user.username,
+                access_role,
+            });
+        }
+
+        let path = format!(
+            "/api/{}/{resource_id}/access",
+            serde_json::to_string(&resource)?.replace("\"", "")
+        );
+        server.get(&path).await.assert_status_unauthorized();
+
+        let auth_user = db::create_user(&db, "auth_user".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &auth_user).await;
+        test_util::test_access_control(
+            &db,
+            resource,
+            resource_id,
+            auth_user.user_id,
+            AccessRole::Owner,
+            async || server.get(&path).await,
+        )
+        .await;
+
+        user_access_1.push(GetAccess {
+            username: auth_user.username,
+            access_role: AccessRole::Owner,
+        });
+
+        server
+            .get("/api/Table/1000/access")
+            .await
+            .assert_status_not_found();
+
+        let response = server.get(&path).await;
+        response.assert_status_ok();
+        let user_access_2: Vec<GetAccess> = response.json();
+        test_util::assert_eq_vec(user_access_1, user_access_2, |a| a.username.to_owned());
+        
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_users_with_access(db: PgPool) -> anyhow::Result<()> {
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let dashboard_id = db::create_dashboard(
+            &db,
+            CreateDashboard {
+                name: "test".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .dashboard_id;
+        let user_1 = db::create_user(&db, "A".into(), "".into(), false).await?;
+        let user_2 = db::create_user(&db, "B".into(), "".into(), false).await?;
+
+        let resources = [
+            (Resource::Table, table_id),
+            (Resource::Dashboard, dashboard_id),
+        ];
+        for (idx, (resource, resource_id)) in resources.into_iter().enumerate() {
+            db::create_access(
+                &db,
+                resource,
+                resource_id,
+                user_1.user_id,
+                AccessRole::Owner,
+            )
+            .await?;
+            db::create_access(
+                &db,
+                resource,
+                resource_id,
+                user_2.user_id,
+                AccessRole::Viewer,
+            )
+            .await?;
+            let user_ids = super::get_users_with_access(
+                &db,
+                1000,
+                resource,
+                resource_id,
+                [user_1.username.clone(), user_2.username.clone()],
+            )
+            .await
+            .unwrap();
+            test_util::assert_eq_vec(user_ids, vec![user_1.user_id, user_2.user_id], |id| *id);
+
+            assert!(matches!(
+                super::get_users_with_access(
+                    &db,
+                    user_1.user_id,
+                    resource,
+                    resource_id,
+                    [user_1.username.clone(), user_2.username.clone()],
+                )
+                .await,
+                Err(ApiError::UnprocessableEntity(_))
+            ));
+
+            assert!(matches!(
+                super::get_users_with_access(
+                    &db,
+                    1000,
+                    resource,
+                    resource_id,
+                    [
+                        user_1.username.clone(),
+                        user_2.username.clone(),
+                        format!("C{idx}")
+                    ],
+                )
+                .await,
+                Err(ApiError::UnprocessableEntity(_))
+            ));
+        }
+
+        Ok(())
     }
 }

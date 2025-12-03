@@ -99,7 +99,7 @@ pub async fn set_axes(
     let group_by_columns = group_by_columns.join(", ");
     let select_columns = select_columns.join(", ");
 
-    let group_by_statement = if group_by_columns.len() > 0 {
+    let group_by_statement = if !group_by_columns.is_empty() {
         format!("GROUP BY {group_by_columns}")
     } else {
         String::new()
@@ -124,11 +124,6 @@ pub async fn set_axes(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::{
-        collections::{HashMap, HashSet},
-        mem,
-    };
-
     use crate::{
         db,
         model::{
@@ -136,11 +131,11 @@ mod test {
             data::{CreateField, CreateTable, FieldKind, FieldMetadata},
             viz::{Aggregate, AxisKind, ChartKind, CreateAxis, CreateChart, CreateDashboard},
         },
-        test_util,
     };
     use chrono::DateTime;
     use itertools::Itertools;
     use sqlx::PgPool;
+    use std::collections::{HashMap, HashSet};
 
     const TIMESTAMP: i64 = 1761696082;
     const ROW_COUNT: usize = 10;

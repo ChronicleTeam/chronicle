@@ -231,13 +231,13 @@ pub async fn get_chart_data(
             entry.insert(
                 axis.axis_id,
                 axis.aggregate.as_ref().map_or_else(
-                    || Cell::from_field_row(&row, &axis_ident.unquoted(), &field_kind),
+                    || Cell::from_field_row(&row, &axis_ident.unquoted(), field_kind),
                     |aggregate| {
                         Cell::from_aggregate_row(
                             &row,
                             &axis_ident.unquoted(),
                             aggregate,
-                            &field_kind,
+                            field_kind,
                         )
                     },
                 )?,

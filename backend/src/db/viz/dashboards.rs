@@ -143,19 +143,17 @@ pub async fn delete_dashboards_without_owner(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use anyhow::Ok;
-    use axum::Json;
-    use itertools::Itertools;
-    use sqlx::{PgPool, query_as};
-
     use crate::{
-        db::{self, access, create_user},
+        db::{self, create_user},
         model::{
             access::AccessRole,
             viz::{CreateDashboard, UpdateDashboard},
         },
         test_util,
     };
+    use anyhow::Ok;
+    use itertools::Itertools;
+    use sqlx::{PgPool, query_as};
 
     #[sqlx::test]
     async fn create_dashboard(db: PgPool) -> anyhow::Result<()> {

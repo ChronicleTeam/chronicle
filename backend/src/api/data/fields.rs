@@ -218,7 +218,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
             default_value,
             ..
         } => {
-            if !values.contains_key(&default_value) {
+            if !values.contains_key(default_value) {
                 return Err(ApiError::UnprocessableEntity(
                     ENUMERATION_INVALID_DEFAULT.into(),
                 ));
@@ -236,7 +236,7 @@ where
 {
     if range_start
         .zip(range_end)
-        .map_or(true, |(start, end)| start <= end)
+        .is_none_or(|(start, end)| start <= end)
     {
         Ok(())
     } else {
@@ -480,10 +480,11 @@ mod test {
         let field_1: Field = response.json();
         assert_eq!(field_1.name, update_field.name);
         assert_eq!(field_1.field_kind.0, update_field.field_kind);
-        let field_2: Field = sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
+        let mut field_2: Field = sqlx::query_as(r#"SELECT * FROM meta_field WHERE field_id = $1"#)
             .bind(field_1.field_id)
             .fetch_one(&db)
             .await?;
+        field_2.updated_at = None;
         assert_eq!(field_1, field_2);
 
         let create_field = UpdateField {
@@ -744,6 +745,12 @@ mod test {
             .json(&SetFieldOrder(wrong_field_id))
             .await
             .assert_status_unprocessable_entity();
+
+        server
+            .patch(&path)
+            .json(&SetFieldOrder(HashMap::new()))
+            .await
+            .assert_status_bad_request();
         Ok(())
     }
 

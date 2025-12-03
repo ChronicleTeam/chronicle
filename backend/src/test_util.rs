@@ -20,8 +20,35 @@ use axum::{
 };
 use axum_test::{TestResponse, TestServer};
 use chrono::DateTime;
-use sqlx::{Acquire, PgExecutor, PgPool, Postgres};
+use sqlx::{Acquire, PgPool, Postgres};
 use std::{collections::HashMap, fmt::Debug};
+
+// pub async fn setup_db() -> PgPool {
+//     let db = PgPoolOptions::new()
+//         .max_connections(20)
+//         .connect(&env::var("DATABASE_URL").unwrap())
+//         .await
+//         .unwrap();
+
+//     sqlx::query("DROP SCHEMA IF EXISTS public CASCADE")
+//         .execute(&db)
+//         .await.unwrap();
+
+//     sqlx::query("DROP SCHEMA IF EXISTS data_view CASCADE")
+//         .execute(&db)
+//         .await.unwrap();
+
+//     sqlx::query("DROP SCHEMA IF EXISTS data_table CASCADE")
+//         .execute(&db)
+//         .await.unwrap();
+
+//     sqlx::query("CREATE SCHEMA public")
+//         .execute(&db)
+//         .await.unwrap();
+
+//     MIGRATOR.run(&db).await.unwrap();
+//     db
+// }
 
 async fn login(mut session: AppAuthSession, Json(user): Json<User>) -> ApiResult<()> {
     session.login(&user).await.anyhow()?;
@@ -58,22 +85,24 @@ pub async fn login_session(server: &mut TestServer, user: &User) {
 }
 
 pub async fn test_insert_cell(
-    executor: impl PgExecutor<'_> + Copy,
+    conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
     field_id: Id,
     test_value: Cell,
 ) -> bool {
+    let mut tx = conn.begin().await.unwrap();
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let field_ident = FieldIdentifier::new(field_id);
 
     println!("{table_ident}.{field_ident}: Iserting: {:?}", test_value);
-    test_value
+    let result = test_value
         .bind(sqlx::query(&format!(
             r#"INSERT INTO {table_ident} ({field_ident}) VALUES ($1)"#
         )))
-        .execute(executor)
-        .await
-        .is_ok()
+        .execute(tx.as_mut())
+        .await;
+
+    tx.commit().await.is_ok() && result.is_ok()
 }
 
 pub fn field_tests() -> Vec<(FieldKind, Cell)> {
