@@ -310,68 +310,301 @@ pub async fn delete_tables_without_owner(
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use anyhow::Ok;
-    use sqlx::PgPool;
+    use itertools::Itertools;
+    use sqlx::{PgPool, query_as};
 
-    use crate::{db, model::data::CreateTable};
+    use crate::{
+        db::{self, create_user},
+        model::{
+            access::AccessRole,
+            data::{CreateTable, UpdateTable},
+        },
+        test_util,
+    };
 
     #[sqlx::test]
     async fn test_create_table(db: PgPool) -> anyhow::Result<()> {
-        let user = db::create_user(&db, "John".into(), "1234".into(), false).await?;
-        let table1 = db::create_table(
+        let name: String = "blazinglyfast".into();
+        let desc: String = "it's just better".into();
+
+        let table = super::create_table(
             &db,
             CreateTable {
                 parent_id: None,
-                name: "table1".into(),
-                description: "Table 1".into(),
+                name: name.clone(),
+                description: desc.clone(),
             },
         )
         .await?;
 
-        let table2 = sqlx::query_as(
-            r#"
-            SELECT 1
-            FROM meta_table AS t
-            JOIN meta_table_access_v AS a
-            ON t.table_id = a.resource_id
-            WHERE user_id = $1
-        "#,
-        )
-        .bind(user.user_id)
-        .fetch_one(&db)
-        .await?;
+        assert_eq!(table.name, name);
+        assert_eq!(table.description, desc);
 
-        assert_eq!(table1, table2);
+        let dashboard_ref = sqlx::query_as(r#"SELECT * FROM meta_table WHERE table_id = $1"#)
+            .bind(table.table_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(table, dashboard_ref);
 
         Ok(())
     }
 
     #[sqlx::test]
     async fn test_update_table(db: PgPool) -> anyhow::Result<()> {
+        let name1: String = "blazinglyfast".into();
+        let desc1: String = "it's just better".into();
+
+        let table1 = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: name1.clone(),
+                description: desc1.clone(),
+            },
+        )
+        .await?;
+
+        assert_eq!(table1.name, name1);
+        assert_eq!(table1.description, desc1);
+
+        let name2: String = "betterthanGO".into();
+        let desc2: String = "we love ferris".into();
+
+        let table2 = super::update_table(
+            &db,
+            table1.table_id,
+            UpdateTable {
+                name: name2.clone(),
+                description: desc2.clone(),
+            },
+        )
+        .await?;
+
+        assert_eq!(table2.name, name2);
+        assert_eq!(table2.description, desc2);
+        assert_eq!(table1.table_id, table2.table_id);
+
+        let dashboard_ref = sqlx::query_as(r#"SELECT * FROM meta_table WHERE table_id = $1"#)
+            .bind(table2.table_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(table2, dashboard_ref);
         Ok(())
     }
+
     #[sqlx::test]
     async fn test_delete_table(db: PgPool) -> anyhow::Result<()> {
+        let name: String = "blazinglyfast".into();
+        let desc: String = "it's just better".into();
+
+        let table = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: name.clone(),
+                description: desc.clone(),
+            },
+        )
+        .await?;
+
+        super::delete_table(&db, table.table_id).await?;
+        let not_exists: bool = sqlx::query_scalar(
+            r#"SELECT NOT EXISTS (SELECT 1 FROM meta_table WHERE table_id = $1)"#,
+        )
+        .bind(table.table_id)
+        .fetch_one(&db)
+        .await?;
+
+        assert!(not_exists);
+
         Ok(())
     }
+
     #[sqlx::test]
     async fn test_get_table_parent(db: PgPool) -> anyhow::Result<()> {
+        let table = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: Some(1234),
+                name: "Table1".into(),
+                description: "This is table 1".into(),
+            },
+        )
+        .await?;
+
+        let parent = super::get_table_parent_id(&db, table.table_id).await?;
+        assert_eq!(parent, table.parent_id);
+
         Ok(())
     }
+
     #[sqlx::test]
     async fn test_get_tables(db: PgPool) -> anyhow::Result<()> {
+        let user = create_user(&db, "test".into(), "password".into(), false).await?;
+        let table1 = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "Table1".into(),
+                description: "This is table 1".into(),
+            },
+        )
+        .await?;
+        let table2 = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "Table1".into(),
+                description: "This is table 2".into(),
+            },
+        )
+        .await?;
+
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Table,
+            table1.table_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
+
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Table,
+            table2.table_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
+
+        let table_list = super::get_tables(&db, user.user_id)
+            .await?
+            .into_iter()
+            .map(|t| t.table)
+            .collect_vec();
+
+        test_util::assert_eq_vec(table_list, vec![table1, table2], |t| t.table_id);
         Ok(())
     }
 
     #[sqlx::test]
     async fn test_get_table_children(db: PgPool) -> anyhow::Result<()> {
+        let parent = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "ParentTable".into(),
+                description: "This is the parent table".into(),
+            },
+        )
+        .await?;
+
+        let child = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: Some(parent.table_id),
+                name: "ChildTable".into(),
+                description: "This is the child table.".into(),
+            },
+        )
+        .await?;
+
+        let children = super::get_table_children(&db, parent.table_id).await?;
+
+        test_util::assert_eq_vec(children, vec![child], |t| t.table_id);
+
         Ok(())
     }
+
     #[sqlx::test]
     async fn test_get_table_data(db: PgPool) -> anyhow::Result<()> {
+        let user = create_user(&db, "test".into(), "password".into(), false).await?;
+        let table = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "Table1".into(),
+                description: "This is table 1".into(),
+            },
+        )
+        .await?;
+
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Table,
+            table.table_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
+
+        let table_data = super::get_table_data(&db, table.table_id).await?;
+        assert_eq!(table.table_id, table_data.table.table_id);
+
+        // TODO: Verify fields and entries are also the same
+
         Ok(())
     }
+
     #[sqlx::test]
     async fn test_delete_tables_without_owner(db: PgPool) -> anyhow::Result<()> {
+        let user = create_user(&db, "test".into(), "password".into(), false).await?;
+        let table1 = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "Table1".to_string(),
+                description: "This is table 1.".to_string(),
+            },
+        )
+        .await?;
+
+        let _table2 = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "Table2".into(),
+                description: "This is table 2".into(),
+            },
+        )
+        .await?;
+        let _table3 = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "Table3".into(),
+                description: "This is table 3".into(),
+            },
+        )
+        .await?;
+
+        db::create_access(
+            &db,
+            crate::model::access::Resource::Table,
+            table1.table_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
+
+        super::delete_tables_without_owner(&db).await?;
+
+        let count_remaining: (i64,) =
+            query_as(r#"SELECT COUNT(*) FROM meta_table WHERE table_id = $1"#)
+                .bind(table1.table_id)
+                .fetch_one(&db)
+                .await?;
+
+        assert_eq!(count_remaining.0, 1);
+
+        let count_del: (i64,) = query_as(r#"SELECT COUNT(*) FROM meta_table WHERE table_id != $1"#)
+            .bind(table1.table_id)
+            .fetch_one(&db)
+            .await?;
+
+        assert_eq!(count_del.0, 0);
+
         Ok(())
     }
 }
