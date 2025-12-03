@@ -220,11 +220,11 @@ where
             entry
                 .cells
                 .into_iter()
-                .sorted_by_key(|(field_id, _)| fields.get(field_id).unwrap().ordering)
-                .map(|(field_id, cell)| match cell {
+                .sorted_by_key(|(entry_id, _)| fields.get(entry_id).unwrap().ordering)
+                .map(|(entry_id, cell)| match cell {
                     Cell::Integer(v) => {
                         if let FieldKind::Enumeration { values, .. } =
-                            &fields.get(&field_id).unwrap().field_kind.0
+                            &fields.get(&entry_id).unwrap().field_kind.0
                         {
                             values.get(&v).unwrap().clone()
                         } else {
@@ -470,30 +470,15 @@ mod test {
         let now = Utc::now();
         let table_id = 123;
 
-        let mut entries1 = HashMap::new();
-        entries1.insert(421, Cell::String("help1".to_string()));
-        entries1.insert(421, Cell::String("help2".to_string()));
+        let mut entries1 = HashMap::<i32, Cell>::new();
+        entries1.insert(1, Cell::String("help2".to_string()));
+        entries1.insert(0, Cell::String("help1".to_string()));
+        
 
         let mut entries2 = HashMap::<i32, Cell>::new();
-        entries2.insert(422, Cell::String("help3".to_string()));
-        entries2.insert(422, Cell::String("help4".to_string()));
-
-        let entries = vec![
-            Entry {
-                entry_id: 021,
-                parent_id: None,
-                created_at: now,
-                updated_at: None,
-                cells: entries1,
-            },
-            Entry {
-                entry_id: 210,
-                parent_id: None,
-                created_at: now,
-                updated_at: None,
-                cells: entries2,
-            },
-        ];
+        entries2.insert(1, Cell::String("help4".to_string()));
+        entries2.insert(0, Cell::String("help3".to_string()));
+        
 
         let table_data = TableData {
             table: Table {
@@ -506,7 +491,7 @@ mod test {
             },
             fields: vec![
                 Field {
-                    field_id: 421,
+                    field_id: 0,
                     name: "Field 1".into(),
                     table_id,
                     ordering: 0,
@@ -515,7 +500,7 @@ mod test {
                     updated_at: None,
                 },
                 Field {
-                    field_id: 213,
+                    field_id: 1,
                     name: "Field 2".into(),
                     table_id,
                     ordering: 0,
@@ -524,7 +509,22 @@ mod test {
                     updated_at: None,
                 },
             ],
-            entries,
+            entries: vec![
+                Entry {
+                    entry_id: 0,
+                    parent_id: None,
+                    created_at: now,
+                    updated_at: None,
+                    cells: entries1,
+                },
+                Entry {
+                    entry_id: 1,
+                    parent_id: None,
+                    created_at: now,
+                    updated_at: None,
+                    cells: entries2,
+                },
+            ],
             children: Vec::new(),
         };
 
