@@ -282,7 +282,6 @@ mod test {
     #[sqlx::test]
     async fn delete_dashboard(db: PgPool) -> anyhow::Result<()> {
         let mut server = test_util::server(db.clone()).await;
-
         let dashboard_id = db::create_dashboard(
             &db,
             CreateDashboard {
@@ -304,11 +303,7 @@ mod test {
             dashboard_id,
             user.user_id,
             AccessRole::Owner,
-            async || {
-                server
-                    .delete(&format!("/api/dashboards/{dashboard_id}"))
-                    .await
-            },
+            async || server.delete(&path).await,
         )
         .await;
 

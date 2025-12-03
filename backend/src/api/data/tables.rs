@@ -457,3 +457,477 @@ mod docs {
         .required_access(TABLE_VIEWER)
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use std::collections::HashMap;
+
+    use crate::{
+        db,
+        model::{
+            Cell,
+            access::{AccessRole, Resource},
+            data::{
+                CreateField, CreateTable, Entry, Field, FieldKind, FieldMetadata, GetTable, Table,
+                UpdateTable,
+            },
+        },
+        test_util,
+    };
+    use itertools::Itertools;
+    use serde_json::{Value, json};
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn create_table(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let path = "/api/tables";
+
+        let parent_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "parent".into(),
+                description: "".into(),
+            },
+        )
+        .await?
+        .table_id;
+
+        let create_table = CreateTable {
+            parent_id: None,
+            name: "test".into(),
+            description: "description".into(),
+        };
+
+        server
+            .post(path)
+            .json(&create_table)
+            .await
+            .assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+
+        let response = server.post(path).json(&create_table).await;
+        response.assert_status_ok();
+        let table_1: Table = response.json();
+        assert_eq!(create_table.parent_id, table_1.parent_id);
+        assert_eq!(create_table.name, table_1.name);
+        assert_eq!(create_table.description, table_1.description);
+        let table_2: Table = sqlx::query_as(r#"SELECT * FROM meta_table WHERE table_id = $1"#)
+            .bind(table_1.table_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(table_1, table_2);
+
+        let access_role = db::get_access_role(&db, Resource::Table, table_1.table_id, user.user_id)
+            .await?
+            .unwrap();
+        assert_eq!(access_role, AccessRole::Owner);
+
+        let create_table = CreateTable {
+            parent_id: Some(parent_id),
+            name: "test".into(),
+            description: "description".into(),
+        };
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            parent_id,
+            user.user_id,
+            AccessRole::Owner,
+            async || server.post(&path).json(&create_table).await,
+        )
+        .await;
+
+        let response = server.post(path).json(&create_table).await;
+        response.assert_status_ok();
+        let table_1: Table = response.json();
+        assert_eq!(create_table.parent_id, table_1.parent_id);
+        assert_eq!(create_table.name, table_1.name);
+        assert_eq!(create_table.description, table_1.description);
+        let table_2: Table = sqlx::query_as(r#"SELECT * FROM meta_table WHERE table_id = $1"#)
+            .bind(table_1.table_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(table_1, table_2);
+
+        server
+            .post(&path)
+            .json(&CreateTable {
+                parent_id: Some(1000),
+                name: "test".into(),
+                description: "description".into(),
+            })
+            .await
+            .assert_status_not_found();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn update_table(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "A".into(),
+                description: "B".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let path = format!("/api/tables/{table_id}");
+
+        let update_table = UpdateTable {
+            name: "C".into(),
+            description: "D".into(),
+        };
+
+        server
+            .patch(&path)
+            .json(&update_table)
+            .await
+            .assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Owner,
+            async || server.patch(&path).json(&update_table).await,
+        )
+        .await;
+
+        server
+            .patch("/api/tables/1000")
+            .json(&update_table)
+            .await
+            .assert_status_not_found();
+
+        let update_table = UpdateTable {
+            name: "E".into(),
+            description: "F".into(),
+        };
+        let response = server.patch(&path).json(&update_table).await;
+        response.assert_status_ok();
+        let table_1: Table = response.json();
+        assert_eq!(update_table.name, table_1.name);
+        assert_eq!(update_table.description, table_1.description);
+
+        let table_2: Table = sqlx::query_as(r#"SELECT * FROM meta_table WHERE table_id = $1"#)
+            .bind(table_1.table_id)
+            .fetch_one(&db)
+            .await?;
+        assert_eq!(table_1, table_2);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn delete_table(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "A".into(),
+                description: "B".into(),
+            },
+        )
+        .await?
+        .table_id;
+        let path = format!("/api/tables/{table_id}");
+
+        server.delete(&path).await.assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Owner,
+            async || server.delete(&path).await,
+        )
+        .await;
+
+        let table_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "C".into(),
+                description: "D".into(),
+            },
+        )
+        .await
+        .unwrap()
+        .table_id;
+        db::create_access(
+            &db,
+            Resource::Table,
+            table_id,
+            user.user_id,
+            AccessRole::Owner,
+        )
+        .await?;
+        let path = format!("/api/tables/{table_id}");
+
+        server
+            .delete("/api/tables/1000")
+            .await
+            .assert_status_not_found();
+
+        server.delete(&path).await.assert_status_ok();
+
+        let not_exists: bool = sqlx::query_scalar(
+            r#"SELECT NOT EXISTS (SELECT 1 FROM meta_table WHERE table_id = $1)"#,
+        )
+        .bind(table_id)
+        .fetch_one(&db)
+        .await?;
+        assert!(not_exists);
+
+        server.delete(&path).await.assert_status_not_found();
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_tables(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+
+        let mut tables_1 = Vec::new();
+        for (idx, access_role) in [AccessRole::Viewer, AccessRole::Editor, AccessRole::Owner]
+            .into_iter()
+            .enumerate()
+        {
+            let table = db::create_table(
+                &db,
+                CreateTable {
+                    parent_id: None,
+                    name: idx.to_string(),
+                    description: idx.to_string(),
+                },
+            )
+            .await?;
+            db::create_access(
+                &db,
+                Resource::Table,
+                table.table_id,
+                user.user_id,
+                access_role,
+            )
+            .await?;
+            tables_1.push(GetTable { table, access_role });
+        }
+
+        let path = "/api/tables";
+
+        server.get(&path).await.assert_status_unauthorized();
+
+        test_util::login_session(&mut server, &user).await;
+
+        let response = server.get(&path).await;
+        response.assert_status_ok();
+        let tables_2: Vec<GetTable> = response.json();
+        test_util::assert_eq_vec(tables_1, tables_2, |t| t.table.table_id);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_table_children(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let parent_id = db::create_table(
+            &db,
+            CreateTable {
+                parent_id: None,
+                name: "parent".into(),
+                description: "parent".into(),
+            },
+        )
+        .await?
+        .table_id;
+
+        let mut tables_1 = Vec::new();
+        for idx in 0..3 {
+            let table = db::create_table(
+                &db,
+                CreateTable {
+                    parent_id: Some(parent_id),
+                    name: idx.to_string(),
+                    description: idx.to_string(),
+                },
+            )
+            .await?;
+            tables_1.push(table);
+        }
+
+        let path = format!("/api/tables/{parent_id}/children");
+
+        server.get(&path).await.assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            parent_id,
+            user.user_id,
+            AccessRole::Viewer,
+            async || server.get(&path).await,
+        )
+        .await;
+
+        server
+            .get("/api/tables/1000/children")
+            .await
+            .assert_status_not_found();
+
+        let response = server.get(&path).await;
+        response.assert_status_ok();
+        let tables_2: Vec<Table> = response.json();
+        test_util::assert_eq_vec(tables_1, tables_2, |t| t.table_id);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn get_table_data(db: PgPool) -> anyhow::Result<()> {
+        let mut server = test_util::server(db.clone()).await;
+        let table_1 = db::create_table(
+            &db,
+            CreateTable {
+                name: "Test".into(),
+                description: "".into(),
+                parent_id: None,
+            },
+        )
+        .await?;
+
+        let field_1 = db::create_field(
+            &db,
+            table_1.table_id,
+            CreateField {
+                name: "Test".into(),
+                field_kind: FieldKind::Checkbox,
+            },
+        )
+        .await?;
+        let entries_1 = db::create_entries(
+            &db,
+            table_1.table_id,
+            None,
+            vec![FieldMetadata::from_field(field_1.clone())],
+            vec![
+                vec![Cell::Boolean(false)],
+                vec![Cell::Boolean(true)],
+                vec![Cell::Boolean(true)],
+                vec![Cell::Boolean(false)],
+                vec![Cell::Boolean(true)],
+                vec![Cell::Boolean(false)],
+                vec![Cell::Boolean(false)],
+            ],
+        )
+        .await?;
+        let path = format!("/api/tables/{}/data", table_1.table_id);
+
+        server.get(&path).await.assert_status_unauthorized();
+
+        let user = db::create_user(&db, "test".into(), "".into(), false).await?;
+        test_util::login_session(&mut server, &user).await;
+        test_util::test_access_control(
+            &db,
+            Resource::Table,
+            table_1.table_id,
+            user.user_id,
+            AccessRole::Viewer,
+            async || server.get(&path).await,
+        )
+        .await;
+
+        let access_role_1 = AccessRole::Owner;
+
+        server
+            .get("/api/tables/1000/children")
+            .await
+            .assert_status_not_found();
+
+        let response = server.get(&path).await;
+        response.assert_status_ok();
+        let mut get_table_data: Value = response.json();
+        let access_role_2: AccessRole =
+            serde_json::from_value(get_table_data.get_mut("access_role").unwrap().take()).unwrap();
+        let mut table_data = get_table_data.get_mut("table_data").unwrap().take();
+        let table_2: Table =
+            serde_json::from_value(table_data.get_mut("table").unwrap().take()).unwrap();
+        let (field_2,): (Field,) =
+            serde_json::from_value::<Vec<_>>(table_data.get_mut("fields").unwrap().take())
+                .unwrap()
+                .into_iter()
+                .collect_tuple()
+                .unwrap();
+        let entries_2: Vec<Value> =
+            serde_json::from_value(table_data.get_mut("entries").unwrap().take()).unwrap();
+        let entries_2: Vec<_> = entries_2
+            .into_iter()
+            .map(|mut entry| {
+                Ok(Entry {
+                    entry_id: serde_json::from_value(entry.get_mut("entry_id").unwrap().take())?,
+                    parent_id: serde_json::from_value(entry.get_mut("parent_id").unwrap().take())?,
+                    created_at: serde_json::from_value(
+                        entry.get_mut("created_at").unwrap().take(),
+                    )?,
+                    updated_at: serde_json::from_value(
+                        entry.get_mut("updated_at").unwrap().take(),
+                    )?,
+                    cells: HashMap::from_iter([(
+                        field_2.field_id,
+                        Cell::Boolean(
+                            entry
+                                .get_mut("cells")
+                                .unwrap()
+                                .get_mut(field_2.field_id.to_string())
+                                .unwrap()
+                                .as_bool()
+                                .unwrap(),
+                        ),
+                    )]),
+                })
+            })
+            .try_collect::<_, _, anyhow::Error>()
+            .unwrap();
+        let children = table_data.get_mut("children").unwrap().take();
+
+        assert_eq!(access_role_1, access_role_2);
+        assert_eq!(table_1, table_2);
+        assert_eq!(field_1, field_2);
+        test_util::assert_eq_vec(entries_1, entries_2, |e| e.entry_id);
+        assert_eq!(children, json!([]));
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn import_table_from_excel(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn export_table_to_excel(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn import_table_from_csv(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn export_table_to_csv(db: PgPool) -> anyhow::Result<()> {
+        Ok(())
+    }
+}

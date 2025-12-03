@@ -11,7 +11,7 @@ use std::fmt;
 use super::{CreateField, Entry, Field};
 
 /// User table entity.
-#[derive(Debug, Serialize, FromRow, PartialEq, Eq, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, FromRow, PartialEq, Eq, JsonSchema)]
 pub struct Table {
     pub table_id: Id,
     pub parent_id: Option<Id>,
@@ -22,7 +22,7 @@ pub struct Table {
 }
 
 /// Create table request.
-#[derive(Debug, Deserialize, PartialEq, Eq, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct CreateTable {
     pub parent_id: Option<Id>,
     pub name: String,
@@ -30,13 +30,13 @@ pub struct CreateTable {
 }
 
 /// Update table request.
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateTable {
     pub name: String,
     pub description: String,
 }
 
-#[derive(Debug, FromRow, Serialize, JsonSchema)]
+#[derive(Debug, FromRow, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct GetTable {
     #[sqlx(flatten)]
     pub table: Table,
