@@ -7,7 +7,6 @@
   let dashboards = $derived(
     data.dashboards.map((dashboardItem) => dashboardItem.dashboard),
   );
-  $inspect(dashboards);
 
   //
   // State
