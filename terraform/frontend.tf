@@ -59,6 +59,34 @@ resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
   member   = "allUsers"
 }
 
+resource "google_cloudbuild_trigger" "frontend_ci" {
+  name            = "${var.frontend.service_name}-ci"
+  service_account = google_service_account.frontend_ci.id
+
+  github {
+    owner = var.github.username
+    name  = var.github.repo
+
+    pull_request {
+      branch = ".*"
+    }
+  }
+
+  included_files = ["frontend/**"]
+  filename = "terraform/cloudbuild/frontend.ci.yaml"
+}
+
+resource "google_service_account" "frontend_ci" {
+  account_id   = "${var.frontend.service_name}-ci"
+  display_name = "Chronicle frontend CI"
+}
+
+resource "google_project_iam_member" "frontend_ci_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.frontend_ci.email}"
+}
+
 resource "google_cloudbuild_trigger" "frontend_cd" {
   name            = "${var.frontend.service_name}-cd"
   service_account = google_service_account.frontend_cd.id

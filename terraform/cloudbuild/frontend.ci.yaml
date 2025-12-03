@@ -1,0 +1,17 @@
+timeout: 1800s
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+- name: mcr.microsoft.com/playwright:v1.54.2-noble
+  entrypoint: bash
+  args:
+    - -exo
+    - pipefail
+    - -c
+    - |
+      cd frontend
+      npm ci
+      npm test
