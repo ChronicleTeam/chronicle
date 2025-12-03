@@ -11,7 +11,7 @@ use std::fmt;
 use super::{CreateField, Entry, Field};
 
 /// User table entity.
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, FromRow, PartialEq, Eq, JsonSchema)]
 pub struct Table {
     pub table_id: Id,
     pub parent_id: Option<Id>,
