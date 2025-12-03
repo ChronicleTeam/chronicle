@@ -68,17 +68,12 @@
   let modeState: ModeState = $state({ mode: TableMode.DISPLAY });
   const modeDisplay = () => {
     modeState = { mode: TableMode.DISPLAY };
+    refreshAll();
   };
   const modeInsert = (entry_idx: number) => {
-    if (!canEdit) {
-      return;
-    }
     modeState = { mode: TableMode.INSERT, entry_idxes: [entry_idx] };
   };
   const modeEdit = (entry_idx: number) => {
-    if (!canEdit) {
-      return;
-    }
     modeState = { mode: TableMode.EDIT, entry_idx };
   };
 
@@ -393,7 +388,7 @@
       {/if}
       <!-- Export buttons -->
       <details class="dropdown">
-        <summary class="btn">Export</summary>
+        <summary class="btn" role="button">Export</summary>
         <ul class="dropdown-content menu bg-base-100 rounded-md m-1 w-64">
           <li>
             <button onclick={() => exportTable("csv")}>Export as CSV</button>
@@ -407,7 +402,7 @@
       </details>
 
       <!-- Access Management -->
-      {#if accessRole === "Owner"}
+      {#if entryId == null && accessRole === "Owner"}
         <button onclick={showAccessModal} class="btn">Share</button>
       {/if}
     </div>
@@ -481,7 +476,8 @@
                     : "bg-base-100",
                 ]}
                 ondblclick={() => {
-                  if (modeState.mode === TableMode.DISPLAY) editEntry(i);
+                  if (modeState.mode === TableMode.DISPLAY && canEdit)
+                    editEntry(i);
                 }}
               >
                 <!-- Floating error bubble -->
@@ -510,7 +506,9 @@
                       (modeState.mode === TableMode.EDIT &&
                         modeState.entry_idx === i)
                     )}
-                    class="border-none bg-transparent focus:outline-hidden outline-hidden size-full disabled:pointer-events-none"
+                    class={field.field_kind.type === FieldType.Checkbox
+                      ? "checkbox"
+                      : "border-none bg-transparent focus:outline-hidden outline-hidden size-full disabled:pointer-events-none"}
                     params={cellToInputParams(i, field)}
                     onkeydown={(k) => {
                       if (k.key === "Enter") {

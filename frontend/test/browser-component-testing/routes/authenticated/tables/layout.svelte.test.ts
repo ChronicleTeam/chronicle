@@ -36,10 +36,13 @@ describe("main table layout", () => {
     let testData = {
       tables: [
         {
-          table_id: 123,
-          user_id: 456,
-          name: "Test Table",
-          description: "Description"
+          access_role: "Owner",
+          table: {
+            table_id: 123,
+            user_id: 456,
+            name: "Test Table",
+            description: "Description"
+          }
         }
       ]
     };
@@ -60,12 +63,17 @@ describe("main table layout", () => {
     await expect.element(table2ListItem).toBeVisible();
     await expect.element(table2ListItem).toHaveClass("menu-active");
 
-    data.tables.push({
-      table_id: 125,
-      user_id: 456,
-      name: "Test Table 3",
-      description: "Description"
-    });
+    data.tables.push(
+      {
+        access_role: "Owner",
+        table: {
+          table_id: 125,
+          user_id: 456,
+          name: "Test Table 3",
+          description: "Description"
+        }
+      }
+    );
 
     const table3ListItem = screen.getByRole("link", { name: "Test Table 3" });
 
@@ -179,16 +187,22 @@ describe("main table layout", () => {
     let testData = $state({
       tables: [
         {
-          table_id: 123,
-          user_id: 456,
-          name: "Test Table 1",
-          description: "Description"
+          access_role: "Owner",
+          table: {
+            table_id: 123,
+            user_id: 456,
+            name: "Test Table 1",
+            description: "Description"
+          }
         },
         {
-          table_id: 124,
-          user_id: 456,
-          name: "Test Table 2",
-          description: "Description"
+          access_role: "Owner",
+          table: {
+            table_id: 124,
+            user_id: 456,
+            name: "Test Table 2",
+            description: "Description"
+          }
         }
       ]
     });

@@ -35,6 +35,9 @@ export default defineConfig({
             instances: [
               {
                 browser: 'chromium',
+                launch: {
+                  // slowMo: 1000
+                }
               },
             ],
           },

@@ -33,7 +33,6 @@
 
   let { loadedData: data } = $props();
 
-  $inspect(data.table_prop);
   //
   // Constants and types
   //
@@ -132,6 +131,7 @@
       ),
     },
   });
+  $inspect(changes);
 
   // error fields
   let errors: {
@@ -1094,7 +1094,11 @@
         >
           <div class="flex flex-col gap-3">
             <!-- Field name -->
-            <input class="input w-full" bind:value={table.new.fields[i].name} />
+            <input
+              aria-label="field name"
+              class="input w-full"
+              bind:value={table.new.fields[i].name}
+            />
 
             <!-- Field kind parameters -->
             {#each fieldKindInputList[i] as fieldKindInput, j}
@@ -1186,6 +1190,7 @@
             class="card w-64 bg-base-100 p-4 shadow-md flex flex-col justify-between gap-3"
           >
             <input
+              aria-label="subtable name"
               class="input"
               bind:value={table.new.children[i].table.name}
             />

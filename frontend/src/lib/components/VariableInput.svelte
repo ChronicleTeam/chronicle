@@ -58,7 +58,7 @@
     <input
       {disabled}
       {id}
-      class={innerClass}
+      class={innerClass + "size-auto checkbox"}
       type="checkbox"
       bind:checked={params.bindGetter, params.bindSetter}
       {onclick}
