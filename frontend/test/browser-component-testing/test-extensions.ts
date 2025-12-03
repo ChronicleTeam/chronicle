@@ -187,7 +187,7 @@ const handlers = [
       },
     ]);
   }),
-  http.get('https://www.example.com/api/Table/:table_id/access', () => {
+  http.get('https://www.example.com/api/:rsrc/:rsrc_id/access', () => {
     return HttpResponse.json([
       {
         access_role: "Owner",
@@ -220,7 +220,99 @@ const handlers = [
   }),
   http.delete('https://www.example.com/api/tables/:table_id/fields/:field_id', async () => {
     return new HttpResponse();
-  })
+  }),
+  http.get('https://www.example.com/api/dashboards', async () => {
+    return HttpResponse.json([
+      {
+        "dashboard": {
+          "dashboard_id": 1,
+          "name": "Projects",
+          "description": "",
+          "created_at": "2025-11-22T02:20:53.723142Z",
+          "updated_at": "2025-12-02T20:14:56.263469Z"
+        },
+        "access_role": "Owner"
+      }
+    ]);
+  }),
+  http.get('https://www.example.com/api/dashboards/:dash_id/charts', async () => {
+    return HttpResponse.json([
+      {
+        "chart_id": 1,
+        "dashboard_id": 1,
+        "table_id": 4,
+        "name": "Budgets",
+        "chart_kind": "Bar",
+        "created_at": "2025-12-02T20:10:12.203760Z",
+        "updated_at": null
+      }
+    ])
+  }),
+  http.get('https://www.example.com/api/dashboards/:dash_id/charts/:chart_id/data', async () => {
+    return HttpResponse.json(
+      {
+        "chart": {
+          "chart_id": 1,
+          "dashboard_id": 1,
+          "table_id": 4,
+          "name": "Budgets",
+          "chart_kind": "Bar",
+          "created_at": "2025-12-02T20:10:12.203760Z",
+          "updated_at": null
+        },
+        "axes": [
+          {
+            "axis": {
+              "axis_id": 1,
+              "chart_id": 1,
+              "field_id": 11,
+              "axis_kind": "X",
+              "aggregate": null,
+              "created_at": "2025-12-02T20:14:46.704031Z",
+              "updated_at": null
+            },
+            "field_name": "Name",
+            "field_kind": {
+              "type": "Text",
+              "is_required": true
+            }
+          },
+          {
+            "axis": {
+              "axis_id": 2,
+              "chart_id": 1,
+              "field_id": 12,
+              "axis_kind": "Y",
+              "aggregate": null,
+              "created_at": "2025-12-02T20:14:46.704031Z",
+              "updated_at": null
+            },
+            "field_name": "Budget",
+            "field_kind": {
+              "type": "Money",
+              "is_required": true,
+              "range_start": "0.00",
+              "range_end": null
+            }
+          }
+        ],
+        "cells": [
+          {
+            "1": "Project Gamma",
+            "2": "25000.0000"
+          },
+          {
+            "1": "Project Beta",
+            "2": "60000.0000"
+          },
+          {
+            "1": "Project Alpha",
+            "2": "50000.0000"
+          }
+        ]
+      }
+    )
+  }),
 ]
 const worker = setupWorker(...handlers)
 
