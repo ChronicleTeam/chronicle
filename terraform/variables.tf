@@ -13,15 +13,6 @@ variable "production_db" {
   })
 }
 
-variable "test_db" {
-  type = object({
-    instance_name = string
-    name = string
-    username           = string
-    password_secret_id = string
-  })
-}
-
 variable "backend" {
   type = object({
     service_name = string

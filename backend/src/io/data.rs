@@ -247,20 +247,7 @@ where
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-
-    use std::{collections::HashMap, default};
-
-    use anyhow::{Ok, Result};
-    use chrono::Utc;
-    use sqlx::types::Json;
-    use umya_spreadsheet::{
-        new_file_empty_worksheet, reader,
-        structs::Spreadsheet,
-        writer::{self, xlsx::write},
-    };
-
     use crate::{
-        db::create_table,
         error::IntoAnyhow,
         model::{
             Cell,
@@ -270,6 +257,11 @@ mod test {
             },
         },
     };
+    use anyhow::{Ok, Result};
+    use chrono::Utc;
+    use sqlx::types::Json;
+    use std::collections::HashMap;
+    use umya_spreadsheet::{new_file_empty_worksheet, reader, writer};
 
     #[test]
     fn import_table_from_excel() -> Result<()> {
@@ -500,7 +492,7 @@ mod test {
                 cells: entries2,
             },
         ];
-        
+
         let table_data = TableData {
             table: Table {
                 table_id,

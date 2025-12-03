@@ -1,10 +1,12 @@
 mod api;
 mod auth;
 mod db;
-mod docs;
 mod error;
 mod io;
 mod model;
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod docs;
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]

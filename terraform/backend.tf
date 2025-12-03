@@ -134,13 +134,6 @@ resource "google_cloudbuild_trigger" "backend_ci" {
   }
 
   included_files = ["backend/**"]
-  substitutions = {
-    _DB_REGION      = google_sql_database_instance.test_db.region
-    _DB_INSTANCE_ID = google_sql_database_instance.test_db.id
-    _DB_NAME = google_sql_database.test_db.name
-    _DB_USERNAME    = google_sql_user.test_db.name
-    _DB_PASSWORD = data.google_secret_manager_secret_version.test_db_password.secret_data
-  }
   filename = "terraform/cloudbuild/backend.ci.yaml"
 }
 
@@ -203,7 +196,7 @@ resource "google_project_iam_member" "backend_cd_artifact_registry_writer" {
   member  = "serviceAccount:${google_service_account.backend_cd.email}"
 }
 
-resource "google_project_iam_member" "backend_cd_run_admin" {
+resource "google_project_iam_member" "backend_cd_cloud_run_admin" {
   project = var.project_id
   role    = "roles/run.admin"
   member  = "serviceAccount:${google_service_account.backend_cd.email}"
