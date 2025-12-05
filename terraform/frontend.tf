@@ -29,24 +29,6 @@ resource "google_service_account" "frontend" {
   display_name = "Chronicle frontend"
 }
 
-# resource "google_secret_manager_secret" "backend_url" {
-#   secret_id = "${var.backend.service_name}-url"
-#   replication {
-#     auto {}
-#   }
-# }
-
-# resource "google_secret_manager_secret_version" "backend_url_placeholder" {
-#   secret      = google_secret_manager_secret.backend_url.id
-#   secret_data = " "
-# }
-
-# resource "google_secret_manager_secret_iam_member" "backend_url" {
-#   secret_id = google_secret_manager_secret.backend_url.secret_id
-#   role      = "roles/secretmanager.secretAccessor"
-#   member    = "serviceAccount:${google_service_account.frontend.email}"
-# }
-
 resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
   name     = google_cloud_run_v2_service.frontend.name
   location = google_cloud_run_v2_service.frontend.location
