@@ -11,15 +11,32 @@ steps:
     [
       "build",
       "-t", "$_IMAGE_URL:$COMMIT_SHA",
-      "frontend"
+      "$_DIRECTORY"
     ]
 
 - name: "gcr.io/cloud-builders/docker"
-  id: push-image
+  id: tag-latest
+  args:
+    [
+      "tag",
+      "$_IMAGE_URL:$COMMIT_SHA",
+      "$_IMAGE_URL:latest"
+    ]
+
+- name: "gcr.io/cloud-builders/docker"
+  id: push-image-sha
   args:
     [
       "push",
       "$_IMAGE_URL:$COMMIT_SHA"
+    ]
+
+- name: "gcr.io/cloud-builders/docker"
+  id: push-image-latest
+  args:
+    [
+      "push",
+      "$_IMAGE_URL:latest"
     ]
 
 - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"

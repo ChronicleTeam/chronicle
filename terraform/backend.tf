@@ -8,7 +8,7 @@ resource "google_cloud_run_v2_service" "backend" {
     service_account       = google_service_account.backend.email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     containers {
-      image = var.backend.image_url
+      image = "${var.backend.image_url}:invalid"
       resources {
         limits = {
           memory = "2Gi"
@@ -21,8 +21,9 @@ resource "google_cloud_run_v2_service" "backend" {
         value = 8080
       }
       env {
-        name  = "APP__ALLOWED_ORIGIN"
-        value = join(",", google_cloud_run_v2_service.frontend.urls)
+        name = "APP__ALLOWED_ORIGIN"
+        # value = join(",", google_cloud_run_v2_service.frontend.urls)
+        value = "*"
       }
       env {
         name = "APP__SESSION_KEY"
@@ -70,19 +71,19 @@ resource "google_cloud_run_v2_service" "backend" {
     }
     vpc_access {
       network_interfaces {
-        network = "default"
+        network = data.google_compute_network.default.name
       }
     }
   }
 }
 
-resource "google_secret_manager_secret_version" "backend_url" {
-  secret      = google_secret_manager_secret.backend_url.id
-  secret_data = google_cloud_run_v2_service.backend.uri
-  lifecycle {
-    create_before_destroy = true
-  }
-}
+# resource "google_secret_manager_secret_version" "backend_url" {
+#   secret      = google_secret_manager_secret.backend_url.id
+#   secret_data = google_cloud_run_v2_service.backend.uri
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
 
 resource "google_cloud_run_v2_service_iam_member" "backend_public" {
   name     = google_cloud_run_v2_service.backend.name
@@ -134,7 +135,7 @@ resource "google_cloudbuild_trigger" "backend_ci" {
   }
 
   included_files = ["backend/**"]
-  filename = "terraform/cloudbuild/backend.ci.yaml"
+  filename       = "terraform/cloudbuild/backend.ci.yaml"
 }
 
 resource "google_service_account" "backend_ci" {
@@ -160,11 +161,12 @@ resource "google_cloudbuild_trigger" "backend_cd" {
   }
   included_files = ["backend/**"]
   substitutions = {
+    _DIRECTORY    = "backend"
     _IMAGE_URL    = var.backend.image_url
     _SERVICE_NAME = var.backend.service_name
     _REGION       = var.region
   }
-  filename = "terraform/cloudbuild/backend.cd.yaml"
+  filename = "terraform/cloudbuild/cd.yaml"
 }
 
 resource "google_service_account" "backend_cd" {

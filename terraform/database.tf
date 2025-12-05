@@ -24,7 +24,6 @@ resource "google_sql_database_instance" "production_db" {
     ip_configuration {
       ipv4_enabled    = false
       private_network = data.google_compute_network.default.self_link
-      #   enable_private_path_for_google_cloud_services = true
     }
   }
   depends_on = [google_service_networking_connection.production_db]

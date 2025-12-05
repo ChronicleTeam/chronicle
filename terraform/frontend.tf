@@ -8,7 +8,7 @@ resource "google_cloud_run_v2_service" "frontend" {
     service_account       = google_service_account.frontend.email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     containers {
-      image = var.frontend.image_url
+      image = "${var.frontend.image_url}:invalid"
       resources {
         limits = {
           memory = "2Gi"
@@ -18,12 +18,7 @@ resource "google_cloud_run_v2_service" "frontend" {
       }
       env {
         name = "PUBLIC_API_URL"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.backend_url.secret_id
-            version = "latest"
-          }
-        }
+        value = google_cloud_run_v2_service.backend.uri
       }
     }
   }
@@ -34,23 +29,23 @@ resource "google_service_account" "frontend" {
   display_name = "Chronicle frontend"
 }
 
-resource "google_secret_manager_secret" "backend_url" {
-  secret_id = "${var.backend.service_name}-url"
-  replication {
-    auto {}
-  }
-}
+# resource "google_secret_manager_secret" "backend_url" {
+#   secret_id = "${var.backend.service_name}-url"
+#   replication {
+#     auto {}
+#   }
+# }
 
-resource "google_secret_manager_secret_version" "backend_url_placeholder" {
-  secret      = google_secret_manager_secret.backend_url.id
-  secret_data = " "
-}
+# resource "google_secret_manager_secret_version" "backend_url_placeholder" {
+#   secret      = google_secret_manager_secret.backend_url.id
+#   secret_data = " "
+# }
 
-resource "google_secret_manager_secret_iam_member" "backend_url" {
-  secret_id = google_secret_manager_secret.backend_url.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.frontend.email}"
-}
+# resource "google_secret_manager_secret_iam_member" "backend_url" {
+#   secret_id = google_secret_manager_secret.backend_url.secret_id
+#   role      = "roles/secretmanager.secretAccessor"
+#   member    = "serviceAccount:${google_service_account.frontend.email}"
+# }
 
 resource "google_cloud_run_v2_service_iam_member" "frontend_public" {
   name     = google_cloud_run_v2_service.frontend.name
@@ -99,11 +94,12 @@ resource "google_cloudbuild_trigger" "frontend_cd" {
   }
   included_files = ["frontend/**"]
   substitutions = {
+    _DIRECTORY = "frontend"
     _IMAGE_URL    = var.frontend.image_url
     _SERVICE_NAME = var.frontend.service_name
     _REGION       = var.region
   }
-  filename = "terraform/cloudbuild/frontend.cd.yaml"
+  filename = "terraform/cloudbuild/cd.yaml"
 }
 
 resource "google_service_account" "frontend_cd" {
