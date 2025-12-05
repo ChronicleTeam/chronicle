@@ -21,6 +21,8 @@
 
 {#await user() then u}
   {#if u}
-    <TableEditor {table} {allUsers} {userAccess} {accessRole} user={u} />
+    {#key table}
+      <TableEditor {table} {allUsers} {userAccess} {accessRole} user={u} />
+    {/key}
   {/if}
 {/await}

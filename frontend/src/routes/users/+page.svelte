@@ -10,7 +10,6 @@
       type UpdateUser,
     } from "$lib/api/userManagement";
   
-    // Users list
     let users: UserResponse[] = [];
     let loading = false;
     let error: string | null = null;
@@ -22,28 +21,23 @@
   
     // Edit form
     let editingId: number | null = null;
+    let originalUsername = "";
     let editUsername = "";
     let editPassword = "";
   
-    // Search query
     let q = "";
   
-    /** Load all users */
     async function loadUsers() {
       loading = true;
-      error = null;
       try {
         users = await getAllUsers();
-        console.log("Loaded users:", users);
       } catch (e: any) {
-        console.error("Failed to load users:", e);
         error = e?.message || "Failed to load users.";
       } finally {
         loading = false;
       }
     }
   
-    /** Validate create form */
     function validateCreate(): string | null {
       if (!newUsername.trim()) return "Username is required.";
       if (!newUsername.includes("@")) return "Username must contain '@'.";
@@ -52,14 +46,14 @@
       return null;
     }
   
-    /** Validate edit form */
     function validateEdit(): string | null {
-      if (editUsername && !editUsername.includes("@")) return "Username must be of the form 'test@example.com'.";
-      if (editPassword && editPassword.length < 6) return "Password must be at least 6 characters.";
+      if (editUsername && !editUsername.includes("@"))
+        return "Username must contain '@'.";
+      if (editPassword && editPassword.length < 6)
+        return "Password must be at least 6 characters.";
       return null;
     }
   
-    /** Create user */
     async function handleCreateUser() {
       const validation = validateCreate();
       if (validation) {
@@ -71,20 +65,19 @@
       error = null;
       success = null;
   
-      const payload: CreateUser = {
-        username: newUsername.trim(),
-        password: newPassword,
-      };
-  
       try {
-        console.log("Creating user:", payload);
+        const payload: CreateUser = {
+          username: newUsername.trim(),
+          password: newPassword,
+        };
+  
         await createUser(payload);
-        success = `User "${payload.username}" created successfully.`;
+        success = `User "${payload.username}" created.`;
+  
         newUsername = "";
         newPassword = "";
         await loadUsers();
       } catch (e: any) {
-        console.error("Create user error:", e);
         error = e?.response?.data?.message || "Failed to create user.";
       } finally {
         loading = false;
@@ -92,16 +85,15 @@
       }
     }
   
-    /**  editing a user */
     function startEdit(user: UserResponse) {
       editingId = user.user_id;
+      originalUsername = user.username; // Needed to detect if username changed
       editUsername = user.username;
       editPassword = "";
       error = null;
       success = null;
     }
   
-    /** Update user */
     async function handleUpdateUser() {
       if (!editingId) return;
   
@@ -111,13 +103,14 @@
         return;
       }
   
+      // 👉 MAGIC FIX : Only send the fields that the user CHANGED
       const payload: UpdateUser = {
-        username: editUsername?.trim() || null,
-        password: editPassword || null,
+        username: editUsername.trim() !== originalUsername ? editUsername.trim() : null,
+        password: editPassword ? editPassword : null,
       };
   
       if (!payload.username && !payload.password) {
-        error = "No changes to apply.";
+        error = "You did not modify anything.";
         return;
       }
   
@@ -126,15 +119,14 @@
       success = null;
   
       try {
-        console.log("Updating user:", editingId, payload);
         await updateUser(editingId, payload);
-        success = "User updated successfully.";
+        success = "User updated.";
+  
         editingId = null;
         editUsername = "";
         editPassword = "";
         await loadUsers();
       } catch (e: any) {
-        console.error("Update user error:", e);
         error = e?.response?.data?.message || "Failed to update user.";
       } finally {
         loading = false;
@@ -142,9 +134,8 @@
       }
     }
   
-    /** Delete user */
     async function handleDeleteUser(id: number, username: string) {
-      const confirmation = confirm(`Are you sure you want to delete user "${username}"?`);
+      const confirmation = confirm(`Delete user "${username}"?`);
       if (!confirmation) return;
   
       loading = true;
@@ -152,12 +143,10 @@
       success = null;
   
       try {
-        console.log("Deleting user:", id);
         await deleteUser(id);
-        success = `User "${username}" deleted successfully.`;
+        success = `User "${username}" deleted.`;
         await loadUsers();
       } catch (e: any) {
-        console.error("Delete user error:", e);
         error = e?.response?.data?.message || "Failed to delete user.";
       } finally {
         loading = false;
@@ -165,7 +154,6 @@
       }
     }
   
-    /** Filter users based on search */
     $: filtered = q
       ? users.filter(
           (u) =>
@@ -177,152 +165,121 @@
     onMount(loadUsers);
   </script>
   
-  <style>
-    .container {
-      max-width: 900px;
-      margin: 20px auto;
-      font-family: sans-serif;
-      color: white;
-    }
+  <!-- No custom CSS needed – DaisyUI handles everything -->
   
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-      color: white;
-    }
-  
-    th, td {
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-      text-align: left;
-    }
-  
-    input, button {
-      padding: 6px 8px;
-      margin-right: 8px;
-      background: #222;
-      border: 1px solid #555;
-      color: white;
-    }
-  
-    input::placeholder {
-      color: #888;
-    }
-  
-    .card {
-      padding: 10px;
-      border-radius: 6px;
-      margin-top: 10px;
-    }
-  
-    .success {
-      background: #0a6a0a;
-      color: #e7ffe7;
-    }
-  
-    .error {
-      background: #a30000;
-      color: #ffe5e5;
-    }
-  
-    .badge {
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 0.85em;
-    }
-  
-    .admin {
-      background: #007bff;
-      color: white;
-    }
-  
-    .user {
-      background: #aaa;
-      color: white;
-    }
-  
-    .actions button {
-      margin-right: 6px;
-    }
-  
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  </style>
-  
-  <div class="container">
-    <h1>User Management</h1>
+  <div class="max-w-5xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">User Management</h1>
   
     {#if loading}
-      <p>Loading...</p>
+      <progress class="progress w-full"></progress>
     {/if}
   
     {#if error}
-      <div class="card error">{error}</div>
+      <div class="alert alert-error mb-4">{error}</div>
     {/if}
   
     {#if success}
-      <div class="card success">{success}</div>
+      <div class="alert alert-success mb-4">{success}</div>
     {/if}
   
-    <!-- CREATE FORM -->
-    <h2>Create User</h2>
-    <div>
-      <input placeholder="Username" bind:value={newUsername} />
-      <input type="password" placeholder="Password" bind:value={newPassword} />
-      <button on:click={handleCreateUser} disabled={loading}>Create</button>
+    <!-- CREATE USER -->
+    <div class="card bg-base-200 shadow-md p-5 mb-8">
+      <h2 class="text-xl font-bold mb-3">Create User</h2>
+  
+      <div class="flex flex-col md:flex-row gap-3">
+        <input
+          class="input input-bordered w-full"
+          placeholder="Username"
+          bind:value={newUsername}
+        />
+  
+        <input
+          type="password"
+          class="input input-bordered w-full"
+          placeholder="Password"
+          bind:value={newPassword}
+        />
+  
+        <button class="btn btn-primary" on:click={handleCreateUser} disabled={loading}>
+          Create
+        </button>
+      </div>
     </div>
   
-    <hr />
-  
     <!-- SEARCH -->
-    <h2>User List</h2>
-    <input placeholder="Search by username or id" bind:value={q} style="margin-bottom:10px;" />
+    <input
+      class="input input-bordered w-full mb-4"
+      placeholder="Search by username or ID"
+      bind:value={q}
+    />
   
     <!-- USER TABLE -->
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Username</th>
-          <th>Admin</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each filtered as user}
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
           <tr>
-            <td>{user.user_id}</td>
-            <td>
-              {#if editingId === user.user_id}
-                <input bind:value={editUsername} />
-                <br />
-                <input type="password" placeholder="New password (optional)" bind:value={editPassword} />
-              {:else}
-                {user.username}
-              {/if}
-            </td>
-            <td>
-              {#if user.is_admin}
-                <span class="badge admin">Admin</span>
-              {:else}
-                <span class="badge user">User</span>
-              {/if}
-            </td>
-            <td class="actions">
-              {#if editingId === user.user_id}
-                <button on:click={handleUpdateUser}>Save</button>
-                <button on:click={() => (editingId = null)}>Cancel</button>
-              {:else}
-                <button on:click={() => startEdit(user)}>Edit</button>
-                <button on:click={() => handleDeleteUser(user.user_id, user.username)}>Delete</button>
-              {/if}
-            </td>
+            <th></th>
+            <th>Username</th>
+            <th>Admin</th>
+            <th>Actions</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+  
+        <tbody>
+          {#each filtered as user}
+            <tr>
+              <td>{user.user_id}</td>
+  
+              <td>
+                {#if editingId === user.user_id}
+                  <input
+                    class="input input-bordered w-full mb-2"
+                    bind:value={editUsername}
+                  />
+                  <input
+                    type="password"
+                    class="input input-bordered w-full"
+                    placeholder="New password (optional)"
+                    bind:value={editPassword}
+                  />
+                {:else}
+                  {user.username}
+                {/if}
+              </td>
+  
+              <td>
+                {#if user.is_admin}
+                  <div class="badge badge-primary">Admin</div>
+                {:else}
+                  <div class="badge badge-secondary">User</div>
+                {/if}
+              </td>
+  
+              <td class="flex gap-2">
+                {#if editingId === user.user_id}
+                  <button class="btn btn-success btn-sm" on:click={handleUpdateUser}>
+                    Save
+                  </button>
+                  <button class="btn btn-neutral btn-sm" on:click={() => (editingId = null)}>
+                    Cancel
+                  </button>
+                {:else}
+                  <button class="btn btn-info btn-sm" on:click={() => startEdit(user)}>
+                    Edit
+                  </button>
+  
+                  <button
+                    class="btn btn-error btn-sm"
+                    on:click={() => handleDeleteUser(user.user_id, user.username)}
+                  >
+                    Delete
+                  </button>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
   </div>
   
