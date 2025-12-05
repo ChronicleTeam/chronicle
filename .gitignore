@@ -2,4 +2,6 @@
 
 .nix-files/
 
+.DS_Store
+
 cookies.txt

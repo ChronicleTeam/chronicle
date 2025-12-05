@@ -8,7 +8,7 @@ resource "google_cloud_run_v2_service" "frontend" {
     service_account       = google_service_account.frontend.email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
     containers {
-      image = "${var.frontend.image_url}:invalid"
+      image = "${var.frontend.image_url}:latest"
       resources {
         limits = {
           memory = "2Gi"

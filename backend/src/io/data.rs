@@ -473,12 +473,10 @@ mod test {
         let mut entries1 = HashMap::<i32, Cell>::new();
         entries1.insert(1, Cell::String("help2".to_string()));
         entries1.insert(0, Cell::String("help1".to_string()));
-        
 
         let mut entries2 = HashMap::<i32, Cell>::new();
         entries2.insert(1, Cell::String("help4".to_string()));
         entries2.insert(0, Cell::String("help3".to_string()));
-        
 
         let table_data = TableData {
             table: Table {

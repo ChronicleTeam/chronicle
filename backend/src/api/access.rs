@@ -173,6 +173,7 @@ async fn get_all_access(
     tx.commit().await?;
     Ok(Json(get_access_vec))
 }
+
 async fn get_users_with_access(
     conn: impl Acquire<'_, Database = Postgres>,
     auth_user_id: Id,

@@ -19,12 +19,16 @@ See [Setup instructions](https://github.com/ChronicleTeam/chronicle/wiki/Deploym
   - Rust
   - Axum
   - SQLx
-  - Shuttle
+
 - Frontend
   - TypeScript
   - SvelteKit
   - TailwindCSS
-  - Vercel
+  - Vite
+
+- Deployment
+  - Google Cloud Platform
+  - Terraform
 
 ## Wiki
 
