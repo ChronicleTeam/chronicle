@@ -17,11 +17,27 @@ resource "google_cloud_run_v2_service" "frontend" {
         cpu_idle = true
       }
       env {
-        name = "PUBLIC_API_URL"
+        name  = "PUBLIC_API_URL"
         value = google_cloud_run_v2_service.backend.uri
       }
     }
   }
+}
+
+output "frontend_urls" {
+  value = google_cloud_run_v2_service.frontend.urls
+}
+
+resource "google_secret_manager_secret" "frontend_urls" {
+  secret_id = var.frontend.urls_secret_id
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "frontend_urls" {
+  secret      = google_secret_manager_secret.frontend_urls.id
+  secret_data = join(",", google_cloud_run_v2_service.frontend.urls)
 }
 
 resource "google_service_account" "frontend" {
@@ -50,7 +66,7 @@ resource "google_cloudbuild_trigger" "frontend_ci" {
   }
 
   included_files = ["frontend/**"]
-  filename = "terraform/cloudbuild/frontend.ci.yaml"
+  filename       = "terraform/cloudbuild/frontend.ci.yaml"
 }
 
 resource "google_service_account" "frontend_ci" {
@@ -76,7 +92,7 @@ resource "google_cloudbuild_trigger" "frontend_cd" {
   }
   included_files = ["frontend/**"]
   substitutions = {
-    _DIRECTORY = "frontend"
+    _DIRECTORY    = "frontend"
     _IMAGE_URL    = var.frontend.image_url
     _SERVICE_NAME = var.frontend.service_name
     _REGION       = var.region
