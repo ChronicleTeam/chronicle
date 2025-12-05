@@ -1,2 +1,2 @@
-bucket = "tfstate-bucket"
+bucket = "<tfstate-bucket>"
 prefix = "chronicle"

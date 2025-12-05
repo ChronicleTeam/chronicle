@@ -17,7 +17,6 @@ variable "backend" {
   type = object({
     service_name   = string
     image_url      = string
-    # allowed_origin = list(string)
   })
 }
 
