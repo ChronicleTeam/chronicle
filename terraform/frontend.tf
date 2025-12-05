@@ -28,18 +28,6 @@ output "frontend_urls" {
   value = google_cloud_run_v2_service.frontend.urls
 }
 
-resource "google_secret_manager_secret" "frontend_urls" {
-  secret_id = var.frontend.urls_secret_id
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "frontend_urls" {
-  secret      = google_secret_manager_secret.frontend_urls.id
-  secret_data = join(",", google_cloud_run_v2_service.frontend.urls)
-}
-
 resource "google_service_account" "frontend" {
   account_id   = var.frontend.service_name
   display_name = "Chronicle frontend"
