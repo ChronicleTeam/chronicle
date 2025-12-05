@@ -21,11 +21,6 @@ resource "google_cloud_run_v2_service" "backend" {
         value = 8080
       }
       env {
-        name = "APP__ALLOWED_ORIGIN"
-        # value = join(",", google_cloud_run_v2_service.frontend.urls)
-        value = "*"
-      }
-      env {
         name = "APP__SESSION_KEY"
         value_source {
           secret_key_ref {
@@ -76,14 +71,6 @@ resource "google_cloud_run_v2_service" "backend" {
     }
   }
 }
-
-# resource "google_secret_manager_secret_version" "backend_url" {
-#   secret      = google_secret_manager_secret.backend_url.id
-#   secret_data = google_cloud_run_v2_service.backend.uri
-#   lifecycle {
-#     create_before_destroy = true
-#   }
-# }
 
 resource "google_cloud_run_v2_service_iam_member" "backend_public" {
   name     = google_cloud_run_v2_service.backend.name

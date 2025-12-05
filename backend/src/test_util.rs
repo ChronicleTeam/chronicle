@@ -72,7 +72,7 @@ pub async fn server(db: PgPool) -> TestServer {
     let app = auth::init(app, db.clone(), config.session_key)
         .await
         .unwrap();
-    let app = init_layers(app, config.allowed_origin).unwrap();
+    let app = init_layers(app).unwrap();
     let server = TestServer::new(app.with_state(AppState { db })).unwrap();
     server
 }
