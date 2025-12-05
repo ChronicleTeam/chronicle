@@ -15,10 +15,11 @@ pub mod test_util;
 use crate::model::users::Credentials;
 use axum::{
     Router,
-    http::{Method, header},
+    http::{HeaderValue, Method, header},
 };
 use base64::{Engine, prelude::BASE64_STANDARD};
 use config::{Config, ConfigError, Environment};
+use itertools::Itertools;
 use serde::Deserialize;
 use sqlx::{
     PgPool,
@@ -33,11 +34,8 @@ use std::{
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
-    catch_panic::CatchPanicLayer,
-    compression::CompressionLayer,
-    cors::{self, CorsLayer},
-    timeout::TimeoutLayer,
-    trace::TraceLayer,
+    catch_panic::CatchPanicLayer, compression::CompressionLayer, cors::CorsLayer,
+    timeout::TimeoutLayer, trace::TraceLayer,
 };
 use tower_sessions::cookie::Key;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -59,6 +57,8 @@ pub struct AppState {
 struct AppConfig {
     /// Server port.
     port: u16,
+    #[serde(deserialize_with = "env_list")]
+    allowed_origin: Vec<String>,
     #[serde(deserialize_with = "base64_session_key")]
     session_key: Key,
     admin: Credentials,
@@ -127,19 +127,26 @@ pub async fn serve() -> anyhow::Result<()> {
     let router = api::router();
     let router = docs::init(router)?;
     let router = auth::init(router, db.clone(), config.session_key).await?;
-    let router = init_layers(router)?;
+    let router = init_layers(router, config.allowed_origin)?;
     let router = router.with_state(AppState { db });
 
     axum::serve(listener, router.into_make_service()).await?;
     Ok(())
 }
 
-fn init_layers(router: Router<AppState>) -> anyhow::Result<Router<AppState>> {
+fn init_layers(
+    router: Router<AppState>,
+    allowed_origin: Vec<String>,
+) -> anyhow::Result<Router<AppState>> {
+    let allowed_origin: Vec<_> = allowed_origin
+        .iter()
+        .map(|v| HeaderValue::from_str(v))
+        .try_collect()?;
     let service = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http().on_failure(()))
         .layer(
             CorsLayer::new()
-                .allow_origin(cors::Any)
+                .allow_origin(allowed_origin)
                 .allow_methods([
                     Method::POST,
                     Method::GET,
@@ -178,6 +185,17 @@ fn setup_tracing() {
     });
 }
 
+fn env_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(s.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
+}
+
 fn base64_session_key<'de, D>(deserializer: D) -> Result<Key, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -193,9 +211,10 @@ where
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
+    use std::time::Duration;
+
     use crate::AppConfig;
     use reqwest::StatusCode;
-    use std::time::Duration;
 
     #[test]
     fn build_app_config() -> anyhow::Result<()> {

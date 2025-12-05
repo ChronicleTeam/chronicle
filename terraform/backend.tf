@@ -21,6 +21,15 @@ resource "google_cloud_run_v2_service" "backend" {
         value = 8080
       }
       env {
+        name = "APP__ALLOWED_ORIGIN"
+        value_source {
+          secret_key_ref {
+            secret  = var.frontend.urls_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
         name = "APP__SESSION_KEY"
         value_source {
           secret_key_ref {
@@ -104,6 +113,12 @@ resource "google_secret_manager_secret_iam_member" "backend_admin_password" {
 
 resource "google_secret_manager_secret_iam_member" "backend_session_key" {
   secret_id = var.session_key_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.backend.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "backend_frontend_urls" {
+  secret_id = google_secret_manager_secret.frontend_urls.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.backend.email}"
 }

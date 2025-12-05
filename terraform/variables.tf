@@ -6,8 +6,8 @@ variable "network_name" {}
 
 variable "production_db" {
   type = object({
-    instance_name = string
-    name = string
+    instance_name      = string
+    name               = string
     username           = string
     password_secret_id = string
   })
@@ -15,15 +15,16 @@ variable "production_db" {
 
 variable "backend" {
   type = object({
-    service_name = string
-    image_url    = string
+    service_name   = string
+    image_url      = string
   })
 }
 
 variable "frontend" {
   type = object({
-    service_name = string
-    image_url    = string
+    service_name   = string
+    image_url      = string
+    urls_secret_id = string
   })
 }
 
