@@ -312,7 +312,6 @@ mod test {
     use anyhow::Ok;
     use itertools::Itertools;
     use sqlx::{PgPool, query_as};
-
     use crate::{
         db::{self, create_user},
         model::{
@@ -323,7 +322,7 @@ mod test {
     };
 
     #[sqlx::test]
-    async fn test_create_table(db: PgPool) -> anyhow::Result<()> {
+    async fn create_table(db: PgPool) -> anyhow::Result<()> {
         let name: String = "blazinglyfast".into();
         let desc: String = "it's just better".into();
 
@@ -350,7 +349,7 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn test_update_table(db: PgPool) -> anyhow::Result<()> {
+    async fn update_table(db: PgPool) -> anyhow::Result<()> {
         let name1: String = "blazinglyfast".into();
         let desc1: String = "it's just better".into();
 
@@ -393,7 +392,7 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn test_delete_table(db: PgPool) -> anyhow::Result<()> {
+    async fn delete_table(db: PgPool) -> anyhow::Result<()> {
         let name: String = "blazinglyfast".into();
         let desc: String = "it's just better".into();
 
@@ -421,25 +420,37 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn test_get_table_parent(db: PgPool) -> anyhow::Result<()> {
-        let table = super::create_table(
+    async fn get_table_parent(db: PgPool) -> anyhow::Result<()> {
+        let parent = super::create_table(
             &db,
             CreateTable {
-                parent_id: Some(1234),
-                name: "Table1".into(),
-                description: "This is table 1".into(),
+                parent_id: None,
+                name: "parent".into(),
+                description: "This is the parent".into(),
             },
         )
         .await?;
 
-        let parent = super::get_table_parent_id(&db, table.table_id).await?;
-        assert_eq!(parent, table.parent_id);
+        let child = super::create_table(
+            &db,
+            CreateTable {
+                parent_id: Some(parent.table_id),
+                name: "child".into(),
+                description: "This is the child".into(),
+            },
+        )
+        .await?;
 
+        let parent_id = super::get_table_parent_id(&db, child.table_id).await?;
+        assert_eq!(parent_id, child.parent_id);
+
+        let parent_id = super::get_table_parent_id(&db, parent.table_id).await?;
+        assert_eq!(parent_id, parent.parent_id);
         Ok(())
     }
 
     #[sqlx::test]
-    async fn test_get_tables(db: PgPool) -> anyhow::Result<()> {
+    async fn get_tables(db: PgPool) -> anyhow::Result<()> {
         let user = create_user(&db, "test".into(), "password".into(), false).await?;
         let table1 = super::create_table(
             &db,
@@ -489,7 +500,7 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn test_get_table_children(db: PgPool) -> anyhow::Result<()> {
+    async fn get_table_children(db: PgPool) -> anyhow::Result<()> {
         let parent = super::create_table(
             &db,
             CreateTable {
@@ -518,7 +529,7 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn test_get_table_data(db: PgPool) -> anyhow::Result<()> {
+    async fn get_table_data(db: PgPool) -> anyhow::Result<()> {
         let user = create_user(&db, "test".into(), "password".into(), false).await?;
         let table = super::create_table(
             &db,
@@ -548,7 +559,7 @@ mod test {
     }
 
     #[sqlx::test]
-    async fn test_delete_tables_without_owner(db: PgPool) -> anyhow::Result<()> {
+    async fn delete_tables_without_owner(db: PgPool) -> anyhow::Result<()> {
         let user = create_user(&db, "test".into(), "password".into(), false).await?;
         let table1 = super::create_table(
             &db,
