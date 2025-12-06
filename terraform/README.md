@@ -1,3 +1,3 @@
 # Usage
 
-See https://github.com/ChronicleTeam/chronicle/wiki/Deployment-and-Installation#google-cloud-platform
+See [Deployment](https://github.com/ChronicleTeam/chronicle/wiki/Deployment) for a general overview and [Installation](https://github.com/ChronicleTeam/chronicle/wiki/Installation#google-cloud-platform) for usage instructions.

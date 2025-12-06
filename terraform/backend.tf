@@ -22,12 +22,7 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name = "APP__ALLOWED_ORIGIN"
-        value_source {
-          secret_key_ref {
-            secret  = var.frontend.urls_secret_id
-            version = "latest"
-          }
-        }
+        value = join(",", var.backend.allowed_origin)
       }
       env {
         name = "APP__SESSION_KEY"
@@ -79,6 +74,7 @@ resource "google_cloud_run_v2_service" "backend" {
       }
     }
   }
+  depends_on = [google_sql_database_instance.production_db]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "backend_public" {
@@ -113,12 +109,6 @@ resource "google_secret_manager_secret_iam_member" "backend_admin_password" {
 
 resource "google_secret_manager_secret_iam_member" "backend_session_key" {
   secret_id = var.session_key_secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.backend.email}"
-}
-
-resource "google_secret_manager_secret_iam_member" "backend_frontend_urls" {
-  secret_id = google_secret_manager_secret.frontend_urls.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.backend.email}"
 }

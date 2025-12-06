@@ -12,12 +12,12 @@ production_db = {
 backend = {
   service_name = "chronicle-backend"
   image_url = "<image_repository>/backend:latest"
+  allowed_origin = []
 }
 
 frontend = {
   service_name = "chronicle"
   image_url = "<image_repository>/frontend:latest"
-  urls_secret_id = "frontend-urls"
 }
 
 admin = {

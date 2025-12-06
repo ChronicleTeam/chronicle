@@ -17,14 +17,14 @@ variable "backend" {
   type = object({
     service_name   = string
     image_url      = string
+    allowed_origin = list(string)
   })
 }
 
 variable "frontend" {
   type = object({
-    service_name   = string
-    image_url      = string
-    urls_secret_id = string
+    service_name = string
+    image_url    = string
   })
 }
 
