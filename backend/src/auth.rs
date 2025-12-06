@@ -138,7 +138,7 @@ fn set_partitioned_cookie(mut res: Response) -> Response {
         && let Ok(cookie_value) = set_cookie.to_str()
         && !cookie_value.contains("Partitioned")
     {
-        let cookie_value = format!("{}; Partitioned", cookie_value);
+        let cookie_value = format!("{cookie_value}; Partitioned");
         let headers = res.headers_mut();
         headers.insert(
             header::SET_COOKIE,
@@ -231,7 +231,7 @@ mod test {
         if let Some(admin) = db::get_user_by_username(&db, "Johnson".into()).await? {
             assert!(admin.is_admin);
         } else {
-            assert!(false, "Could not set admin.");
+            panic!("Could not set admin.");
         }
 
         Ok(())

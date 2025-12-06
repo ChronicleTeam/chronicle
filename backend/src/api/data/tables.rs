@@ -539,7 +539,7 @@ mod test {
             parent_id,
             user.user_id,
             AccessRole::Owner,
-            async || server.post(&path).json(&create_table).await,
+            async || server.post(path).json(&create_table).await,
         )
         .await;
 
@@ -556,7 +556,7 @@ mod test {
         assert_eq!(table_1, table_2);
 
         server
-            .post(&path)
+            .post(path)
             .json(&CreateTable {
                 parent_id: Some(1000),
                 name: "test".into(),
@@ -730,11 +730,11 @@ mod test {
 
         let path = "/api/tables";
 
-        server.get(&path).await.assert_status_unauthorized();
+        server.get(path).await.assert_status_unauthorized();
 
         test_util::login_session(&mut server, &user).await;
 
-        let response = server.get(&path).await;
+        let response = server.get(path).await;
         response.assert_status_ok();
         let tables_2: Vec<GetTable> = response.json();
         test_util::assert_eq_vec(tables_1, tables_2, |t| t.table.table_id);
@@ -952,7 +952,7 @@ mod test {
 
         let entries_1: Vec<Value> =
             serde_json::from_value(table_data_1.get_mut("entries").unwrap().take()).unwrap();
-        println!("{:?}", entries_1);
+        println!("{entries_1:?}");
         let mut entries_1: Vec<_> = entries_1
             .into_iter()
             .map(|mut entry| {
@@ -1187,7 +1187,7 @@ mod test {
         let csv_output = String::from_utf8(csv_bytes.into())?;
         let expected_csv_1 = "name,age\nAlice,30\nBob,25\n";
         let expected_csv_2 = "name,age\nBob,25\nAlice,30\n";
-        println!("\"{}\"", csv_output);
+        println!("\"{csv_output}\"");
         assert!(csv_output == expected_csv_1 || csv_output == expected_csv_2);
         Ok(())
     }

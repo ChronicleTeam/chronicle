@@ -459,7 +459,7 @@ mod test {
             ),
         ] {
             for field_kind in field_kinds {
-                assert_eq!(super::validate_axis(&aggregate, *field_kind).is_ok(), is_ok);
+                assert_eq!(super::validate_axis(&aggregate, field_kind).is_ok(), is_ok);
             }
         }
     }

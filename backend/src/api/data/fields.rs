@@ -377,7 +377,7 @@ mod test {
         .await;
 
         server
-            .post(&format!("/api/tables/1000/fields"))
+            .post("/api/tables/1000/fields")
             .json(&create_field)
             .await
             .assert_status_not_found();
@@ -607,7 +607,7 @@ mod test {
         .await;
 
         server
-            .get(&format!("/api/tables/1000/fields"))
+            .get("/api/tables/1000/fields")
             .await
             .assert_status_not_found();
 
@@ -697,7 +697,7 @@ mod test {
         .await;
 
         server
-            .patch(&format!("/api/tables/1000/fields/order"))
+            .patch("/api/tables/1000/fields/order")
             .json(&set_field_order)
             .await
             .assert_status_not_found();
@@ -721,7 +721,7 @@ mod test {
             set_field_order
                 .0
                 .get(&f.field_id)
-                .map_or(false, |ordering| f.ordering == *ordering)
+                .is_some_and(|ordering| f.ordering == *ordering)
         }));
 
         let wrong_ordering = set_field_order

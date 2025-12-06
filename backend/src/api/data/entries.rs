@@ -166,7 +166,7 @@ fn convert_cells(
     error_messages.extend(
         raw_cells
             .keys()
-            .map(|field_id| format!("{}: {INVALID_FIELD_ID}", field_id)),
+            .map(|field_id| format!("{field_id}: {INVALID_FIELD_ID}")),
     );
 
     if !error_messages.is_empty() {
@@ -488,7 +488,7 @@ mod test {
         .await;
 
         server
-            .post(&format!("/api/tables/1000/entries"))
+            .post("/api/tables/1000/entries")
             .json(&create_entries)
             .await
             .assert_status_not_found();
@@ -1034,7 +1034,7 @@ mod test {
 
         for (id, err_value) in err_values.iter() {
             let mut raw_cells = ok_values.clone();
-            *raw_cells.get_mut(&id).unwrap() = err_value.clone();
+            *raw_cells.get_mut(id).unwrap() = err_value.clone();
             super::convert_cells(raw_cells, &fields).unwrap_err();
         }
 
@@ -1131,7 +1131,7 @@ mod test {
                 range_start,
                 range_end,
             },
-            |value| Cell::Integer(value),
+            Cell::Integer,
         );
         test_numeric(
             0.5,
@@ -1145,7 +1145,7 @@ mod test {
                 range_start,
                 range_end,
             },
-            |value| Cell::Float(value),
+            Cell::Float,
         );
         test_numeric(
             Decimal::from_f32(50.25).unwrap(),
@@ -1159,7 +1159,7 @@ mod test {
                 range_start,
                 range_end,
             },
-            |value| Cell::Decimal(value),
+            Cell::Decimal,
         );
         test_numeric(
             "2012-12-12 00:00:00Z",

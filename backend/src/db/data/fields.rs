@@ -654,8 +654,7 @@ mod test {
                 _ => new_value.to_string(),
             });
             println!(
-                "{:?}: old_value: {:?} new_value {:?}",
-                field_kind, old_value, new_value
+                "{field_kind:?}: old_value: {old_value:?} new_value {new_value:?}"
             );
 
             let table_id = db::create_table(

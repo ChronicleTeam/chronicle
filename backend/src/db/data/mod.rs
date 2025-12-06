@@ -80,7 +80,7 @@ mod test {
     fn select_columns() {
         let field_idents = [1, 2, 3]
             .into_iter()
-            .map(|id| FieldIdentifier::new(id))
+            .map(FieldIdentifier::new)
             .collect_vec();
         let select_columns = super::select_columns(false, &field_idents);
         assert_eq!(
@@ -99,7 +99,7 @@ mod test {
     fn insert_columns() {
         let field_idents = [1, 2, 3]
             .into_iter()
-            .map(|id| FieldIdentifier::new(id))
+            .map(FieldIdentifier::new)
             .collect_vec();
         let insert_columns = super::insert_columns(false, &field_idents);
         assert_eq!(insert_columns, r#""f1", "f2", "f3""#);
@@ -112,7 +112,7 @@ mod test {
     fn update_columns() {
         let field_idents = [1, 2, 3]
             .into_iter()
-            .map(|id| FieldIdentifier::new(id))
+            .map(FieldIdentifier::new)
             .collect_vec();
         let update_columns = super::update_columns(false, &field_idents, 1);
         assert_eq!(update_columns, r#""f1" = $1, "f2" = $2, "f3" = $3"#);

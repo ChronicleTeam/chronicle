@@ -309,9 +309,6 @@ pub async fn delete_tables_without_owner(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use anyhow::Ok;
-    use itertools::Itertools;
-    use sqlx::{PgPool, query_as};
     use crate::{
         db::{self, create_user},
         model::{
@@ -320,6 +317,9 @@ mod test {
         },
         test_util,
     };
+    use anyhow::Ok;
+    use itertools::Itertools;
+    use sqlx::{PgPool, query_as};
 
     #[sqlx::test]
     async fn create_table(db: PgPool) -> anyhow::Result<()> {
