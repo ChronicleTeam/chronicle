@@ -231,7 +231,7 @@ mod test {
         if let Some(admin) = db::get_user_by_username(&db, "Johnson".into()).await? {
             assert!(admin.is_admin);
         } else {
-            assert!(false, "Could not set admin.");
+            panic!("Could not set admin.");
         }
 
         Ok(())

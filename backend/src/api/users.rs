@@ -383,7 +383,7 @@ mod test {
         response.assert_status_ok();
         response.assert_json(&UserResponse {
             user_id: user.user_id,
-            username: user.username.into(),
+            username: user.username,
             is_admin: user.is_admin,
         });
 
@@ -422,7 +422,7 @@ mod test {
         response.assert_status_ok();
         let user_response_1: UserResponse = response.json();
         assert_eq!(user_response_1.username, create_user.username);
-        assert_eq!(user_response_1.is_admin, false);
+        assert!(!user_response_1.is_admin);
         let user_response_2: UserResponse =
             sqlx::query_as(r#"SELECT * FROM app_user WHERE user_id = $1"#)
                 .bind(user_response_1.user_id)

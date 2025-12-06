@@ -73,8 +73,8 @@ pub async fn server(db: PgPool) -> TestServer {
         .await
         .unwrap();
     let app = init_layers(app, config.allowed_origin).unwrap();
-    let server = TestServer::new(app.with_state(AppState { db })).unwrap();
-    server
+    
+    TestServer::new(app.with_state(AppState { db })).unwrap()
 }
 
 pub async fn login_session(server: &mut TestServer, user: &User) {
@@ -94,7 +94,7 @@ pub async fn test_insert_cell(
     let table_ident = TableIdentifier::new(table_id, "data_table");
     let field_ident = FieldIdentifier::new(field_id);
 
-    println!("{table_ident}.{field_ident}: Iserting: {:?}", test_value);
+    println!("{table_ident}.{field_ident}: Iserting: {test_value:?}");
     let result = test_value
         .bind(sqlx::query(&format!(
             r#"INSERT INTO {table_ident} ({field_ident}) VALUES ($1)"#

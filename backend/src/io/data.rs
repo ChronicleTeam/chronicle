@@ -270,7 +270,7 @@ mod test {
 
         let test_data = crate::io::import_table_from_excel(spreadsheet);
 
-        let base_data = vec![CreateTableData {
+        let base_data = [CreateTableData {
             table: CreateTable {
                 parent_id: None,
                 name: "Sheet1".into(),
@@ -406,7 +406,7 @@ mod test {
 
         let entries = vec![
             Entry {
-                entry_id: 021,
+                entry_id: 21,
                 parent_id: None,
                 created_at: now,
                 updated_at: None,

@@ -380,11 +380,11 @@ mod test {
 
         let path = "/api/dashboards";
 
-        server.get(&path).await.assert_status_unauthorized();
+        server.get(path).await.assert_status_unauthorized();
 
         test_util::login_session(&mut server, &user).await;
 
-        let response = server.get(&path).await;
+        let response = server.get(path).await;
         response.assert_status_ok();
         let dashboards_2: Vec<GetDashboard> = response.json();
         test_util::assert_eq_vec(dashboards_1, dashboards_2, |d| d.dashboard.dashboard_id);

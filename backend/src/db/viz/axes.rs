@@ -251,11 +251,11 @@ mod test {
         let get_aggregates = |is_ordered: bool, is_numeric: bool| {
             let unordered = [Aggregate::Count].into_iter();
             let ordered = is_ordered
-                .then(|| [Aggregate::Min, Aggregate::Max])
+                .then_some([Aggregate::Min, Aggregate::Max])
                 .into_iter()
                 .flatten();
             let numeric = is_numeric
-                .then(|| [Aggregate::Sum, Aggregate::Average])
+                .then_some([Aggregate::Sum, Aggregate::Average])
                 .into_iter()
                 .flatten();
             unordered.chain(ordered).chain(numeric).collect_vec()
@@ -423,7 +423,7 @@ mod test {
             .collect();
         assert_eq!(create_axes_1.len(), create_axes_2.len());
         for create_axis in &create_axes_1 {
-            assert!(create_axes_2.get(create_axis).is_some());
+            assert!(create_axes_2.contains(create_axis));
         }
 
         // More to do here

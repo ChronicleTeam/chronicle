@@ -485,7 +485,7 @@ mod test {
         server
             .patch(&path)
             .json(&vec![UpdateAccess {
-                username: auth_user.username.into(),
+                username: auth_user.username,
                 access_role: AccessRole::Viewer,
             }])
             .await
