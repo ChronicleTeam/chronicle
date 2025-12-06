@@ -461,8 +461,6 @@ mod docs {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::{collections::HashMap, io::Cursor};
-
     use crate::{
         Id, db,
         model::{
@@ -473,13 +471,14 @@ mod test {
                 UpdateTable,
             },
         },
-        setup_tracing, test_util,
+        test_util,
     };
     use axum::body::Bytes;
-    use axum_test::{TestResponse, multipart};
+    use axum_test::multipart;
     use itertools::Itertools;
     use serde_json::{Value, json};
     use sqlx::PgPool;
+    use std::{collections::HashMap, io::Cursor};
 
     #[sqlx::test]
     async fn create_table(db: PgPool) -> anyhow::Result<()> {
