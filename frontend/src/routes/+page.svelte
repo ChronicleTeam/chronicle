@@ -26,10 +26,6 @@
     }
   }
 
-  function goToRegister() {
-    goto("/register");
-  }
-
   onMount(() => {
     user().then((u) => {
       if (u) goto(SUCCESS_REDIRECT);
@@ -78,10 +74,6 @@
       {/if}
 
       <button type="submit" class="btn btn-primary btn-block"> Login </button>
-
-      <button type="button" onclick={goToRegister} class="btn btn-block">
-        Register
-      </button>
     </form>
   </div>
 </div>

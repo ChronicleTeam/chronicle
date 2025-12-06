@@ -72,15 +72,4 @@ describe("login page", () => {
 
     await expect.poll(() => goto).toHaveBeenCalledExactlyOnceWith('/tables');
   })
-
-  it('redirects to register page when register button clicked', async () => {
-    const screen = page.render(Login)
-    const registerButton = screen.getByRole('button', { name: 'register' })
-
-    await expect.element(registerButton).toBeVisible()
-    await registerButton.click()
-
-    await expect.poll(() => goto).toHaveBeenCalledExactlyOnceWith('/register')
-  })
-
 });

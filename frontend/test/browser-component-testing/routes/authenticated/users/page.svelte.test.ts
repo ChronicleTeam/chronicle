@@ -3,7 +3,7 @@
 import { expect, vi, afterEach, describe } from 'vitest'
 import { page, userEvent } from '@vitest/browser/context'
 
-import Page from '../../../../../src/routes/users/+page.svelte'
+import Page from '../../../../../src/routes/(authGuarded)/users/+page.svelte'
 import { it } from '../../../test-extensions';
 
 const pageParams = {
