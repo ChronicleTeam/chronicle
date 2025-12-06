@@ -91,36 +91,4 @@ describe("main field editor", () => {
       field_id: 1,
     }));
   })
-
-  /* it.for(flatFieldKindOperations)("allows for editing of $displayType field's $optionName option", async ({ displayType, fieldType, optionName, optionRole, optionField, optionModifier, optionValue }) => {
-    const loadResult = await load({ params: pageParams })
-    const data = $state(loadResult);
-    const screen = page.render(Page, { props: { data } });
-    await expect.poll(() => getTableData).toHaveBeenCalledTimes(2);
-
-    await screen.getByRole("button", { name: "add field" }).click()
-
-    const newFieldTypeSelect = screen.getByRole("combobox", { name: "type" }).last();
-    await expect.element(newFieldTypeSelect).toBeVisible();
-    await newFieldTypeSelect.selectOptions([displayType]);
-    await expect.element(newFieldTypeSelect).toHaveValue(fieldType);
-
-    const optCheckbox = screen.getByRole("checkbox", { name: optionName }).elements()
-    console.log(optCheckbox);
-    const element = screen.getByRole(optionRole, { name: optionName }).last();
-    await optionModifier(element);
-
-    await screen.getByRole("button", { name: "save" }).click();
-    await screen.getByRole("button", { name: "confirm" }).click();
-    await expect.poll(() => postField).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-      name: "New Field 1",
-      table_id: 124,
-      field_kind: expect.objectContaining({
-        type: fieldType,
-        [optionField]: optionValue
-      })
-    }))
-
-  }); */
-
 })
