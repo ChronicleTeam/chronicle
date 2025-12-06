@@ -293,7 +293,6 @@ describe("main table editor", () => {
     await expect.element(saveBtn).toBeVisible();
     await saveBtn.click();
 
-    // WARN: Maybe make this more rigorous?
     await expect.poll(() => postEntries).toHaveBeenCalledOnce();
 
     await expect.element(saveBtn).not.toBeInTheDocument();

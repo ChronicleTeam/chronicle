@@ -26,10 +26,6 @@
     }
   }
 
-  function goToRegister() {
-    goto("/register");
-  }
-
   onMount(() => {
     user().then((u) => {
       if (u) goto(SUCCESS_REDIRECT);
@@ -40,12 +36,14 @@
 <div
   class="flex flex-col justify-center items-center h-screen gap-6 bg-base-200"
 >
+  <!-- Header -->
   <img src="/logo.png" alt="Logo" class="h-20 mb-4" />
   <h1 class="text-5xl font-bold text-center">Chronicle</h1>
   <p class="text-lg text-center text-base-content opacity-70">
     Data analysis made simple.
   </p>
 
+  <!-- Login form -->
   <div class="card bg-base-100 shadow-lg w-80">
     <form onsubmit={handleLogin} class="card-body flex flex-col gap-4">
       <div>
@@ -78,10 +76,6 @@
       {/if}
 
       <button type="submit" class="btn btn-primary btn-block"> Login </button>
-
-      <button type="button" onclick={goToRegister} class="btn btn-block">
-        Register
-      </button>
     </form>
   </div>
 </div>

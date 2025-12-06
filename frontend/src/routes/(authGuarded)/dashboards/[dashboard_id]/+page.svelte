@@ -246,7 +246,9 @@
     <p class="text-error">{errors.chart.load}</p>
   {:else}
     {#each charts as chart}
-      <div class="card bg-base-100 p-3 flex flex-col justify-between shadow-sm">
+      <div
+        class="card bg-base-100 p-3 h-full flex flex-col justify-between shadow-sm"
+      >
         <!-- Chart info -->
         <div>
           <p class="font-bold text-center">{chart.name}</p>
@@ -387,12 +389,14 @@
 {/if}
 
 {#await user() then u}
-  <AccessManagementModal
-    bind:modal={accessModal}
-    curUser={u}
-    usersWithAccess={data.allAccess ?? undefined}
-    allUsers={data.users ?? undefined}
-    resource={"Dashboard"}
-    resourceId={dashboard.dashboard_id.toString()}
-  />
+  {#if u}
+    <AccessManagementModal
+      bind:modal={accessModal}
+      curUser={u}
+      usersWithAccess={data.allAccess ?? undefined}
+      allUsers={data.users ?? undefined}
+      resource={"Dashboard"}
+      resourceId={dashboard.dashboard_id.toString()}
+    />
+  {/if}
 {/await}

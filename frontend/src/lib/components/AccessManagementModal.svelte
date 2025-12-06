@@ -51,6 +51,7 @@
   {#if usersWithAccess && remainingUsers}
     <div class="modal-box max-w-11/12">
       <h3 class="text-lg font-bold">Manage Access</h3>
+      <!-- List of users with access -->
       <ul class="list">
         <li>Users with access</li>
         {#each usersWithAccess as u}
@@ -119,6 +120,8 @@
           </li>
         {/each}
       </ul>
+
+      <!-- user adding input -->
       <div>
         <p class="font-bold">Add user:</p>
         <div class="w-full flex justify-center">

@@ -23,7 +23,10 @@
   };
 </script>
 
-<button class="flex justify-center size-full" onclick={openModal}>
+<button
+  class="flex justify-center grow shrink overflow-y-auto"
+  onclick={openModal}
+>
   <Chart {dashboard} {chart} />
 </button>
 

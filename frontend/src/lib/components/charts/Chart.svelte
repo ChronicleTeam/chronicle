@@ -213,14 +213,15 @@
     <canvas bind:this={g}></canvas>
   </div>
 {:else if chartData}
-  <!--TODO: Style this table when backend is up again -->
   <!-- Table type Chart -->
-  <table class="border border-black">
+  <table
+    class="table text-base-content w-full border border-base-content/5 border-base-100"
+  >
     <thead>
       <tr>
         {#each chartData.axes as axis}
           <th
-            class="border border-black bg-white select-none"
+            class=""
             onclick={(e) => {
               e.stopPropagation();
               if (selectedColumn.axis_id === axis.axis.axis_id) {
@@ -244,7 +245,7 @@
         {#each tableCells as row}
           <tr>
             {#each chartData.axes as axis}
-              <td class="p-2 border border-black">
+              <td class="">
                 {row[axis.axis.axis_id]}
               </td>
             {/each}

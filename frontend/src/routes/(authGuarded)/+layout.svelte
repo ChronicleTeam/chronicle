@@ -1,6 +1,5 @@
 <script lang="ts">
   import { user } from "$lib/user.svelte";
-  import type { UserResponse } from "$lib/api/userManagement";
 
   let { children } = $props();
 
@@ -8,8 +7,6 @@
     page: string;
     text: string;
   };
-
-  let currentUser: UserResponse | null = null;
 
   const links: navLink[] = [
     { page: "/tables", text: "Data Management" },
@@ -20,13 +17,16 @@
 
 <div class="p-4 h-full flex flex-col">
   {#await user() then u}
-  {#if u}
-    {#if u.is_admin}
-      {#if !links.find(l => l.page === "/users")}
-        {@html links.splice(links.length - 1, 0, { page: "/users", text: "User Management" })}
+    {#if u}
+      <!-- add user management if user is admin -->
+      {#if u.is_admin}
+        {#if !links.find((l) => l.page === "/users")}
+          {@html links.splice(links.length - 1, 0, {
+            page: "/users",
+            text: "User Management",
+          })}
+        {/if}
       {/if}
-    {/if}
-
 
       <!-- Navbar -->
       <nav class="navbar bg-base-300 mb-4 rounded-lg shadow-xs">
@@ -66,9 +66,8 @@
         </div>
       </nav>
 
-      <!-- Contenu principal -->
+      <!-- Main Content -->
       {@render children()}
-
     {:else}
       <h1>Not authorized.</h1>
       <a href="/">Go home</a>

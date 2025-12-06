@@ -891,8 +891,11 @@
       );
 
     // create new fields
+    let addFieldsPromise = new Promise((res, rej) => {
+      res({ ok: true });
+    });
     changes.fields.added.forEach((field) => {
-      promises.push(
+      addFieldsPromise = addFieldsPromise.then(() =>
         postField(field)
           .then((response: Field) => {
             let newField = response;
@@ -904,13 +907,17 @@
             return { ok: true };
           })
           .catch((e: APIError) => {
-            let text = e.body.toString();
-            errors.fields[field.field_id] = text;
-
-            return { ok: false };
+            throw { e, field_id: field.field_id };
           }),
       );
     });
+    addFieldsPromise.catch(({ e, field_id }) => {
+      let text = e.body.toString();
+      errors.fields[field_id] = text;
+
+      return { ok: false };
+    });
+    promises.push(addFieldsPromise);
 
     // modify existing fields
     changes.fields.modified.forEach((field) => {
@@ -950,8 +957,11 @@
     }
 
     // add subtables
+    let addSubtablesPromise = new Promise((res, rej) => {
+      res({ ok: true });
+    });
     changes.subtables.added.forEach((t) => {
-      promises.push(
+      addSubtablesPromise = addSubtablesPromise.then(() =>
         postCreateTable(t.table)
           .then((response: Table) => {
             let newTableData = {
@@ -970,11 +980,15 @@
             return { ok: true };
           })
           .catch((e) => {
-            errors.subtables[t.table.table_id] = e.body.toString();
-            return { ok: false };
+            throw { e, table_id: t.table.table_id };
           }),
       );
     });
+    addSubtablesPromise.catch(({ e, table_id }) => {
+      errors.subtables[table_id] = e.body.toString();
+      return { ok: false };
+    });
+    promises.push(addSubtablesPromise);
 
     // modify subtables
     changes.subtables.modified.forEach((t) => {
@@ -1223,7 +1237,6 @@
 
 <!-- Bottom Bar -->
 {#if table.old !== table.new}
-  <!-- TODO: actually have the condition check for modifications -->
   <div class="flex justify-center gap-4">
     <button onclick={openConfirmationModal} class="btn join-item">Save</button>
     <button
