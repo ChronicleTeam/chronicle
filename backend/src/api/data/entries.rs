@@ -166,7 +166,7 @@ fn convert_cells(
     error_messages.extend(
         raw_cells
             .keys()
-            .map(|field_id| format!("{}: {INVALID_FIELD_ID}", field_id)),
+            .map(|field_id| format!("{field_id}: {INVALID_FIELD_ID}")),
     );
 
     if !error_messages.is_empty() {

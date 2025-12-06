@@ -94,7 +94,7 @@ pub async fn set_axes(
             &field_ident.to_string()
         };
         let axis_ident = AxisIdentifier::new(axis.axis_id);
-        select_columns.push(format!("{item} AS {}", axis_ident));
+        select_columns.push(format!("{item} AS {axis_ident}"));
     }
     let group_by_columns = group_by_columns.join(", ");
     let select_columns = select_columns.join(", ");

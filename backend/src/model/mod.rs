@@ -78,12 +78,12 @@ impl<'q> Encode<'q, Postgres> for Cell {
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Cell::Integer(v) => write!(f, "{}", v),
-            Cell::Float(v) => write!(f, "{}", v),
-            Cell::Decimal(v) => write!(f, "{}", v),
-            Cell::Boolean(v) => write!(f, "{}", v),
+            Cell::Integer(v) => write!(f, "{v}"),
+            Cell::Float(v) => write!(f, "{v}"),
+            Cell::Decimal(v) => write!(f, "{v}"),
+            Cell::Boolean(v) => write!(f, "{v}"),
             Cell::DateTime(v) => write!(f, "{}", v.to_rfc3339()),
-            Cell::String(v) => write!(f, "{}", v),
+            Cell::String(v) => write!(f, "{v}"),
             Cell::Null => write!(f, "null"),
         }
     }
