@@ -19,7 +19,6 @@
     DecimalKind,
     TableData,
     Access,
-    AccessRole,
   } from "$lib/types";
   import { FieldType } from "$lib/types";
   import {

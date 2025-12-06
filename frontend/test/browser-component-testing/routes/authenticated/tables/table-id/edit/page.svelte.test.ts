@@ -34,59 +34,6 @@ const fieldTypes = [
   ["Enumeration", "Enumeration"],
 ]
 
-/*const fieldKindOperations = [
-  {
-    displayType: "Text",
-    type: "Text",
-    options: [
-      {
-        name: "required",
-        role: "checkbox",
-        field: "is_required",
-        modifier: async (element) => {
-          await element.click();
-        },
-        value: false,
-      }
-    ]
-  },
-  {
-    displayType: "Integer",
-    type: "Integer",
-    options: [
-      {
-        name: "required",
-        role: "checkbox",
-        field: "is_required",
-        modifier: async (element) => {
-          await element.click();
-        },
-        value: false,
-      },
-      {
-        name: "range start",
-        field: "range_start",
-        role: "spinbutton",
-        modifier: async (element) => {
-          await element.fill("2")
-        }
-      }
-    ]
-  },
-]
-
- const flatFieldKindOperations = fieldKindOperations.map((fieldType) => {
-  return fieldType.options.map((option) => ({
-    displayType: fieldType.displayType,
-    fieldType: fieldType.type,
-    optionName: option.name,
-    optionRole: option.role,
-    optionField: option.field,
-    optionModifier: option.modifier,
-    optionValue: option.value
-  }))
-}).flat(1); */
-
 describe("main field editor", () => {
   afterEach(async () => {
     vi.clearAllMocks();

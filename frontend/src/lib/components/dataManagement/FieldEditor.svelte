@@ -1223,7 +1223,6 @@
 
 <!-- Bottom Bar -->
 {#if table.old !== table.new}
-  <!-- TODO: actually have the condition check for modifications -->
   <div class="flex justify-center gap-4">
     <button onclick={openConfirmationModal} class="btn join-item">Save</button>
     <button
