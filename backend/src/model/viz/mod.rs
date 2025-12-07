@@ -1,3 +1,5 @@
+//! Types for data visualization features.
+
 mod axes;
 mod charts;
 mod dashboards;

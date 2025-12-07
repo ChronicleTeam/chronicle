@@ -1,3 +1,5 @@
+//! This module contains OpenAPI configuration and utilites for defining OpenAPI specs.
+
 use aide::{
     OperationOutput,
     axum::ApiRouter,

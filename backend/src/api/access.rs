@@ -1,3 +1,6 @@
+//! Routes for managing access to Chronicle resources (tables and dashboards).
+//! Users must be the owner of a resource to use its access control API.
+
 use crate::{
     AppState, Id,
     api::NO_DATA_IN_REQUEST_BODY,
@@ -174,6 +177,8 @@ async fn get_all_access(
     Ok(Json(get_access_vec))
 }
 
+/// Return all user IDs corresponding to the usernams or return the appropriate API error
+/// if users with access are not found.
 async fn get_users_with_access(
     conn: impl Acquire<'_, Database = Postgres>,
     auth_user_id: Id,

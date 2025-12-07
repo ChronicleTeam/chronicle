@@ -1,8 +1,10 @@
-//! Route handlers for managing users.
+//! Route handlers for managing users and login/logout.
+//! The user management features are restricted to admin users.
 //!
-//! User sessions are managed through an authentication cookie which is sent to the
+//! User sessions are managed through an session cookie which is sent to the
 //! front-end and received in the back-end to confirm identity.
-//!
+//! 
+//! Session cookies are signed using a private key.
 
 use crate::{
     AppState,

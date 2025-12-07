@@ -1,4 +1,4 @@
-//! Models for the Data Management feature.
+//! Types for data management features.
 
 mod entries;
 mod fields;

@@ -1,4 +1,4 @@
-//! Query functions for the Data Management feature.
+//! Database functions for the data management features.
 
 mod entries;
 mod fields;
@@ -12,7 +12,7 @@ use itertools::Itertools;
 use sqlx::{Row, postgres::PgRow};
 pub use {entries::*, fields::*, tables::*};
 
-/// All columns of a user dynamic SQL table prepared for a "select" query.
+/// Return the columns of a the dynamic SQL table prepared for a "select" query.
 fn select_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String {
     field_idents
         .iter()
@@ -26,7 +26,7 @@ fn select_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String
         .join(", ")
 }
 
-/// All columns of a user dynamic SQL table prepared for an "insert" query.
+/// Return the columns of a the dynamic SQL table prepared for an "insert" query.
 fn insert_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String {
     field_idents
         .iter()
@@ -35,7 +35,7 @@ fn insert_columns(with_parent: bool, field_idents: &[FieldIdentifier]) -> String
         .join(", ")
 }
 
-/// All columns of a user dynamic SQL table prepared for an "update" query.
+/// Return the columns of a the dynamic SQL table prepared for an "update" query.
 fn update_columns(with_parent: bool, field_idents: &[FieldIdentifier], position: usize) -> String {
     field_idents
         .iter()

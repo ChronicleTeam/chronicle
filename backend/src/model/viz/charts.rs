@@ -1,11 +1,12 @@
+//! Types for dashboard charts.
+
+use super::AxisField;
 use crate::{Id, model::Cell};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use std::{collections::HashMap, fmt};
-
-use super::AxisField;
 
 /// Dashboard chart entity.
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, JsonSchema, PartialEq)]
@@ -43,13 +44,14 @@ pub struct UpdateChart {
     pub chart_kind: ChartKind,
 }
 
+/// Chart ID path extractor.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SelectChart {
     pub dashboard_id: Id,
     pub chart_id: Id,
 }
 
-/// Response for fetching entire chart data.
+/// Response for fetching the entire chart's data.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct ChartData {
     pub chart: Chart,
@@ -57,7 +59,7 @@ pub struct ChartData {
     pub cells: Vec<HashMap<Id, Cell>>,
 }
 
-/// Database identifier of the actual SQL view that a user chart points to.
+/// Database identifier of the actual SQL view that this user chart points to.
 #[derive(Debug)]
 pub struct ChartIdentifier {
     chart_id: Id,

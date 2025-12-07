@@ -1,3 +1,10 @@
+//! This modules defines the API's routes and implements their handlers.
+//! 
+//! All requests other than those to `/api/login` require that the user is authenticated.
+//! Otherwise, `401 Unauthorized` is returned.
+//! 
+//! Instructions to view the OpenAPI documentation is in `README.md`.
+
 mod access;
 mod data;
 mod users;

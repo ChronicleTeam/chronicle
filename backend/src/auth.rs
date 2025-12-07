@@ -1,3 +1,5 @@
+//! This module contains configuration for user authentication.
+
 use crate::{
     AppState, db,
     error::{ApiError, IntoAnyhow},
@@ -43,12 +45,7 @@ impl AuthnBackend for AuthBackend {
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
         let user = db::get_user_by_username(&self.db, creds.username).await?;
-
-        // Verifying the password is blocking and potentially slow, so we'll do so via
-        // `spawn_blocking`.
         task::spawn_blocking(|| {
-            // We're using password-based authentication--this works by comparing our form
-            // input with an argon2 password hash.
             Ok(user.filter(|user| verify_password(creds.password, &user.password_hash).is_ok()))
         })
         .await
@@ -62,6 +59,7 @@ impl AuthnBackend for AuthBackend {
 
 pub type AppAuthSession = NoApi<AuthSession<AuthBackend>>;
 
+/// Initialize authentication for the router.
 pub async fn init(
     router: Router<AppState>,
     db: PgPool,

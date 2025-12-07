@@ -1,3 +1,5 @@
+//! Types for user tables.
+
 use crate::{
     Id,
     model::{Cell, access::AccessRole},
@@ -36,6 +38,7 @@ pub struct UpdateTable {
     pub description: String,
 }
 
+/// Get table response.
 #[derive(Debug, FromRow, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct GetTable {
     #[sqlx(flatten)]
@@ -43,12 +46,13 @@ pub struct GetTable {
     pub access_role: AccessRole,
 }
 
+/// Table ID path extractor.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SelectTable {
     pub table_id: Id,
 }
 
-/// Response for fetching entire table data.
+/// The entire table's data.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct TableData {
     pub table: Table,
@@ -57,13 +61,14 @@ pub struct TableData {
     pub children: Vec<TableData>,
 }
 
+/// Get table data response.
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct GetTableData {
     pub table_data: TableData,
     pub access_role: AccessRole,
 }
 
-/// DTO for creating tables from imports.
+/// DTO for creating tables from file imports.
 #[derive(Debug, PartialEq)]
 pub struct CreateTableData {
     pub table: CreateTable,
@@ -71,7 +76,7 @@ pub struct CreateTableData {
     pub entries: Vec<Vec<Cell>>,
 }
 
-/// Database identifier of the actual SQL table that a user table points to.
+/// Database identifier of the actual SQL table that this user table points to.
 #[derive(Debug)]
 pub struct TableIdentifier {
     table_id: Id,

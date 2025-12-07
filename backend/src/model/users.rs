@@ -1,3 +1,5 @@
+//! Types for user management and authentication.
+
 use crate::Id;
 use axum_login::AuthUser;
 use schemars::JsonSchema;
@@ -47,17 +49,20 @@ pub struct Credentials {
     pub password: String,
 }
 
+/// User ID path extractor.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SelectUser {
     pub user_id: Id,
 }
 
+/// Create user request.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct CreateUser {
     pub username: String,
     pub password: String,
 }
 
+/// Update user request.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateUser {
     pub username: Option<String>,

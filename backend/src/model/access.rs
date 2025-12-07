@@ -1,12 +1,14 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
+//! Types for access managment features.
 
 use crate::{
     Id,
     error::{ApiError, ApiResult},
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
 
+/// The access role for a user and a resource.
 #[derive(
     Debug,
     Clone,
@@ -22,11 +24,16 @@ use crate::{
 )]
 #[sqlx(type_name = "access_role")]
 pub enum AccessRole {
+    /// Can view the content
     Viewer,
+    /// Can edit the content
     Editor,
+    /// Can modify and delete the resource and its metadata
     Owner,
 }
 
+/// Trait for checking that an `Option<AccessRole>` matches the required `AccessRole`
+/// and return the appropriate API response.
 pub trait AccessRoleCheck {
     fn check(self, required: AccessRole) -> ApiResult<()>;
 }
@@ -50,6 +57,7 @@ impl AccessRoleCheck for Option<AccessRole> {
     }
 }
 
+/// A resource for which a user can have access.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub enum Resource {
     Table,
@@ -57,6 +65,7 @@ pub enum Resource {
 }
 
 impl Resource {
+    /// SQL tables for the access relationship table.
     pub fn access_tablename(&self) -> &'static str {
         match self {
             Resource::Table => "meta_table_access",
@@ -65,29 +74,34 @@ impl Resource {
     }
 }
 
+/// Resource ID path extractor.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SelectResource {
     pub resource: Resource,
     pub resource_id: Id,
 }
 
+/// Create access request.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct CreateAccess {
     pub username: String,
     pub access_role: AccessRole,
 }
 
+/// Update access request.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateAccess {
     pub username: String,
     pub access_role: AccessRole,
 }
 
+/// Delete access request.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct DeleteAccess {
     pub username: String,
 }
 
+/// Get access response.
 #[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq, Eq)]
 pub struct GetAccess {
     pub username: String,

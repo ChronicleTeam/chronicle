@@ -1,11 +1,11 @@
-use std::fmt;
+//! Types for chart axes.
 
+use crate::{Id, model::data::FieldKind};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, types::Json};
-
-use crate::{Id, model::data::FieldKind};
+use std::fmt;
 
 /// Chart axis entity.
 #[derive(Debug, Serialize, Deserialize, FromRow, JsonSchema, PartialEq)]
@@ -80,7 +80,7 @@ pub struct CreateAxis {
     pub aggregate: Option<Aggregate>,
 }
 
-/// Set a chart's axis request.
+/// Set a chart's axes request.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SetAxes(pub Vec<CreateAxis>);
 
@@ -94,7 +94,7 @@ pub struct AxisField {
     pub field_kind: Json<FieldKind>,
 }
 
-/// Database identifier of the actual SQL view column that a user axis points to.
+/// Database identifier of the actual SQL view column that this user axis points to.
 #[derive(Debug)]
 pub struct AxisIdentifier {
     axis_id: Id,
@@ -103,6 +103,7 @@ impl AxisIdentifier {
     pub fn new(axis_id: Id) -> Self {
         Self { axis_id }
     }
+    /// Return the unquoted identifier.
     pub fn unquoted(&self) -> String {
         format!("a{}", self.axis_id)
     }
