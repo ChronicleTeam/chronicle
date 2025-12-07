@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+//! Database functions for managing dashboard charts.
 
 use crate::{
     Id,
@@ -11,6 +11,7 @@ use crate::{
 };
 use itertools::Itertools;
 use sqlx::{Acquire, PgExecutor, Postgres};
+use std::collections::HashMap;
 
 /// Add a chart to this dashboard and create the actual SQL view.
 pub async fn create_chart(
@@ -122,7 +123,7 @@ pub async fn delete_chart(
     Ok(())
 }
 
-/// Delete this chart along with the actual SQL view and the axes.
+/// Delete this chart along with the actual SQL view and its axes.
 pub async fn get_chart_table_id(executor: impl PgExecutor<'_>, chart_id: Id) -> sqlx::Result<Id> {
     sqlx::query_scalar(
         r#"
@@ -249,6 +250,7 @@ pub async fn get_chart_data(
     Ok(ChartData { chart, axes, cells })
 }
 
+/// Return true if the chart exists.
 pub async fn chart_exists(
     executor: impl PgExecutor<'_>,
     dashboard_id: Id,

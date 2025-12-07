@@ -1,3 +1,5 @@
+//! Routes for managing table entries.
+
 use crate::{
     AppState, Id,
     api::NO_DATA_IN_REQUEST_BODY,
@@ -133,6 +135,7 @@ async fn delete_entry(
     Ok(())
 }
 
+/// Check that the entry's parent ID points to a valid entry.
 async fn check_parent_id(
     conn: impl Acquire<'_, Database = Postgres>,
     parent_entry_id: Id,
@@ -149,7 +152,7 @@ async fn check_parent_id(
     Ok(())
 }
 
-/// Convert raw JSON cell values to a list of cells.
+/// Convert a map of field IDs and JSON values to a list of [Cell]s.
 fn convert_cells(
     mut raw_cells: HashMap<Id, Value>,
     fields: &[FieldMetadata],
@@ -176,7 +179,7 @@ fn convert_cells(
     Ok(new_cells)
 }
 
-/// Converts a JSON value to a [`Cell`] and return the correct error message on failure.
+/// Converts a JSON value to a [Cell] and return the correct error message on failure.
 fn json_to_cell(value: Value, field_kind: &FieldKind) -> Result<Cell, &'static str> {
     match (value, field_kind) {
         (

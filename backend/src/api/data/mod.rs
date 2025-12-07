@@ -1,6 +1,7 @@
-//! Route handlers for managing user tables.
+//! Routes for managing user tables, fields, and entries.
 //!
-//! Users must be authenticated for all requests.
+//! Users must have the appropriate access role for any operation.
+//! Otherwise, `403 Forbidden` or `404 Not Found` is returned.
 
 mod entries;
 mod fields;

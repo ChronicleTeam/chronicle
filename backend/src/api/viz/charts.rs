@@ -1,3 +1,5 @@
+//! Routes for managing dashboard charts.
+
 use crate::{
     AppState,
     auth::AppAuthSession,

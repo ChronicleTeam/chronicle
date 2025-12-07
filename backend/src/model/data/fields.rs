@@ -1,3 +1,5 @@
+//! Types for table fields.
+
 use crate::Id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -114,6 +116,7 @@ pub struct UpdateField {
     pub field_kind: FieldKind,
 }
 
+/// Field ID path extractor.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SelectField {
     pub table_id: Id,
@@ -124,7 +127,7 @@ pub struct SelectField {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SetFieldOrder(pub HashMap<Id, i32>);
 
-/// DTO for when a field's ID and field kind is needed.
+/// DTO for when only a field's ID and field kind is needed.
 #[derive(Debug, Clone, FromRow, PartialEq)]
 pub struct FieldMetadata {
     pub field_id: Id,
@@ -140,7 +143,7 @@ impl FieldMetadata {
     }
 }
 
-/// Database identifier of the actual SQL table column that a user field points to.
+/// Database identifier of the actual SQL table column that this user field points to.
 #[derive(Debug)]
 pub struct FieldIdentifier {
     field_id: Id,
@@ -149,6 +152,7 @@ impl FieldIdentifier {
     pub fn new(field_id: Id) -> Self {
         Self { field_id }
     }
+    /// Return the unquoted identifier.
     pub fn unquote(&self) -> String {
         format!("f{}", self.field_id)
     }

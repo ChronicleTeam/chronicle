@@ -57,10 +57,13 @@ pub struct AppState {
 struct AppConfig {
     /// Server port.
     port: u16,
+    /// List of allowed origins
     #[serde(deserialize_with = "env_list")]
     allowed_origin: Vec<String>,
+    /// Session key used to sign session cookies
     #[serde(deserialize_with = "base64_session_key")]
     session_key: Key,
+    /// Admin credentials
     admin: Credentials,
     /// Database connection info.
     database: DatabaseConfig,
@@ -75,6 +78,7 @@ impl AppConfig {
     }
 }
 
+/// Database connection info and credentials
 #[derive(Clone, Deserialize)]
 struct DatabaseConfig {
     host: String,
@@ -87,18 +91,8 @@ struct DatabaseConfig {
 /// It creates the routes under the `/api` path and configures
 /// middleware layers for the back-end. The [ApiState] is then
 /// attached to the router.
-///
-/// The secrets provided must contain the following keys:
-/// ```toml
-/// ALLOWED_ORIGIN=<url>
-/// ```
-///
-/// An amount of admin accounts can be defined by repeating this pair of variables:
-/// ```toml
-/// <identifier>_USERNAME=<username>
-/// <identifier>_PASSWORD=<password>
-/// ```
-///
+/// 
+/// This expects that the correct environment variables are set to build [AppConfig].
 pub async fn serve() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     setup_tracing();
@@ -134,6 +128,7 @@ pub async fn serve() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Initialize the service layers of the application router.
 fn init_layers(
     router: Router<AppState>,
     allowed_origin: Vec<String>,
@@ -165,7 +160,7 @@ fn init_layers(
     Ok(router.layer(service))
 }
 
-/// Sets up tracing for debuging and monitoring.
+/// Setup tracing for debuging and monitoring.
 /// Does nothing if called more than once.
 fn setup_tracing() {
     static INIT: std::sync::Once = std::sync::Once::new();
@@ -185,6 +180,7 @@ fn setup_tracing() {
     });
 }
 
+/// Deserialize a comma-seperated string into a list of strings.
 fn env_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -196,6 +192,7 @@ where
         .collect())
 }
 
+/// Deserialize a base64 encoded string into a cryptographic key.
 fn base64_session_key<'de, D>(deserializer: D) -> Result<Key, D::Error>
 where
     D: serde::Deserializer<'de>,

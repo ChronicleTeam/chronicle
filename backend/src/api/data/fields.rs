@@ -1,3 +1,5 @@
+//! Routes for managing table fields.
+
 use crate::{
     AppState,
     api::NO_DATA_IN_REQUEST_BODY,
@@ -185,7 +187,7 @@ async fn set_field_order(
     Ok(())
 }
 
-/// Validates a request [FieldKind].
+/// Validate a request [FieldKind]. Return `422 Unprocessable Entity` on failure.
 fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     match field_kind {
         FieldKind::Integer {
@@ -229,7 +231,7 @@ fn validate_field_kind(field_kind: &mut FieldKind) -> ApiResult<()> {
     Ok(())
 }
 
-/// Validates the range definition of a field.
+/// Validates the range definition of a field. Return `422 Unprocessable Entity` on failure.
 fn validate_range<T>(range_start: Option<T>, range_end: Option<T>) -> ApiResult<()>
 where
     T: PartialOrd,

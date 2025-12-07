@@ -1,3 +1,5 @@
+//! Database functions for managing user tables.
+
 use super::{entry_from_row, select_columns};
 use crate::{
     Id, db,
@@ -67,7 +69,7 @@ pub async fn create_table(
     Ok(table)
 }
 
-/// Update the table metadata.
+/// Update the table's metadata.
 pub async fn update_table(
     conn: impl Acquire<'_, Database = Postgres>,
     table_id: Id,
@@ -279,6 +281,7 @@ pub async fn get_table_data(
     })
 }
 
+/// Delete tables that have no users with the owner access role.
 pub async fn delete_tables_without_owner(
     conn: impl Acquire<'_, Database = Postgres>,
 ) -> sqlx::Result<()> {

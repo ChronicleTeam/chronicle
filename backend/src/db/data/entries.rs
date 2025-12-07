@@ -1,3 +1,5 @@
+/// Database functions for managing table entries.
+
 use super::{entry_from_row, insert_columns, select_columns, update_columns};
 use crate::{
     Id,
@@ -123,7 +125,7 @@ pub async fn delete_entry(
     Ok(())
 }
 
-/// Check whether the entry exists.
+/// Return true if the entry exists.
 pub async fn entry_exists(
     executor: impl PgExecutor<'_>,
     table_id: Id,

@@ -112,6 +112,7 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Trait used to extend `Result` to allow conversion to [anyhow::Result].
 pub trait IntoAnyhow<T> {
     fn anyhow(self) -> Result<T, anyhow::Error>;
 }

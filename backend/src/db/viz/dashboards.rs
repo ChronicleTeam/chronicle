@@ -1,3 +1,5 @@
+/// Database functions for managing dashboards.
+
 use crate::{
     Id, db,
     model::{
@@ -7,7 +9,7 @@ use crate::{
 };
 use sqlx::{Acquire, PgExecutor, Postgres};
 
-/// Add a dashboard to this user.
+/// Create a dashboard.
 pub async fn create_dashboard(
     conn: impl Acquire<'_, Database = Postgres>,
     CreateDashboard { name, description }: CreateDashboard,
@@ -94,7 +96,7 @@ pub async fn delete_dashboard(
     Ok(())
 }
 
-/// Get all dashboards belonging to this user.
+/// Get all dashboards viewable by this user.
 pub async fn get_dashboards_for_user(
     executor: impl PgExecutor<'_>,
     user_id: Id,
@@ -113,6 +115,7 @@ pub async fn get_dashboards_for_user(
     .await
 }
 
+/// Delete dashboards that have no users with the owner access role.
 pub async fn delete_dashboards_without_owner(
     conn: impl Acquire<'_, Database = Postgres>,
 ) -> sqlx::Result<()> {

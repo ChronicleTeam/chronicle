@@ -1,3 +1,5 @@
+//! Routes for managing tables and performing imports and exports.
+
 use super::AppState;
 use crate::{
     auth::AppAuthSession,

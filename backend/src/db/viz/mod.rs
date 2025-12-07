@@ -1,3 +1,5 @@
+/// Database functions for the data visualization features.
+
 mod axes;
 mod charts;
 mod dashboards;

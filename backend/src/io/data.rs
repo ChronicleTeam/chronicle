@@ -1,3 +1,5 @@
+//! Module for import/export of user tables in CSV and Excel formats.
+
 use crate::{
     Id,
     model::{

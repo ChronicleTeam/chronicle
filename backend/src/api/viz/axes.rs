@@ -1,3 +1,5 @@
+//! Route for managing chart axes.
+
 use crate::{
     AppState,
     api::NO_DATA_IN_REQUEST_BODY,

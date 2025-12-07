@@ -1,9 +1,12 @@
+//! Database functions for managing users.
+
 use crate::{
     Id, db,
     model::users::{User, UserResponse},
 };
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
+/// Create a user.
 pub async fn create_user(
     conn: impl Acquire<'_, Database = Postgres>,
     username: String,
@@ -27,6 +30,7 @@ pub async fn create_user(
     Ok(user)
 }
 
+/// Update a user.
 pub async fn update_user(
     conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
@@ -70,6 +74,7 @@ pub async fn update_user(
     Ok(user)
 }
 
+/// Delete a user.
 pub async fn delete_user(
     conn: impl Acquire<'_, Database = Postgres>,
     user_id: Id,
@@ -90,6 +95,7 @@ pub async fn delete_user(
     Ok(())
 }
 
+/// Get all users in the system.
 pub async fn get_all_users(executor: impl PgExecutor<'_>) -> sqlx::Result<Vec<UserResponse>> {
     sqlx::query_as(
         r#"
@@ -104,6 +110,7 @@ pub async fn get_all_users(executor: impl PgExecutor<'_>) -> sqlx::Result<Vec<Us
     .await
 }
 
+/// Get a user from the ID.
 pub async fn get_user_by_id(
     executor: impl PgExecutor<'_>,
     user_id: Id,
@@ -124,6 +131,7 @@ pub async fn get_user_by_id(
     .await
 }
 
+/// Get a user from the username.
 pub async fn get_user_by_username(
     executor: impl PgExecutor<'_>,
     username: String,
@@ -144,6 +152,7 @@ pub async fn get_user_by_username(
     .await
 }
 
+/// Return true if a user with that username exists.
 pub async fn user_exists_by_username(
     executor: impl PgExecutor<'_>,
     username: String,
@@ -162,6 +171,7 @@ pub async fn user_exists_by_username(
     .await
 }
 
+/// Return true if a user with that ID exists.
 pub async fn user_exists_by_id(executor: impl PgExecutor<'_>, user_id: Id) -> sqlx::Result<bool> {
     sqlx::query_scalar(
         r#"

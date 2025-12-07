@@ -1,9 +1,12 @@
+/// Database functions for managing resource access.
+
 use crate::{
     Id,
     model::access::{AccessRole, GetAccess, Resource},
 };
 use sqlx::{Acquire, PgExecutor, Postgres, QueryBuilder};
 
+/// Grant a user an access role to a resource.
 pub async fn create_access(
     conn: impl Acquire<'_, Database = Postgres>,
     resource: Resource,
@@ -28,6 +31,7 @@ pub async fn create_access(
     Ok(())
 }
 
+/// Update the access role of the users.
 pub async fn update_many_access(
     conn: impl Acquire<'_, Database = Postgres>,
     resource: Resource,
@@ -61,6 +65,7 @@ pub async fn update_many_access(
     Ok(())
 }
 
+/// Revoke access to that resource from the users.
 pub async fn delete_many_access(
     conn: impl Acquire<'_, Database = Postgres>,
     resource: Resource,
@@ -83,6 +88,7 @@ pub async fn delete_many_access(
     Ok(())
 }
 
+/// Get all users and their access roles for a resource.
 pub async fn get_all_access(
     executor: impl PgExecutor<'_>,
     resource: Resource,
@@ -104,6 +110,7 @@ pub async fn get_all_access(
     .await
 }
 
+/// Get the access role of the user if it exists for that resource.
 pub async fn get_access_role(
     executor: impl PgExecutor<'_>,
     resource: Resource,

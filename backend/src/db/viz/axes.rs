@@ -1,3 +1,5 @@
+//! Database functions for managing chart axes.
+
 use crate::{
     Id,
     model::{
@@ -7,7 +9,7 @@ use crate::{
 };
 use sqlx::{Acquire, Postgres, QueryBuilder, types::Json};
 
-/// Set the list of axes of this chart using the given table as data source.
+/// Set the axes of this chart using the given table as data source and replace the SQL view.
 pub async fn set_axes(
     conn: impl Acquire<'_, Database = Postgres>,
     chart_id: Id,

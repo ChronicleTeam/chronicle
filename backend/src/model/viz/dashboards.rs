@@ -1,3 +1,5 @@
+//! Types for dashboards.
+
 use crate::{Id, model::access::AccessRole};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -28,6 +30,7 @@ pub struct UpdateDashboard {
     pub description: String,
 }
 
+/// Get dashboard response.
 #[derive(Debug, FromRow, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub struct GetDashboard {
     #[sqlx(flatten)]
@@ -35,6 +38,7 @@ pub struct GetDashboard {
     pub access_role: AccessRole,
 }
 
+/// Dashboard ID path extractor.
 #[derive(Deserialize, JsonSchema)]
 pub struct SelectDashboard {
     pub dashboard_id: Id,

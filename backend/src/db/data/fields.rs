@@ -1,3 +1,5 @@
+//! Database functions for managing table fields.
+
 use crate::{
     Id, db,
     model::{
@@ -142,7 +144,7 @@ pub async fn update_field(
     Ok(field)
 }
 
-/// Create a new field with all the cells converted to the new [FieldKind].
+/// Create a new field with all the cells converted to the new [FieldKind] and swap their ordering.
 /// Renames the old field to avoid conflict.
 async fn convert_field_kind(
     conn: impl Acquire<'_, Database = Postgres>,
@@ -295,6 +297,7 @@ pub async fn delete_field(
     Ok(())
 }
 
+/// Delete all axes associated with this field and update the chart SQL views.
 async fn delete_field_axes(
     conn: impl Acquire<'_, Database = Postgres>,
     field_id: Id,
@@ -381,7 +384,7 @@ pub async fn get_field_ids(executor: impl PgExecutor<'_>, table_id: Id) -> sqlx:
     .await
 }
 
-/// Set the order of all fields in this table.
+/// Set the order of the fields in this table.
 pub async fn set_field_order(
     conn: impl Acquire<'_, Database = Postgres>,
     order: HashMap<Id, i32>,
@@ -410,7 +413,7 @@ pub async fn set_field_order(
     Ok(())
 }
 
-/// Get the all [FieldMetadata] of this table.
+/// Get all [FieldMetadata] of this table.
 pub async fn get_fields_metadata(
     executor: impl PgExecutor<'_>,
     table_id: Id,
@@ -429,6 +432,7 @@ pub async fn get_fields_metadata(
     .await
 }
 
+/// Return true if the field exists.
 pub async fn field_exists(
     executor: impl PgExecutor<'_>,
     table_id: Id,
