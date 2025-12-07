@@ -32,4 +32,8 @@ See [Setup instructions](https://github.com/ChronicleTeam/chronicle/wiki/Deploym
 
 ## Wiki
 
-For more information, visit the [wiki](https://github.com/ChronicleTeam/chronicle/wiki)
+For comprehensive project information, visit the [wiki](https://github.com/ChronicleTeam/chronicle/wiki)
+
+## OpenAPI documentation
+
+Copy the contents of [backend/api.json](backend/api.json) to an online OpenAPI viewer such as https://editor.swagger.io/ or view them directly in a running instance at `<backend_url>/docs`.
