@@ -6,12 +6,12 @@ Importantly, all tables and dashboards can be shared accross users with robust a
 
 Finally, data can be imported or exported with common file formats to allow for easy transition.
 
-> This project was made for the SEG4910 software engineering capstone project under a client at Defence Research and Development Canada.
+> This project was made for the SEG4910 and SEG4911 software engineering capstone project under a client at Defence Research and Development Canada.
 
 
 ## Setup
 
-See [Setup instructions](https://github.com/ChronicleTeam/chronicle/wiki/Deployment-and-Installation#setup-instructions) on the wiki.
+See [installation instructions](wiki/Installation) on the wiki.
 
 ## Technologies
 
@@ -32,7 +32,7 @@ See [Setup instructions](https://github.com/ChronicleTeam/chronicle/wiki/Deploym
 
 ## Wiki
 
-For comprehensive project information, visit the [wiki](https://github.com/ChronicleTeam/chronicle/wiki)
+For comprehensive project information, visit the [wiki](wiki)
 
 ## OpenAPI documentation
 
